@@ -6,8 +6,8 @@ Repository with updaters, analyzers, and projects for sharing BFM stuff related 
 
 * Clone and Install `git clone https://github.com/LeMonADE-project/LeMonADE.git`
 * Install cmake (minimum version 3.1)
-*         gcc   (minimum version 4.8)
-*         cuda  (minimum version 7.0)
+* Install gcc   (minimum version 4.8)
+* Install cuda  (minimum version 7.0)
 * Just do for standard compilation:
  
 ````sh
