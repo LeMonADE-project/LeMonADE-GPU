@@ -4,7 +4,7 @@
 #   define INLINE_GRAPHCOLORING inline
 #endif
 
-#include "graphColoring.h"
+//#include <LeMonADEGPU/utility/graphColoring.h>
 
 #include <algorithm>                    // sort, swap
 #include <cassert>

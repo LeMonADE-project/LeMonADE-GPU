@@ -24,9 +24,9 @@
 #include <LeMonADE/updater/UpdaterReadBfmFile.h>
 #include <LeMonADE/updater/UpdaterSimpleSimulator.h>
 
-#include "GPUScBFM_AB_Type.h"
-#include "graphColoring.tpp"
-#include "SelectiveLogger.hpp"              // __FILENAME__
+#include <LeMonADEGPU/core/GPUScBFM_AB_Type.h>
+#include <LeMonADEGPU/utility/graphColoring.h>
+#include <LeMonADEGPU/utility/SelectiveLogger.hpp> // __FILENAME__
 
 
 void printHelp( void )

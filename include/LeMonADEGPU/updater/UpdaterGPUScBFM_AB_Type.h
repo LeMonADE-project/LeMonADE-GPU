@@ -16,14 +16,13 @@
 #include <type_traits>                      // make_unsigned
 
 #include <cuda_runtime_api.h>               // cudaStream_t, cudaDeviceProp
-#include <LeMonADE/utility/RandomNumberGenerators.h>
-
-#include "cudacommon.hpp"
-#include "SelectiveLogger.hpp"
-
 #include <curand.h>
-#include "rngs/RNGload.h"
-#include "rngs/PCG.h"
+
+#include <LeMonADE/utility/RandomNumberGenerators.h>
+#include <LeMonADEGPU/utility/cudacommon.hpp>
+#include <LeMonADEGPU/utility/SelectiveLogger.hpp>
+#include <LeMonADEGPU/core/rngs/RNGload.h>
+#include <LeMonADEGPU/core/rngs/PCG.h>
 
 
 //#define USE_THRUST_FILL

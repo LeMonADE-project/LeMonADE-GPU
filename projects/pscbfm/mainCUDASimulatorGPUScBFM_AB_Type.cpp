@@ -18,8 +18,10 @@
 #include <LeMonADE/updater/UpdaterReadBfmFile.h>
 #include <LeMonADE/updater/UpdaterSimpleSimulator.h>
 
-#include "GPUScBFM_AB_Type.h"
-#include "SelectiveLogger.hpp"              // __FILENAME__
+
+#include <LeMonADEGPU/core/GPUScBFM_AB_Type.h>
+#include <LeMonADEGPU/utility/SelectiveLogger.hpp> // __FILENAME__
+
 
 
 void printHelp( void )
@@ -138,7 +140,7 @@ int main( int argc, char ** argv )
             FeatureLattice< uint8_t > FeatureExcludedVolume< FeatureLatticePowerOfTwo<> > )
             Features;
         */
-        typedef LOKI_TYPELIST_3( FeatureMoleculesIO, FeatureAttributes,
+        typedef LOKI_TYPELIST_3( FeatureMoleculesIO, FeatureAttributes<>,
                                  FeatureExcludedVolumeSc<> ) Features;
 
         typedef ConfigureSystem< VectorInt3, Features, 8 > Config;

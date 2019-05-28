@@ -1,0 +1,112 @@
+#!/bin/bash
+
+function usage
+{
+    echo "usage: ./configure [options]"
+    echo "options:"
+    echo "-DLEMONADEGPU_DIR=/path/of/install/"
+    echo "-DLEMONADE_DIR=/path/to/LeMonADE-lib/"
+    echo "-DBUILDDIR=/path/to/build/LeMonADEGPU/"
+    echo "-DLEMONADEGPU_TESTS=ON/OFF"
+    echo "-DCUDA_ARCH=35"
+    echo "-DCMAKE_BUILD_TYPE=Release/Debug/Profil"
+    echo "default build directory is ./build"
+    echo "default install directory is /usr/local"
+    echo "default option for tests is OFF"
+    echo "default option for build type is Release"
+}
+
+#default values for build directory and install prefix
+PWD_PATH=$(pwd)
+BUILDDIR="build"
+CMAKE_ARGUMENTS="-DCUDA_CUDART_LIBRARY=/usr/local/cuda/lib64/libcudart.so "
+
+#parse command line arguments
+for arg in "$@"; do
+    case $arg in
+        -h | --help)
+            usage         
+            exit
+            ;;
+        
+        -DINSTALLDIR_LEMONADEGPU=*)
+                        CMAKE_ARGUMENTS+=${arg}" "
+                        TESTOPTION=${arg#*=}
+			echo "LeMonADEGPU is installed in "$TESTOPTION
+			;;
+	-DLEMONADE_DIR=*)
+                        CMAKE_ARGUMENTS+=${arg}" "
+                        TESTOPTION=${arg#*=}
+			echo "LeMonADE-lib is installed in "$TESTOPTION
+			;;
+	-DBUILDDIR=*)           
+			BUILDDIR=${arg#*=}
+			echo "Build directory set to "$BUILDDIR
+			;;
+	-DCUDA_ARCH=*) 	
+			option="-DCUDA_ARCH:STRING="${arg#*=}" "
+			CMAKE_ARGUMENTS+=$option
+			TESTOPTION=${arg#*=}
+			echo "Build directory set to "$option " and " $TESTOPTION
+			;;
+	-DLEMONADEGPU_TESTS=*)
+			CMAKE_ARGUMENTS+=${arg}" "
+			TESTOPTION=${arg#*=}
+			echo "Compiling tests set to "$TESTOPTION
+			;;
+			
+	-DCMAKE_BUILD_TYPE=*)
+			CMAKE_ARGUMENTS+=${arg}" "
+			BUILDOPTION=${arg#*=}
+			echo "Build type set to "$BUILDOPTION
+			;;
+
+	* )                     		
+			echo "unknown parameter"
+			usage         
+			exit
+
+
+    esac
+    shift           # shift the found arg away.
+done
+
+#create build directory if it does not exist
+if [ ! -d $BUILDDIR ]; then
+    mkdir -p $BUILDDIR
+fi
+
+echo "Arguments passed to cmake are "${CMAKE_ARGUMENTS}
+
+(cd $BUILDDIR >/dev/null 2>&1 && cmake $CMAKE_ARGUMENTS $PWD_PATH)
+
+########### set up the wrapper makefile ##################
+
+cat > ./Makefile <<EOF
+
+##############################################################
+#               CMake Project Wrapper Makefile               #
+############################################################## 
+
+SHELL := /bin/bash
+RM    := rm -r
+
+all: ./${BUILDDIR}/Makefile
+	@ \$(MAKE) -C ${BUILDDIR}
+.PHONY: all
+
+./${BUILDDIR}/Makefile:
+	@ (cd ${BUILDDIR} >/dev/null 2>&1 && cmake ${CMAKE_ARGUMENTS} ${PWD_PATH})
+
+clean:
+	@- \$(MAKE) --silent -C ${BUILDDIR} clean || true
+.PHONY: clean
+
+
+docs:
+	@  \$(MAKE) -C ${BUILDDIR} docs
+.PHONY : docs
+
+EOF
+
+

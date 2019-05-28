@@ -1,4 +1,5 @@
-#include "pscbfm/cudacommon.hpp"
+
+#include <LeMonADEGPU/utility/cudacommon.hpp>
 
 int main( void )
 {

@@ -5,7 +5,8 @@
  *      Authors: Ron Dockhorn, Maximilian Knespel
  */
 
-#include "UpdaterGPUScBFM_AB_Type.h"
+
+#include <LeMonADEGPU/updater/UpdaterGPUScBFM_AB_Type.h>
 
 
 #include <algorithm>                        // fill, sort, count
@@ -35,17 +36,18 @@
 #include <thrust/transform.h>
 #include <thrust/sort.h>                    // sort_by_key
 
-#include "Fundamental/BitsCompileTime.hpp"
-#include "cudacommon.hpp"
-#include "SelectiveLogger.hpp"
-#include "graphColoring.tpp"
+#include <extern/Fundamental/BitsCompileTime.hpp>
+#include <LeMonADEGPU/utility/cudacommon.hpp>
+#include <LeMonADEGPU/utility/SelectiveLogger.hpp>
+#include <LeMonADEGPU/utility/graphColoring.tpp>
+#include <LeMonADEGPU/core/rngs/Hash.h>
+#include <LeMonADEGPU/core/rngs/lemonade_philox.h>
+#include <LeMonADEGPU/core/rngs/PCG.h>
+#include <LeMonADEGPU/core/rngs/RNGload.h>
+#include <LeMonADEGPU/core/rngs/Saru.h>
+
 
 #include <curand.h>
-#include "rngs/Hash.h"
-#include "rngs/lemonade_philox.h"
-#include "rngs/PCG.h"
-#include "rngs/RNGload.h"
-#include "rngs/Saru.h"
 
 #define CURAND_CALL(x)                                          \
 do                                                              \

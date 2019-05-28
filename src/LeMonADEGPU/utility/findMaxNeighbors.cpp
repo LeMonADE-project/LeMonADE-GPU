@@ -138,11 +138,8 @@ getSignedPermutations
 #include <cmath>                                    // pow
 #include <iostream>
 #include <map>
-
-#include "Fundamental/toString.hpp"                 // operator<< overloads
-#include "Fundamental/Fundamental.hpp"              // factorial
-
-
+#include <extern/Fundamental/Fundamental.hpp> // factorial
+#include <extern/Fundamental/toString.hpp>           // operator<< overloads
 template < int T_Dim = 3, typename T = int >
 inline
 bool testGetSignedPermutations( std::array< T, T_Dim > const & perm = { 0,1,2 } )
@@ -770,8 +767,7 @@ std::vector< T_BondId > findMaxNeighborsNaiveInlinedMonteCarlo
 
 #include <cmath>                                // pow
 
-#include "Fundamental/vectorIndex.hpp"          // convertVectorToLinearIndex
-
+#include <extern/Fundamental/vectorIndex.hpp>   // convertVectorToLinearIndex
 
 template<
     int      T_Dim     = 3,

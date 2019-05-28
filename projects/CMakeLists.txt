@@ -1,0 +1,2 @@
+add_subdirectory(pscbfm)
+add_subdirectory(GPUInfo)

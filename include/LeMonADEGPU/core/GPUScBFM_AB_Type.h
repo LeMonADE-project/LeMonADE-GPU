@@ -9,8 +9,9 @@
 #include <LeMonADE/updater/AbstractUpdater.h>
 #include <LeMonADE/utility/Vector3D.h>      // VectorInt3
 
-#include "UpdaterGPUScBFM_AB_Type.h"
-#include "SelectiveLogger.hpp"
+// #include <LeMonADEGPU/updater/UpdaterGPUScBFM_AB_Type.h>
+#include "../updater/UpdaterGPUScBFM_AB_Type.h"
+#include <LeMonADEGPU/utility/SelectiveLogger.hpp>
 
 
 #define USE_UINT8_POSITIONS
