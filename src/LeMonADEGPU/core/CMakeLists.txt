@@ -30,9 +30,12 @@ INCLUDE_DIRECTORIES(BEFORE ${CMAKE_CURRENT_BINARY_DIR})
 SET(_src
     mainColorBFM.cpp
   )
+  
+FILE(_header
+     ${CMAKE_SOURCE_DIR}/include/LeMonADEGPU/core/GPUScBFM_AB_Type.h
+     ${CMAKE_SOURCE_DIR}/include/LeMonADEGPU/utility/graphColoring.h
+     ${CMAKE_SOURCE_DIR}/include/LeMonADEGPU/utility/SelectiveLogger.hpp
+    )
 
-FILE(GLOB _header
-  ${CMAKE_SOURCE_DIR}/include/LeMonADE/core/*.h
-  )
-
-CUDA_ADD_LIBRARY(obj_core OBJECT ${_src} ${_header} cuda )
+# CUDA_ADD_LIBRARY(obj_core OBJECT ${_src} ${_header} cuda )
+CUDA_ADD_LIBRARY(obj_core OBJECT ${_src} ${_header} )

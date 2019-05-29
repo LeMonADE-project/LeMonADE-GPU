@@ -31,4 +31,5 @@ std::vector< T_Color > graphColoring
     */
 );
 
+
 #include <LeMonADEGPU/utility/graphColoring.tpp>

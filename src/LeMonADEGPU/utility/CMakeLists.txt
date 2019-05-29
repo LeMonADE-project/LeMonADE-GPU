@@ -34,15 +34,16 @@ INCLUDE_DIRECTORIES(BEFORE ${CMAKE_CURRENT_BINARY_DIR})
 # target_link_libraries( gpuinfo cuda )
 
 SET(_src
-#   graphColoring.cpp
+  graphColoring.cpp
   findBestZCurveFrontOrder.cpp
   findMaxNeighbors.cpp
   SelectiveLogger.cpp
   )
-
-FILE(GLOB _header
-  ${CMAKE_SOURCE_DIR}/include/LeMonADE/utility/*.h
-  )
-
+FILE(_header
+    ${CMAKE_SOURCE_DIR}/include/LeMonADEGPU/utility/graphColoring.h
+    ${CMAKE_SOURCE_DIR}/include/extern/Fundamental/Fundamental.hpp
+    ${CMAKE_SOURCE_DIR}/include/extern/Fundamental/toString.hpp
+    ${CMAKE_SOURCE_DIR}/include/extern/Fundamental/vectorIndex.hpp
+    )
 CUDA_ADD_LIBRARY(obj_utility OBJECT ${_src} ${_header})
 

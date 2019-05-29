@@ -25,8 +25,16 @@
 #
 # --------------------------------------------------------------------------------
 
-
-FILE (GLOB_RECURSE project_SRCS *.cpp *.cxx *.cc *.C *.c *.h *.hpp *.cu *.tpp)
+SET ( project_SRCS
+      ${CMAKE_CURRENT_SOURCE_DIR}/LeMonADEGPU/core/mainColorBFM.cpp
+      ${CMAKE_CURRENT_SOURCE_DIR}/LeMonADEGPU/updater/UpdaterGPUScBFM_AB_Type.cu
+      ${CMAKE_CURRENT_SOURCE_DIR}/LeMonADEGPU/utility/findBestZCurveFrontOrder.cpp
+      ${CMAKE_CURRENT_SOURCE_DIR}/LeMonADEGPU/utility/graphColoring.cpp
+      ${CMAKE_CURRENT_SOURCE_DIR}/LeMonADEGPU/utility/SelectiveLogger.cpp
+      ${CMAKE_CURRENT_SOURCE_DIR}/LeMonADEGPU/utility/findMaxNeighbors.cpp
+)  
+     
+MESSAGE( "Add src files : " ${project_SRCS})
 SET (project_BIN ${PROJECT_NAME})
 
 IF (NOT DEFINED project_build_static)
