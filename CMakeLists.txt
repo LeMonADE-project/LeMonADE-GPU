@@ -66,8 +66,14 @@ SET (CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -O3 -msse2 -mssse3 -fexpens
 
 SET (CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -O0 -Wall -DDEBUG -std=c++11 ")
 SET (CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -O0 -Wall -DDEBUG -std=c++11 ")
-# SET (CMAKE_CXX_FLAGS_PROFIL "${CMAKE_CXX_FLAGS_PROFIL} -O3 -pg -msse2 -mssse3 -fexpensive-optimizations ")
-# SET (CMAKE_C_FLAGS_PROFIL "${CMAKE_C_FLAGS_PROFIL} -O3 -pg -msse2 -mssse3 -fexpensive-optimizations ")
+
+# this add the gprof profiler which creates a gmon.out file 
+# the profile (gmon.out)is created after executaion of the program 
+# and analyzed by the gprof tool
+#>gprof executable ./gmon.out > profile.txt
+SET (CMAKE_CXX_FLAGS_PROFIL "${CMAKE_CXX_FLAGS_PROFIL} -O3 -g -pg -msse2 -mssse3 -fexpensive-optimizations -std=c++11  ")
+SET (CMAKE_C_FLAGS_PROFIL "${CMAKE_C_FLAGS_PROFIL} -O3 -g -pg -msse2 -mssse3 -fexpensive-optimizations -std=c++11  ")
+
 
 #define value of CMAKE_BUILD_TYPE depending on input
 IF(NOT CMAKE_BUILD_TYPE)
@@ -76,6 +82,8 @@ ELSEIF(CMAKE_BUILD_TYPE STREQUAL "Release")
 SET (CMAKE_BUILD_TYPE "Release") 
 ELSEIF(CMAKE_BUILD_TYPE STREQUAL "Debug")
 SET (CMAKE_BUILD_TYPE "Debug") 
+ELSEIF(CMAKE_BUILD_TYPE STREQUAL "Profil")
+SET (CMAKE_BUILD_TYPE "Profil") 
 ELSE(NOT CMAKE_BUILD_TYPE)
 MESSAGE(FATAL_ERROR "Invalid build type ${CMAKE_BUILD_TYPE} specified.")
 ENDIF(NOT CMAKE_BUILD_TYPE)
@@ -91,6 +99,11 @@ SET (CMAKE_VERBOSE_MAKEFILE 1)
 MESSAGE("Build type is ${CMAKE_BUILD_TYPE}")
 MESSAGE("USING CXX COMPILER FLAGS ${CMAKE_CXX_FLAGS_DEBUG}")
 MESSAGE("USING C COMPILER FLAGS ${CMAKE_C_FLAGS_DEBUG}")
+ELSEIF(CMAKE_BUILD_TYPE STREQUAL "Profil")
+SET (CMAKE_VERBOSE_MAKEFILE 2)
+MESSAGE("Build type is ${CMAKE_BUILD_TYPE}")
+MESSAGE("USING CXX COMPILER FLAGS ${CMAKE_CXX_FLAGS_PROFIL}")
+MESSAGE("USING C COMPILER FLAGS ${CMAKE_C_FLAGS_PROFIL}")
 ENDIF(CMAKE_BUILD_TYPE STREQUAL "Release")
 
 
