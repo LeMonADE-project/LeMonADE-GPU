@@ -9,7 +9,7 @@ function usage
     echo "-DBUILDDIR=/path/to/build/LeMonADEGPU/"
     echo "-DLEMONADEGPU_TESTS=ON/OFF"
     echo "-DCUDA_ARCH=35"
-    echo "-DCMAKE_BUILD_TYPE=Release/Debug/Profil"
+    echo "-DCMAKE_BUILD_TYPE=Release/Debug"
     echo "default build directory is ./build"
     echo "default install directory is /usr/local"
     echo "default option for tests is OFF"

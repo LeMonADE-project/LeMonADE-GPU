@@ -14,10 +14,9 @@ Repository with updaters, analyzers, and projects for sharing BFM stuff related 
     # generates the projects
     mkdir build
     cd build
-    cmake -DLEMONADE_INCLUDE_DIR=/path/to/LeMonADE-library/include/ -DLEMONADE_LIBRARY_DIR=/path/to/LeMonADE-library/lib/ ..
-    make
+    ./configure -DINSTALLDIR_LEMONADEGPU=/path/to/install/lemonadeGPU_install -DLEMONADE_DIR=/path/to/installation/lemonade_install  -DCUDA_ARCH=60 -DBUILDDIR=/path/to/build -DLEMONADEGPU_TESTS=ON/OFF -DCMAKE_BUILD_TYPE=Release/Debug
+    make -j 2 
 ````
-
 
 ## License
 
