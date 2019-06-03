@@ -1,4 +1,5 @@
-#pragma once
+#ifndef LEMONADE_SARU_H
+#define LEMONADE_SARU_H
 
 #include <stdint.h>
 
@@ -38,6 +39,12 @@ public:
             init( seed, iteration, subseq );
         return u32();
     }
+    CUDA_CALLABLE_MEMBER double rng_d(void)
+	{if( ! initiliazed ) init(seed, iteration, subseq);
+	    return d();}
+    CUDA_CALLABLE_MEMBER float rng_f(void)
+	{if( ! initiliazed ) init(seed, iteration, subseq);
+	    return f();}
 
     /* Run-time computed advancement of the state of the generator */
     CUDA_CALLABLE_MEMBER inline void advance( unsigned int steps );
@@ -63,9 +70,23 @@ public:
     template< unsigned int seed >
     CUDA_CALLABLE_MEMBER Saru fork() const;
 
+
+
+    //! Draw a random 32-bit unsigned integer advanced ahead \a steps
     template< unsigned int steps >
     CUDA_CALLABLE_MEMBER inline unsigned int u32();
+    //! Draw a random 32-bit unsigned integer
     CUDA_CALLABLE_MEMBER inline unsigned int u32(){ return u32<1>(); }
+    //! Draw a random float on [0,1) advanced ahead \a steps
+    template <unsigned int steps>
+    CUDA_CALLABLE_MEMBER inline float f();
+    //! Draw a random float on [0,1)
+    CUDA_CALLABLE_MEMBER inline float f(){ return f<1>(); }
+    //! Draw a random double on [0,1) advanced ahead \a steps
+    template <unsigned int steps>
+    CUDA_CALLABLE_MEMBER inline double d();
+    //! Draw a random double on [0,1)
+    CUDA_CALLABLE_MEMBER inline double d(){ return d<1>(); };
 
 private:
 
@@ -259,6 +280,50 @@ CUDA_CALLABLE_MEMBER inline void Saru::advanceWeyl<1>()
 {
     state.y = state.y + oWeylOffset + ( ( ( ( signed int ) state.y ) >> 31 ) & oWeylPeriod );
 }
+/*!
+ * \tparam Number of steps to advance.
+ * \returns A random uniform float in [0,1).
+ *
+ * \post The state of the generator is advanced \a steps.
+ *
+ * Floats have 23-bits of mantissa. The values here are generated using a
+ * conversion to signed int, followed by a shift, which is usually more optimized
+ * by the compiler.
+ */
+template <unsigned int steps>
+CUDA_CALLABLE_MEMBER inline float Saru::f()
+    {
+    const float TWO_N32 = 2.32830643653869628906250e-10f; // 2^-32
+    return ((signed int)u32<steps>())*TWO_N32+0.5f;
+    }
+
+/*!
+ * \tparam Number of steps to advance.
+ * \returns A random uniform double in [0,1).
+ *
+ * \post The state of the generator is advanced \a steps.
+ *
+ * Doubles have 52-bits of mantissa. 32-bits are drawn from a random integer from
+ * the generator, while the remaining 20-bits are taken from the current state.
+ * These low 20-bits are less random, but are quick to draw. The double is generated
+ * using the method described in:
+ *
+ * J. A. Doornik, "Conversion of High-Period Random Numbers to Floating Point",
+ * ACM Transactions on Modeling and Computer Simulation (TOMACS) 17, 3 (2007).
+ * https://doi.org/10.1145/1189756.1189759.
+ *
+ * However, the variates are \b not shifted so that the interval is [0,1) rather
+ * than (0,1). This is done for sake of consistency with the C++11 <random> and
+ * GSL implementations of their random number generators.
+ */
+template <unsigned int steps>
+CUDA_CALLABLE_MEMBER inline double Saru::d()
+    {
+    const double TWO_N32 = 2.32830643653869628906250e-10; // 2^-32
+    const double TWO_N52 = 2.22044604925031308084726e-16; // 2^-52
+    return ((signed int)u32<steps>())*TWO_N32+((signed int)(state.x & 0x000fffff))*TWO_N52+0.5;
+    }
 
 
 }
+#endif /* LEMONADE_SARU_H */

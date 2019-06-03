@@ -201,35 +201,7 @@ __device__ inline uint32_t hash( uint32_t a )
  *    cells are intermingled inbetween the used memory locations
  */
 
-/* for a in-depth description see comments in Fundamental/BitsCompileTime.hpp
- * where it was copied from */
-template< typename T, unsigned char nSpacing, unsigned char nStepsNeeded, unsigned char iStep >
-struct DiluteBitsCrumble { __device__ __host__ inline static T apply( T const & xLastStep )
-{
-    auto x = DiluteBitsCrumble<T,nSpacing,nStepsNeeded,iStep-1>::apply( xLastStep );
-    auto constexpr iStep2Pow = 1llu << ( (nStepsNeeded-1) - iStep );
-    auto constexpr mask = BitPatterns::RectangularWave< T, iStep2Pow, iStep2Pow * nSpacing >::value;
-    x = ( x + ( x << ( iStep2Pow * nSpacing ) ) ) & mask;
-    return x;
-} };
 
-template< typename T, unsigned char nSpacing, unsigned char nStepsNeeded >
-struct DiluteBitsCrumble<T,nSpacing,nStepsNeeded,0> { __device__ __host__ inline static T apply( T const & x )
-{
-    auto constexpr nBitsAllowed = 1 + ( sizeof(T) * CHAR_BIT - 1 ) / ( nSpacing + 1 );
-    return x & BitPatterns::Ones< T, nBitsAllowed >::value;
-} };
-
-template< typename T, unsigned char nSpacing >
-__device__ __host__ inline T diluteBits( T const & rx )
-{
-    static_assert( nSpacing > 0, "" );
-    auto constexpr nBitsAvailable = sizeof(T) * CHAR_BIT;
-    static_assert( nBitsAvailable > 0, "" );
-    auto constexpr nBitsAllowed = CompileTimeFunctions::ceilDiv( nBitsAvailable, nSpacing + 1 );
-    auto constexpr nStepsNeeded = 1 + CompileTimeFunctions::CeilLog< 2, nBitsAllowed >::value;
-    return DiluteBitsCrumble< T, nSpacing, nStepsNeeded, ( nStepsNeeded > 0 ? nStepsNeeded-1 : 0 ) >::apply( rx );
-}
 
 /**
  * Legacy function which ironically might be more readable than my version
