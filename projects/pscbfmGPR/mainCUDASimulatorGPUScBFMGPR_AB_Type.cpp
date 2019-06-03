@@ -37,8 +37,8 @@ void printHelp( void )
         << "\n"
         << "Simple Simulator for the ScBFM with excluded volume and BondCheck splitted CL-PEG in z on GPU\n"
         << "\n"
-//         << "    -e, --seeds <file path>\n"
-//         << "        specify a seed file to use for reproducible result simulations. Currently this should contain 256+2 random 32-Bit values (or more).\n"
+        << "    -e, --seeds <file path>\n"
+        << "        specify a seed file to use for reproducible result simulations. Currently this should contain 256+2 random 32-Bit values (or more).\n"
         << "    -i, --initial-state <file path>\n"
         << "        (required) specify a BFM file to load the configuration to simulate from\n"
         << "    -m, --max-mcs <integer>\n"
@@ -113,55 +113,26 @@ int main( int argc, char ** argv )
             };
             /* getopt_long stores the option index here. */
             int option_index = 0;
-            int c = getopt_long( argc, argv, "g:hi:m:o:s:vdrf:l:", long_options, &option_index );
+            int c = getopt_long( argc, argv, "g:e:hi:m:o:s:vdrf:l:", long_options, &option_index );
 
             if ( c == -1 )
                 break;
 
             switch ( c )
             {
-                case 'e':
-                    seedFileName = std::string( optarg );
-                    break;
-                case 'h':
-                    printHelp();
-                    return 0;
-                case 'g':
-                    iGpuToUse = std::atoi( optarg );
-                    break;
-                case 'i':
-                    infile = std::string( optarg );
-                    break;
-                case 'm':
-                    max_mcs = std::atol( optarg );
-                    break;
-                case 'o':
-                    outfile = std::string( optarg );
-                    break;
-                case 's':
-                    save_interval = std::atol( optarg );
-                    break;
-		case 'v':
-                    EVON = false;
-                    break;
-		case 'd':
-                    DiagonalMovesON = true;
-                    break;
-		case 'r':
-                    sliding = true;
-                    break;
-		case 'f':
-		    char* pEnd;
-		    ShearForceOn=true;
-                    ShearForce = std::strtod( optarg, &pEnd );
-                    break;
-		case 'l':
-		    analyzeStrain = true;
-		    outfileStrain = std::string( optarg );
-                    break;
-		default:
-                    std::cerr << "Unknown option encountered: " << optarg << "\n";
-                    return 1;
+                case 'e': seedFileName = std::string( optarg ); break;
+                case 'h': printHelp(); return 0;
+                case 'g': iGpuToUse = std::atoi( optarg ); break;
+                case 'i': infile = std::string( optarg ); break;
+                case 'm': max_mcs = std::atol( optarg ); break;
+                case 'o': outfile = std::string( optarg ); break;
+                case 's': save_interval = std::atol( optarg ); break;
+		case 'v': EVON = false; break;
+		case 'd': DiagonalMovesON = true; break;
+		case 'r': sliding = true; break;
+		case 'f': char* pEnd; ShearForceOn=true; ShearForce = std::strtod( optarg, &pEnd ); break;
+		case 'l': analyzeStrain = true; outfileStrain = std::string( optarg ); break;
+		default: std::cerr << "Unknown option encountered: " << optarg << "\n"; return 1;
             }
         }
 

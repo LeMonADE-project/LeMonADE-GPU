@@ -322,11 +322,13 @@ struct ShearForce
 #else
     template< typename T > __device__ __host__ inline
     T bitPackedGet( T const * const & p, uint32_t const & i ){ return p[i]; }
+    
     template< typename T > __device__ inline
-    T bitPackedTextureGet( cudaTextureObject_t const & p, uint32_t const & i ) {
-        return tex1Dfetch<T>(p,i); }
+    T bitPackedTextureGet( cudaTextureObject_t const & p, uint32_t const & i ) {return tex1Dfetch<T>(p,i); }
+    
     template< typename T > __device__ __host__ inline
     void bitPackedSet  ( T * const __restrict__ p, uint32_t const & i ){ p[i] = 1; }
+    
     template< typename T > __device__ __host__ inline
     void bitPackedUnset( T * const __restrict__ p, uint32_t const & i ){ p[i] = 0; }
 #endif
@@ -427,7 +429,7 @@ __device__ inline bool checkFront
     uint32_t            const & x0        ,
     uint32_t            const & y0        ,
     uint32_t            const & z0        ,
-    intCUDA             const & axis
+    intCUDA             const & axis 
 )
 {
     #if defined( USE_ZCURVE_FOR_LATTICE )
