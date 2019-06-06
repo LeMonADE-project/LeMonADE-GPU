@@ -9,8 +9,8 @@
 #include <LeMonADE/updater/AbstractUpdater.h>
 #include <LeMonADE/utility/Vector3D.h>      // VectorInt3
 
-// #include <LeMonADEGPU/updater/UpdaterGPUScBFM_AB_Type.h>
-#include "../updater/UpdaterGPUScBFM_AB_Type.h"
+#include <LeMonADEGPU/updater/UpdaterGPUScBFM_AB_Type.h>
+// #include "../updater/UpdaterGPUScBFM_AB_Type.h"
 #include <LeMonADEGPU/utility/SelectiveLogger.hpp>
 
 
