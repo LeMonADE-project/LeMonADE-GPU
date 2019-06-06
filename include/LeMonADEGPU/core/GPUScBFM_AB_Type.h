@@ -259,9 +259,10 @@ public:
 #if defined( USE_UINT8_POSITIONS )
     inline void initialize()
     {
-        auto const maxBoxSize = std::max( mIngredients.getBoxX(),
-            std::max( mIngredients.getBoxY(), mIngredients.getBoxZ() ) );
-        assert( maxBoxSize >= 0 );
+        auto const maxBoxSize = std::max( mIngredients.getBoxX(), std::max( mIngredients.getBoxY(), mIngredients.getBoxZ() ) );
+	if ( maxBoxSize < 0 )
+	  std::runtime_error("The maximum box size detected is smaller than 0! There could be something wront with the input file or the given bix sizes. ");
+	
         mCanUseUint8Positions = (unsigned long long) maxBoxSize <= ( 1llu << ( CHAR_BIT * sizeof( uint8_t ) ) );
         if ( mCanUseUint8Positions )
             initializeUpdater< uint8_t >();

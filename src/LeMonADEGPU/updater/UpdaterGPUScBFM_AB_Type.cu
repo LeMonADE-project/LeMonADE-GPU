@@ -24,10 +24,6 @@
 #include <type_traits>                      // make_unsigned
 
 #include <cuda_profiler_api.h>              // cudaProfilerStop
-#ifdef USE_THRUST_FILL
-#   include <thrust/system/cuda/execution_policy.h>
-#   include <thrust/fill.h>
-#endif
 #include <thrust/execution_policy.h>        // thrust::seq, thrust::host
 #include <thrust/system/cuda/execution_policy.h>
 #include <thrust/fill.h>
@@ -227,32 +223,8 @@ __device__ uint32_t part1by2_d( uint32_t n )
 template< typename T >
 __device__ __host__ inline bool isPowerOfTwo( T const & x )
 {
-    //return ! ( x == T(0) ) && ! ( x & ( x - T(1) ) );
+    //popc returns the number of bits which are one
     return __popc( x ) <= 1;
-}
-
-/**
- * @see https://en.wikipedia.org/wiki/Moore_curve
- * @see http://www.grant-trebbin.com/2017/03/calculating-hilbert-curve-coordinates.html
- * @see "Programming the Hilbert curve - John Skilling - 2004"
- * @see https://testbook.com/blog/conversion-from-gray-code-to-binary-code-and-vice-versa/
- * @see https://rosettacode.org/wiki/Gray_code#C.2B.2B
- * @see https://stackoverflow.com/questions/17490431/gray-code-increment-function
- * @see https://en.wikipedia.org/wiki/Gray_code#Converting_to_and_from_Gray_code
- */
-template< typename T >
-__device__ __host__ inline T toGrayCode( T x )
-{
-    return x ^ ( x >> 1 );
-}
-
-template< typename T >
-__device__ __host__ inline T fromGrayCode( T x )
-{
-    T p = x;
-    while ( x >>= 1 )
-        p ^= x;
-    return p;
 }
 
 /**
@@ -268,22 +240,11 @@ __device__ inline T_Id linearizeBoxVectorIndex
     uint32_t const & iz
 )
 {
-    #if defined ( USE_ZCURVE_FOR_LATTICE ) || defined ( USE_MOORE_CURVE_FOR_LATTICE )
-        auto const zorder =
-              diluteBits< T_Id, 2 >( ix & dcBoxXM1 )        +
-            ( diluteBits< T_Id, 2 >( iy & dcBoxYM1 ) << 1 ) +
-            ( diluteBits< T_Id, 2 >( iz & dcBoxZM1 ) << 2 );
-        #if defined ( USE_MOORE_CURVE_FOR_LATTICE )
-            return fromGrayCode( zorder );
-        #else
-            return zorder;
-        #endif
+    #if defined ( USE_ZCURVE_FOR_LATTICE )
+        return diluteBits< T_Id, 2 >( ix & dcBoxXM1 )        +
+             ( diluteBits< T_Id, 2 >( iy & dcBoxYM1 ) << 1 ) +
+             ( diluteBits< T_Id, 2 >( iz & dcBoxZM1 ) << 2 );
     #else
-        #if DEBUG_UPDATERGPUSCBFM_AB_TYPE > 10
-            assert( isPowerOfTwo( dcBoxXM1 + 1 ) );
-            assert( isPowerOfTwo( dcBoxYM1 + 1 ) );
-            assert( isPowerOfTwo( dcBoxZM1 + 1 ) );
-        #endif
         return   ( ix & dcBoxXM1 ) +
                ( ( iy & dcBoxYM1 ) << dcBoxXLog2  ) +
                ( ( iz & dcBoxZM1 ) << dcBoxXYLog2 );
@@ -342,28 +303,15 @@ __device__ inline T_Id linearizeBoxVectorIndex
 #else
     template< typename T, typename T_Id > __device__ __host__ inline
     T bitPackedGet( T const * const & p, T_Id const & i ){ return p[i]; }
+    
     template< typename T > __device__ inline
-    T bitPackedTextureGet( cudaTextureObject_t p, int i ) {
-        return tex1Dfetch<T>(p,i); }
+    T bitPackedTextureGet( cudaTextureObject_t p, int i ) { return tex1Dfetch<T>(p,i); }
+    
     template< typename T, typename T_Id > __device__ __host__ inline
     void bitPackedSet  ( T * const __restrict__ p, T_Id const & i ){ p[i] = 1; }
+    
     template< typename T, typename T_Id > __device__ __host__ inline
     void bitPackedUnset( T * const __restrict__ p, T_Id const & i ){ p[i] = 0; }
-#endif
-
-
-#if CHECK_FRONT_BIT_PACKED_INDEX_CALC_VERSION != 6 && CHECK_FRONT_BIT_PACKED_INDEX_CALC_VERSION != 1
-
-int constexpr iFetchOrder0 = 0;
-int constexpr iFetchOrder1 = 3;
-int constexpr iFetchOrder2 = 6;
-int constexpr iFetchOrder3 = 2;
-int constexpr iFetchOrder4 = 5;
-int constexpr iFetchOrder5 = 8;
-int constexpr iFetchOrder6 = 1;
-int constexpr iFetchOrder7 = 4;
-int constexpr iFetchOrder8 = 7;
-
 #endif
 
 /**
@@ -470,7 +418,7 @@ __device__ inline bool checkFront
     }
     return isOccupied;
 #else
-    #if defined( USE_ZCURVE_FOR_LATTICE ) || defined ( USE_MOORE_CURVE_FOR_LATTICE )
+    #if defined( USE_ZCURVE_FOR_LATTICE ) 
         auto const x0MDX  = diluteBits< uint32_t, 2 >( ( x0 - uint32_t(1) ) & dcBoxXM1 );
         auto const x0Abs  = diluteBits< uint32_t, 2 >( ( x0               ) & dcBoxXM1 );
         auto const x0PDX  = diluteBits< uint32_t, 2 >( ( x0 + uint32_t(1) ) & dcBoxXM1 );
@@ -501,7 +449,7 @@ __device__ inline bool checkFront
 
     uint32_t is[9];
 
-    #if defined( USE_ZCURVE_FOR_LATTICE ) || defined ( USE_MOORE_CURVE_FOR_LATTICE )
+    #if defined( USE_ZCURVE_FOR_LATTICE ) 
         switch ( axis >> 1 )
         {
             case 0: is[7] = ( x0 + dx + dx ) & dcBoxXM1; break;
@@ -517,219 +465,6 @@ __device__ inline bool checkFront
             case 2: is[7] = ( ( z0 + 2*dz ) & dcBoxZM1 ) << dcBoxXYLog2; break;
         }
     #endif
-
-#if CHECK_FRONT_BIT_PACKED_INDEX_CALC_VERSION == 6 // same as version 5, but with preemptive return like version 1
-    is[8] = is[7];
-    auto const direction = axis >> 1;
-    auto const isX = ( axis & 6 ) == 0;
-    is[6] = isX ? y0MDY : x0MDX;
-    is[7] = isX ? y0Abs : x0Abs;
-    auto const b0p1 = ( axis & 6 ) == 0 ? y0PDY : x0PDX;
-    if ( direction == 2 ) {
-        is[2] = is[8] + y0MDY; is[5] = is[8] + y0Abs; is[8] += y0PDY;
-    } else {
-        is[2] = is[8] + z0MDZ; is[5] = is[8] + z0Abs; is[8] += z0PDZ;
-    }
-    is[0]  = is[2] + is[6];
-    is[3]  = is[5] + is[6];
-    is[6] += is[8];
-    is[1]  = is[2] + is[7];
-
-    #if defined( USE_MOORE_CURVE_FOR_LATTICE )
-        is[0] = fromGrayCode ( is[0] );
-        is[3] = fromGrayCode ( is[3] );
-        is[6] = fromGrayCode ( is[6] );
-        is[1] = fromGrayCode ( is[1] );
-    #endif
-
-    if ( ( (*fetch)( texLattice, is[0] ) +
-           (*fetch)( texLattice, is[3] ) +
-           (*fetch)( texLattice, is[6] ) +
-           (*fetch)( texLattice, is[1] ) ) )
-        return true;
-
-    is[4]  = is[5] + is[7];
-    is[7] += is[8];
-    is[2] += b0p1;
-    is[5] += b0p1;
-    is[8] += b0p1;
-
-    #if defined( USE_MOORE_CURVE_FOR_LATTICE )
-        is[2] = fromGrayCode( is[2] );
-        is[5] = fromGrayCode( is[5] );
-        is[8] = fromGrayCode( is[8] );
-        is[4] = fromGrayCode( is[4] );
-        is[7] = fromGrayCode( is[7] );
-    #endif
-
-    return (*fetch)( texLattice, is[2] ) +
-           (*fetch)( texLattice, is[5] ) +
-           (*fetch)( texLattice, is[8] ) +
-           (*fetch)( texLattice, is[4] ) +
-           (*fetch)( texLattice, is[7] );
-#elif CHECK_FRONT_BIT_PACKED_INDEX_CALC_VERSION == 5 // try to reduce registers and times even mroe
-    is[8] = is[7];
-    auto const direction = axis >> 1;
-    auto const isX = ( axis & 6 ) == 0;
-    is[6] = isX ? y0MDY : x0MDX;
-    is[7] = isX ? y0Abs : x0Abs;
-    auto const b0p1 = ( axis & 6 ) == 0 ? y0PDY : x0PDX;
-    if ( direction == 2 ) {
-        is[2] = is[8] + y0MDY; is[5] = is[8] + y0Abs; is[8] += y0PDY;
-    } else {
-        is[2] = is[8] + z0MDZ; is[5] = is[8] + z0Abs; is[8] += z0PDZ;
-    }
-    is[0]  = is[2] + is[6];
-    is[3]  = is[5] + is[6];
-    is[6] += is[8];
-    is[1]  = is[2] + is[7];
-    is[4]  = is[5] + is[7];
-    is[7] += is[8];
-    is[2] += b0p1;
-    is[5] += b0p1;
-    is[8] += b0p1;
-#elif CHECK_FRONT_BIT_PACKED_INDEX_CALC_VERSION == 4 // ternary operator version
-    auto const direction = axis >> 1;
-    auto const a0m1 = direction == 2 ? y0MDY : z0MDZ;
-    auto const a0   = direction == 2 ? y0Abs : z0Abs;
-    auto const a0p1 = direction == 2 ? y0PDY : z0PDZ;
-    auto const b0m1 = direction == 0 ? y0MDY : x0MDX;
-    auto const b0   = direction == 0 ? y0Abs : x0Abs;
-    auto const b0p1 = direction == 0 ? y0PDY : x0PDX;
-    is[2] = is[7] + a0m1; is[5] = is[7] + a0; is[8]  = is[7] + a0p1;
-    is[0] = is[2] + b0m1; is[1] = is[2] + b0; is[2] += b0p1;
-    is[3] = is[5] + b0m1; is[4] = is[5] + b0; is[5] += b0p1;
-    is[6] = is[8] + b0m1; is[7] = is[8] + b0; is[8] += b0p1;
-#elif CHECK_FRONT_BIT_PACKED_INDEX_CALC_VERSION == 3 // this version tries to do the calculations unbranched and reorders the calculations in order to hopefully use less registers
-    uint32_t a0m1,a0,a0p1;
-    if ( axis >> 1 == 2 )
-    {
-        a0m1 = y0MDY;
-        a0   = y0Abs;
-        a0p1 = y0PDY;
-    }
-    else
-    {
-        a0m1 = z0MDZ;
-        a0   = z0Abs;
-        a0p1 = z0PDZ;
-    }
-    is[2] = is[7] + a0m1; is[5]  = is[7] + a0; is[8]  = is[7] + a0p1;
-    uint32_t b0m1,b0,b0p1;
-    if ( axis >> 1 == 0 )
-    {
-        b0m1 = y0MDY;
-        b0   = y0Abs;
-        b0p1 = y0PDY;
-    }
-    else
-    {
-        b0m1 = x0MDX;
-        b0   = x0Abs;
-        b0p1 = x0PDX;
-    }
-    is[0] = is[2] + b0m1; is[1] = is[2] + b0;
-    is[3] = is[5] + b0m1; is[4] = is[5] + b0;
-    is[6] = is[8] + b0m1; is[7] = is[8] + b0;
-    is[2] += b0p1;
-    is[5] += b0p1;
-    is[8] += b0p1;
-#elif CHECK_FRONT_BIT_PACKED_INDEX_CALC_VERSION == 2 // version which at least tries to reduce the large switch to two smaller if-else's
-    if ( axis >> 1 == 2 )
-    {
-        is[2] = is[7] + y0MDY; is[5] = is[7] + y0Abs; is[8] = is[7] + y0PDY;
-    }
-    else
-    {
-        is[2] = is[7] + z0MDZ; is[5] = is[7] + z0Abs; is[8] = is[7] + z0PDZ;
-    }
-    if ( axis >> 1 == 0 )
-    {
-        is[0] = is[2] + y0MDY; is[1]  = is[2] + y0Abs;
-        is[3] = is[5] + y0MDY; is[4]  = is[5] + y0Abs;
-        is[6] = is[8] + y0MDY; is[7]  = is[8] + y0Abs;
-        is[2] += y0PDY;
-        is[5] += y0PDY;
-        is[8] += y0PDY;
-    }
-    else
-    {
-        is[0] = is[2] + x0MDX; is[1]  = is[2] + x0Abs;
-        is[3] = is[5] + x0MDX; is[4]  = is[5] + x0Abs;
-        is[6] = is[8] + x0MDX; is[7]  = is[8] + x0Abs;
-        is[2] += x0PDX;
-        is[5] += x0PDX;
-        is[8] += x0PDX;
-    }
-#elif CHECK_FRONT_BIT_PACKED_INDEX_CALC_VERSION == 1 // this version tries to implement a preemptive return
-    switch ( axis >> 1 )
-    {
-        case 0: //-+x
-            is[2]  = is[7] + z0MDZ; is[5]  = is[7] + z0Abs; is[8]  = is[7] + z0PDZ;
-            is[0]  = is[2] + y0MDY;
-            is[3]  = is[5] + y0MDY;
-            is[6]  = is[8] + y0MDY;
-            break;
-        case 1: //-+y
-            is[2]  = is[7] + z0MDZ; is[5]  = is[7] + z0Abs; is[8]  = is[7] + z0PDZ;
-            is[0]  = is[2] + x0MDX;
-            is[3]  = is[5] + x0MDX;
-            is[6]  = is[8] + x0MDX;
-            break;
-        case 2: //-+z
-            is[2]  = is[7] + y0MDY; is[5]  = is[7] + y0Abs; is[8]  = is[7] + y0PDY;
-            is[0]  = is[2] + x0MDX;
-            is[3]  = is[5] + x0MDX;
-            is[6]  = is[8] + x0MDX;
-            break;
-    }
-
-    #if defined( USE_MOORE_CURVE_FOR_LATTICE )
-        is[0] = fromGrayCode( is[0] );
-        is[3] = fromGrayCode( is[3] );
-        is[6] = fromGrayCode( is[6] );
-    #endif
-
-    if ( ( (*fetch)( texLattice, is[0] ) +
-           (*fetch)( texLattice, is[3] ) +
-           (*fetch)( texLattice, is[6] ) ) )
-        return true;
-
-    switch ( axis >> 1 )
-    {
-        case 0: //-+x
-            is[1]  = is[2] + y0Abs; is[2] += y0PDY;
-            is[4]  = is[5] + y0Abs; is[5] += y0PDY;
-            is[7]  = is[8] + y0Abs; is[8] += y0PDY;
-            break;
-        case 1: //-+y
-            is[1]  = is[2] + x0Abs; is[2] += x0PDX;
-            is[4]  = is[5] + x0Abs; is[5] += x0PDX;
-            is[7]  = is[8] + x0Abs; is[8] += x0PDX;
-            break;
-        case 2: //-+z
-            is[1]  = is[2] + x0Abs; is[2] += x0PDX;
-            is[4]  = is[5] + x0Abs; is[5] += x0PDX;
-            is[7]  = is[8] + x0Abs; is[8] += x0PDX;
-            break;
-    }
-
-    #if defined( USE_MOORE_CURVE_FOR_LATTICE )
-        is[1] = fromGrayCode( is[1] );
-        is[2] = fromGrayCode( is[2] );
-        is[4] = fromGrayCode( is[4] );
-        is[5] = fromGrayCode( is[5] );
-        is[7] = fromGrayCode( is[7] );
-        is[8] = fromGrayCode( is[8] );
-    #endif
-
-    return (*fetch)( texLattice, is[2] ) +
-           (*fetch)( texLattice, is[5] ) +
-           (*fetch)( texLattice, is[8] ) +
-           (*fetch)( texLattice, is[1] ) +
-           (*fetch)( texLattice, is[4] ) +
-           (*fetch)( texLattice, is[7] );
-#elif CHECK_FRONT_BIT_PACKED_INDEX_CALC_VERSION == 0
     switch ( axis >> 1 )
     {
         case 0: //-+x
@@ -781,7 +516,6 @@ __device__ inline bool checkFront
              * @endverbatim
              */
     }
-#endif
     /**
      * we might be able to profit from remporal caching by changing the fetch
      * order ?! In that case the best should be in order of the z-curve.
@@ -816,30 +550,16 @@ __device__ inline bool checkFront
      *  +---+---+.'
      * @endverbatim
      */
-#if ( CHECK_FRONT_BIT_PACKED_INDEX_CALC_VERSION != 1 ) && ( CHECK_FRONT_BIT_PACKED_INDEX_CALC_VERSION != 6 )
+    return (*fetch)( texLattice, is[ 0 ] ) +
+           (*fetch)( texLattice, is[ 1 ] ) +
+           (*fetch)( texLattice, is[ 2 ] ) +
+           (*fetch)( texLattice, is[ 3 ] ) +
+           (*fetch)( texLattice, is[ 4 ] ) +
+           (*fetch)( texLattice, is[ 5 ] ) +
+           (*fetch)( texLattice, is[ 6 ] ) +
+           (*fetch)( texLattice, is[ 7 ] ) +
+           (*fetch)( texLattice, is[ 8 ] );
 
-    #if defined( USE_MOORE_CURVE_FOR_LATTICE )
-        is[0] = fromGrayCode( is[0] );
-        is[1] = fromGrayCode( is[1] );
-        is[2] = fromGrayCode( is[2] );
-        is[3] = fromGrayCode( is[3] );
-        is[4] = fromGrayCode( is[4] );
-        is[5] = fromGrayCode( is[5] );
-        is[6] = fromGrayCode( is[6] );
-        is[7] = fromGrayCode( is[7] );
-        is[8] = fromGrayCode( is[8] );
-    #endif
-
-    return (*fetch)( texLattice, is[ iFetchOrder0 ] ) +
-           (*fetch)( texLattice, is[ iFetchOrder1 ] ) +
-           (*fetch)( texLattice, is[ iFetchOrder2 ] ) +
-           (*fetch)( texLattice, is[ iFetchOrder3 ] ) +
-           (*fetch)( texLattice, is[ iFetchOrder4 ] ) +
-           (*fetch)( texLattice, is[ iFetchOrder5 ] ) +
-           (*fetch)( texLattice, is[ iFetchOrder6 ] ) +
-           (*fetch)( texLattice, is[ iFetchOrder7 ] ) +
-           (*fetch)( texLattice, is[ iFetchOrder8 ] );
-#endif
 #endif // NOMAGIC
 }
 
@@ -1317,26 +1037,15 @@ T_Id UpdaterGPUScBFM_AB_Type< T_UCoordinateCuda >::linearizeBoxVectorIndex
     T_Coordinate const & iz
 ) const
 {
-    #if defined ( USE_ZCURVE_FOR_LATTICE ) || defined ( USE_MOORE_CURVE_FOR_LATTICE )
-        auto const zorder =
-              diluteBits< T_Id, 2 >( T_Id( ix ) & mBoxXM1 )        +
-            ( diluteBits< T_Id, 2 >( T_Id( iy ) & mBoxYM1 ) << 1 ) +
-            ( diluteBits< T_Id, 2 >( T_Id( iz ) & mBoxZM1 ) << 2 );
-        #if defined ( USE_MOORE_CURVE_FOR_LATTICE )
-            return fromGrayCode( zorder );
-        #else
-            return zorder;
-        #endif
+    #if defined ( USE_ZCURVE_FOR_LATTICE )
+        return diluteBits< T_Id, 2 >( T_Id( ix ) & mBoxXM1 )        +
+             ( diluteBits< T_Id, 2 >( T_Id( iy ) & mBoxYM1 ) << 1 ) +
+             ( diluteBits< T_Id, 2 >( T_Id( iz ) & mBoxZM1 ) << 2 );
     #elif defined( NOMAGIC )
         return ( ix % mBoxX ) +
                ( iy % mBoxY ) * mBoxX +
                ( iz % mBoxZ ) * mBoxX * mBoxY;
     #else
-        #if DEBUG_UPDATERGPUSCBFM_AB_TYPE > 10
-            assert( isPowerOfTwo( mBoxXM1 + 1 ) );
-            assert( isPowerOfTwo( mBoxYM1 + 1 ) );
-            assert( isPowerOfTwo( mBoxZM1 + 1 ) );
-        #endif
         return   ( T_Id( ix ) & mBoxXM1 ) +
                ( ( T_Id( iy ) & mBoxYM1 ) << mBoxXLog2  ) +
                ( ( T_Id( iz ) & mBoxZM1 ) << mBoxXYLog2 );
@@ -2482,35 +2191,17 @@ void UpdaterGPUScBFM_AB_Type< T_UCoordinateCuda >::initialize( void )
 
     /* write out macro definition configuration */
     mLog( "Info" ) << "[" << __FILENAME__ << "::initialize] Macro configurations:\n"
-    #if defined( USE_THRUST_FILL )
-        << " - using thrust::fill\n"
-    #endif
     #if defined( USE_BIT_PACKING_TMP_LATTICE )
         << " - working with bit-packed temporary lattice\n"
     #endif
-    #if defined( USE_BIT_PACKING_LATTICE )
-        << " - working with bit-packed normal lattice\n"
-    #endif
-    #if defined( AUTO_CONFIGURE_BEST_SETTINGS_FOR_PSCBFM_ALGORITHM )
-        << " - autoconfiguration is turned on\n"
-    #endif
     #if defined( USE_ZCURVE_FOR_LATTICE )
         << " - using z-curve spatial ordering for the lattices\n"
-    #endif
-    #if defined( USE_MOORE_CURVE_FOR_LATTICE )
-        << " - using moore curve instead of z-curve\n"
-    #endif
-    #if defined( USE_DOUBLE_BUFFERED_TMP_LATTICE )
-        << " - using two temporary lattice to clean one while the other is being used\n"
     #endif
     #if defined( USE_NBUFFERED_TMP_LATTICE )
         << " - using " << mnLatticeTmpBuffers << " temporary lattices to calculate on a fresh one while the rest is still cleaning in another stream\n"
     #endif
     #if defined( USE_GPU_FOR_OVERHEAD )
         << " - using GPU for initializations\n"
-    #endif
-    #if defined( CHECK_FRONT_BIT_PACKED_INDEX_CALC_VERSION )
-        << " - using version " << CHECK_FRONT_BIT_PACKED_INDEX_CALC_VERSION << " of checkFront\n"
     #endif
     #if defined( MAX_CONNECTIVITY )
         << " - maximum connectivity is " << MAX_CONNECTIVITY << "\n"
@@ -2966,9 +2657,6 @@ void UpdaterGPUScBFM_AB_Type< T_UCoordinateCuda >::runSimulationOnGPU
     CUDA_ERROR( cudaStreamSynchronize( mStream ) ); // finish e.g. initializations
     CUDA_ERROR( cudaMemcpy( mPolymerSystemSortedOld->gpu, mPolymerSystemSorted->gpu, mPolymerSystemSortedOld->nBytes, cudaMemcpyDeviceToDevice ) );
     auto const nSpecies = mnElementsInGroup.size();
-    #if defined( USE_DOUBLE_BUFFERED_TMP_LATTICE )
-        cudaStream_t streamMemset = 0;
-    #endif
 
     /**
      * Statistics (min, max, mean, stddev) on filtering. Filtered because of:
@@ -3029,11 +2717,7 @@ void UpdaterGPUScBFM_AB_Type< T_UCoordinateCuda >::runSimulationOnGPU
         std::vector< std::vector< int   > >( 2 /* true or false */,
             std::vector< int   >( vnThreadsToTry.size(),
             2 /* repeat 2 time, i.e. execute three times */ ) ),
-#ifdef AUTO_CONFIGURE_BEST_SETTINGS_FOR_PSCBFM_ALGORITHM
-        0, true, vnThreadsToTry.size() <= 1, false
-#else
         2, true, true, true
-#endif
     } );
     cudaEvent_t tOneGpuLoop0, tOneGpuLoop1;
     cudaEventCreate( &tOneGpuLoop0 );
@@ -3230,7 +2914,7 @@ void UpdaterGPUScBFM_AB_Type< T_UCoordinateCuda >::runSimulationOnGPU
 
             if ( useCudaMemset )
             {
-                #if defined( USE_NBUFFERED_TMP_LATTICE ) and ! defined( USE_DOUBLE_BUFFERED_TMP_LATTICE )
+                #if defined( USE_NBUFFERED_TMP_LATTICE ) 
                     /* we only need to delete when buffers will wrap around and
                      * on the last loop, so that on next runSimulationOnGPU
                      * call mLatticeTmp is clean */
@@ -3239,29 +2923,13 @@ void UpdaterGPUScBFM_AB_Type< T_UCoordinateCuda >::runSimulationOnGPU
                     {
                         cudaMemsetAsync( (void*) mLatticeTmp->gpu, 0, mLatticeTmp->nBytes, mStream );
                     }
-                #elif defined( USE_THRUST_FILL )
-                    thrust::fill( thrust::system::cuda::par, (uint64_t*)  mLatticeTmp->gpu,
-                                  (uint64_t*)( mLatticeTmp->gpu + mLatticeTmp->nElements ), 0 );
                 #else
                     auto const nBytesToDelete = mBoxX * mBoxY * mBoxZ * sizeof( mLatticeTmp->gpu[0] )
                     #if defined( USE_BIT_PACKING_TMP_LATTICE )
                         / CHAR_BIT
                     #endif
                         ;
-                    #ifdef USE_DOUBLE_BUFFERED_TMP_LATTICE
-                        /* wait for current calculations to finish before we can delete the current lattice, but the next loop can already start calculation on the other buffer */
-                        if ( streamMemset == 0 )
-                            CUDA_ERROR( cudaStreamCreate( & streamMemset ) )
-                        CUDA_ERROR( cudaStreamSynchronize( streamMemset ) );
-                        CUDA_ERROR( cudaStreamSynchronize( mStream ) );
-                        #if 1
-                            cudaMemset( (void*)( mLatticeTmp->gpu + iOffsetLatticeTmp ), 0, nBytesToDelete );
-                        #else
-                            cudaMemcpyAsync( (void*)( mLatticeTmp->gpu + iOffsetLatticeTmp ), (void*) mLatticeTmp->host, nBytesToDelete, cudaMemcpyHostToDevice, streamMemset );
-                        #endif
-                    #else
                         mLatticeTmp->memsetAsync(0);
-                    #endif
                 #endif
             }
             else
