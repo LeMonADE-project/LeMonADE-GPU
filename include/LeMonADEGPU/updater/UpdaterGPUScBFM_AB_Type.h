@@ -23,11 +23,12 @@
 #include <LeMonADEGPU/utility/SelectiveLogger.hpp>
 #include <LeMonADEGPU/core/rngs/RNGload.h>
 #include <LeMonADEGPU/core/rngs/PCG.h>
+#include <LeMonADEGPU/core/rngs/Saru.h>
 
 
 //#define USE_THRUST_FILL
 #define USE_BIT_PACKING_TMP_LATTICE
-//#define USE_BIT_PACKING_LATTICE
+// #define USE_BIT_PACKING_LATTsICE
 //#define AUTO_CONFIGURE_BEST_SETTINGS_FOR_PSCBFM_ALGORITHM
 #define USE_ZCURVE_FOR_LATTICE
 //#define USE_MOORE_CURVE_FOR_LATTICE
@@ -52,7 +53,7 @@
 //#   if ! defined( USE_PERIODIC_MONOMER_SORTING )
 //#       define CHECK_FRONT_BIT_PACKED_INDEX_CALC_VERSION 0
 //#   else
-#       define CHECK_FRONT_BIT_PACKED_INDEX_CALC_VERSION 6
+#       define CHECK_FRONT_BIT_PACKED_INDEX_CALC_VERSION 0
 //#   endif
 #endif
 
@@ -70,32 +71,13 @@
  *       USE_BIT_PACKING_TMP_LATTICE
  */
 
-
-/**
- * When not reordering the neighbor information as struct of array,
- * then increasing this leads to performance degradataion!
- * But currently, as the reordering is implemented, it just leads to
- * higher memory usage.
- * In the 3D case more than 20 makes no sense for the standard bond vector
- * set, as the volume exclusion plus the bond vector set make 20 neighbors
- * the maximum. In real use cases 8 are already very much / more than sufficient.
- */
-#define MAX_CONNECTIVITY 8
-
-//#define NONPERIODICITY
-
 #include <LeMonADEGPU/utility/alignedMatrizes.h>
-
-/* stores amount and IDs of neighbors for each monomer */
-struct MonomerEdges
-{
-    uint32_t size; // could also be uint8_t as it is limited by MAX_CONNECTIVITY
-    uint32_t neighborIds[ MAX_CONNECTIVITY ];
-};
+#include <LeMonADEGPU/core/MonomerEdges.h>
 
 template< typename T_UCoordinateCuda >
 class UpdaterGPUScBFM_AB_Type
 {
+private:
 public:
     /**
      * This is still used, at least the 32 bit version!
@@ -145,18 +127,6 @@ public:
 
 private:
     cudaStream_t mStream;
-
-    RandomNumberGenerators randomNumbers;
-    int64_t mAge;
-    bool    mUsePeriodicMonomerSorting;
-    int64_t mnStepsBetweenSortings;
-    bool mIsPeriodicX;
-    bool mIsPeriodicY;
-    bool mIsPeriodicZ;
-
-    bool mForbiddenBonds[512];
-    //int BondAsciiArray[512];
-
     /**
      * Vector of length boxX * boxY * boxZ. Actually only contains 0 if
      * the cell / lattice point is empty or 1 if it is occupied by a monomer
@@ -319,6 +289,17 @@ private:
      */
     MirroredVector < T_Id   > * mNeighborsUnsorted;
 
+    RandomNumberGenerators randomNumbers;
+    
+    int64_t mAge;
+    bool    mUsePeriodicMonomerSorting;
+    int64_t mnStepsBetweenSortings;
+    bool mIsPeriodicX;
+    bool mIsPeriodicY;
+    bool mIsPeriodicZ;
+
+    bool mForbiddenBonds[512];
+
     T_BoxSize mBoxX     ;
     T_BoxSize mBoxY     ;
     T_BoxSize mBoxZ     ;
@@ -414,7 +395,7 @@ public:
 
     /* setter methods */
     void setGpu               ( int iGpuToUse );
-    void copyBondSet( int dx, int dy, int dz, bool bondForbidden );
+    void copyBondSet          ( int dx, int dy, int dz, bool bondForbidden );
     void setNrOfAllMonomers   ( T_Id nAllMonomers );
     void setAttribute         ( T_Id i, int32_t attribute ); // this is to be NOT the coloring as needed for parallelizing the BFM, it is to be used for additional e.g. physical attributes like actual chemical types
     void setMonomerCoordinates( T_Id i, T_Coordinate x, T_Coordinate y, T_Coordinate z );

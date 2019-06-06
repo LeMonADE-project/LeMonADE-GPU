@@ -45,6 +45,7 @@
 #include <LeMonADEGPU/core/rngs/PCG.h>
 #include <LeMonADEGPU/core/rngs/RNGload.h>
 #include <LeMonADEGPU/core/rngs/Saru.h>
+#include <LeMonADEGPU/core/MonomerEdges.h>
 
 
 #include <curand.h>
@@ -2513,12 +2514,7 @@ void UpdaterGPUScBFM_AB_Type< T_UCoordinateCuda >::initialize( void )
     #endif
     #if defined( MAX_CONNECTIVITY )
         << " - maximum connectivity is " << MAX_CONNECTIVITY << "\n"
-    #endif
-    #if defined( NONPERIODICITY )
-        << " - hardcoded non-periodic boundary conditions\n"
-    #else
-        << " - hardcoded periodic boundary conditions\n"
-    #endif
+    #endif	
     ;
     if ( mUsePeriodicMonomerSorting )
         mLog( "Info" ) << " - periodically sorting the monomers inside the array in respect to their spatial position every " << mnStepsBetweenSortings << "-th step to increase cache hit rates\n";
