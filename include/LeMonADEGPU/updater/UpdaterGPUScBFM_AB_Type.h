@@ -21,10 +21,10 @@
 #include <LeMonADE/utility/RandomNumberGenerators.h>
 #include <LeMonADEGPU/utility/cudacommon.hpp>
 #include <LeMonADEGPU/utility/SelectiveLogger.hpp>
-#include <LeMonADEGPU/core/rngs/RNGload.h>
-#include <LeMonADEGPU/core/rngs/PCG.h>
+// #include <LeMonADEGPU/core/rngs/RNGload.h>
+// #include <LeMonADEGPU/core/rngs/PCG.h>
 #include <LeMonADEGPU/core/rngs/Saru.h>
-#include <LeMonADEGPU/core/SpaceFillingCurve.h>
+// #include <LeMonADEGPU/core/SpaceFillingCurve.h>
 
 //keep this 
 #define USE_BIT_PACKING_TMP_LATTICE
@@ -281,19 +281,19 @@ private:
     MirroredVector < T_Id   > * mNeighborsUnsorted;
 
     RandomNumberGenerators randomNumbers;
-    
-    int64_t mAge;
+
     bool    mUsePeriodicMonomerSorting;
     int64_t mnStepsBetweenSortings;
+    bool mForbiddenBonds[512];
+    
+    int64_t mAge;
     bool mIsPeriodicX;
     bool mIsPeriodicY;
     bool mIsPeriodicZ;
-
-    bool mForbiddenBonds[512];
-
     T_BoxSize mBoxX     ;
     T_BoxSize mBoxY     ;
     T_BoxSize mBoxZ     ;
+    
     T_BoxSize mBoxXM1   ;
     T_BoxSize mBoxYM1   ;
     T_BoxSize mBoxZM1   ;
@@ -304,31 +304,11 @@ private:
     int            miGpuToUse;
     cudaDeviceProp mCudaProps;
 
-    /* data needed for alternative RNGs */
-public:
-    enum class Rng
-    {
-        IntHash = 1,
-        Saru    = 2,
-        Philox  = 3,
-        Pcg     = 4,
-        Xorwow  = 5
-    };
 
 private:
-    Rng miRngToUse;
-
-    uint32_t mSeedXorwow;
-    MirroredVector< typename Rngs::RNGload::GlobalState > * mRngVectorXorwow;
-    curandGenerator_t mGenXorwow;
-    cudaStream_t mStreamXorwow;
-
-    uint32_t mSeedPcg;
-    MirroredVector< Rngs::PCG::State > * mStateVectorPcg;
-
     uint8_t mnSplitColors;
 
-private:
+
     /**
      * If we constrict each index to 1024=2^10 which already is quite large,
      * 256=2^8 being normally large, then this means that the linearzed index
@@ -405,8 +385,7 @@ public:
     void setPeriodicity( bool isPeriodicX, bool isPeriodicY, bool isPeriodicZ );
     inline void    setAge( int64_t rAge ){ mAge = rAge; }
     inline int64_t getAge( void ) const{ return mAge; }
-    inline void    setRng( Rng x ){ miRngToUse = x; }
-    inline Rng     getRng( void ) const{ return miRngToUse; }
+
     /* this is a performance feature, but one which also changes the order
      * in which random numbers are generated making binary comparisons of
      * the results moot */

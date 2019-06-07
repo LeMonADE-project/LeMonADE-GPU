@@ -10,9 +10,6 @@
 #endif
 
 
-namespace Rngs {
-
-
 class Saru
 {
 private:
@@ -22,17 +19,18 @@ public:
 	using GlobalState = int;
 
     CUDA_CALLABLE_MEMBER inline Saru() : initiliazed( false ), state( { 0x12345678, 0x12345678 } ){}
+    CUDA_CALLABLE_MEMBER inline Saru( unsigned int seed1, unsigned int seed2, unsigned int seed3  ):seed(seed1),iteration(seed2), subseq(seed3) {init(seed,iteration,subseq); }
     CUDA_CALLABLE_MEMBER inline void init( unsigned int seed1, unsigned int seed2, unsigned int seed3 );
 
-    CUDA_CALLABLE_MEMBER static constexpr bool needsSeed       ( void ){ return true ; }
-    CUDA_CALLABLE_MEMBER static constexpr bool needsSubsequence( void ){ return true ; }
-    CUDA_CALLABLE_MEMBER static constexpr bool needsIteration  ( void ){ return true ; }
-    CUDA_CALLABLE_MEMBER static constexpr bool needsGlobalState( void ){ return false; }
-
-    CUDA_CALLABLE_MEMBER inline void setGlobalState( GlobalState const * ){}
-    CUDA_CALLABLE_MEMBER inline void setIteration  ( uint64_t const rIteration ){ iteration = rIteration; }
-    CUDA_CALLABLE_MEMBER inline void setSeed       ( uint64_t const rSeed      ){ seed      = rSeed     ; }
-    CUDA_CALLABLE_MEMBER inline void setSubsequence( uint64_t const rSubseq    ){ subseq    = rSubseq   ; }
+//     CUDA_CALLABLE_MEMBER static constexpr bool needsSeed       ( void ){ return true ; }
+//     CUDA_CALLABLE_MEMBER static constexpr bool needsSubsequence( void ){ return true ; }
+//     CUDA_CALLABLE_MEMBER static constexpr bool needsIteration  ( void ){ return true ; }
+//     CUDA_CALLABLE_MEMBER static constexpr bool needsGlobalState( void ){ return false; }
+// 
+//     CUDA_CALLABLE_MEMBER inline void setGlobalState( GlobalState const * ){}
+//     CUDA_CALLABLE_MEMBER inline void setIteration  ( uint64_t const rIteration ){ iteration = rIteration; }
+//     CUDA_CALLABLE_MEMBER inline void setSeed       ( uint64_t const rSeed      ){ seed      = rSeed     ; }
+//     CUDA_CALLABLE_MEMBER inline void setSubsequence( uint64_t const rSubseq    ){ subseq    = rSubseq   ; }
     CUDA_CALLABLE_MEMBER inline uint32_t rng32 ( void )
     {
         if ( ! initiliazed )
@@ -325,5 +323,5 @@ CUDA_CALLABLE_MEMBER inline double Saru::d()
     }
 
 
-}
+
 #endif /* LEMONADE_SARU_H */

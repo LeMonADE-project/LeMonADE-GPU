@@ -142,8 +142,6 @@ public:
 
         mLog( "Info" ) << "[" << __FILENAME__ << "::initialize] Forwarding relevant paramters to GPU updater\n";
         mUpdaterGpu.setGpu( miGpuToUse );
-        if ( miRngToUse != -1 )
-            mUpdaterGpu.setRng( ( typename UpdaterGPUScBFM_AB_Type< T_UCoordinateCuda >::Rng )( miRngToUse ) );
         if ( mSetStepsBetweenSortings )
             mUpdaterGpu.setStepsBetweenSortings( mnStepsBetweenSortings );
         mLog( "Info" ) << "[" << __FILENAME__ << "::initialize] mUpdaterGpu.setPeriodicity\n";

@@ -36,10 +36,6 @@
 #include <LeMonADEGPU/utility/cudacommon.hpp>
 #include <LeMonADEGPU/utility/SelectiveLogger.hpp>
 #include <LeMonADEGPU/utility/graphColoring.tpp>
-#include <LeMonADEGPU/core/rngs/Hash.h>
-#include <LeMonADEGPU/core/rngs/lemonade_philox.h>
-#include <LeMonADEGPU/core/rngs/PCG.h>
-#include <LeMonADEGPU/core/rngs/RNGload.h>
 #include <LeMonADEGPU/core/rngs/Saru.h>
 #include <LeMonADEGPU/core/MonomerEdges.h>
 
@@ -68,7 +64,7 @@ do                                                              \
  * in order to avoid multiple definition errors as they are only used
  * in this file and are not to be exported!
  */
-namespace {
+// namespace {
 
 
 /* shorten full type names for kernels (assuming these are independent of the template parameter) */
@@ -132,8 +128,8 @@ __device__ __constant__ uint32_t dcBoxXLog2 ;  // lattice shift in X
 __device__ __constant__ uint32_t dcBoxXYLog2;  // lattice shift in X*Y
 
 
-}
-
+// }
+#include <LeMonADEGPU/feature/BoxCheck.h>
 
 /* Since CUDA 5.5 (~2014) there do exist texture objects which are much
  * easier and can actually be used as kernel arguments!
@@ -145,30 +141,6 @@ __device__ __constant__ uint32_t dcBoxXYLog2;  // lattice shift in X*Y
  *  objects instead of texture references completely removes this overhead."
  * => they only exist for kepler -.- ...
  */
-
-__device__ inline uint32_t hash( uint32_t a )
-{
-    /* https://web.archive.org/web/20120626084524/http://www.concentric.net:80/~ttwang/tech/inthash.htm
-     * Note that before this 2007-03 version there were no magic numbers.
-     * This hash function doesn't seem to be published.
-     * He writes himself that this shouldn't really be used for PRNGs ???
-     * @todo E.g. check random distribution of randomly drawn directions are
-     *       they rouhgly even?
-     * The 'hash' or at least an older version of it can even be inverted !!!
-     * http://c42f.github.io/2015/09/21/inverting-32-bit-wang-hash.html
-     * Somehow this also gets attibuted to Robert Jenkins?
-     * https://gist.github.com/badboy/6267743
-     * -> http://www.burtleburtle.net/bob/hash/doobs.html
-     *    http://burtleburtle.net/bob/hash/integer.html
-     */
-    a = ( a + 0x7ed55d16 ) + ( a << 12 );
-    a = ( a ^ 0xc761c23c ) ^ ( a >> 19 );
-    a = ( a + 0x165667b1 ) + ( a << 5  );
-    a = ( a + 0xd3a2646c ) ^ ( a << 9  );
-    a = ( a + 0xfd7046c5 ) + ( a << 3  );
-    a = ( a ^ 0xb55a4f09 ) ^ ( a >> 16 );
-    return a;
-}
 
 
 /**
@@ -622,7 +594,7 @@ namespace {
  *       Why are there three kernels instead of just one
  *        -> for global synchronization
  */
-template< typename T_UCoordinateCuda, class RNG, bool T_IsPeriodicX, bool T_IsPeriodicY, bool T_IsPeriodicZ >
+template< typename T_UCoordinateCuda , class BoxCheck >
 __global__ void kernelSimulationScBFMCheckSpecies
 (
     typename CudaVec4< T_UCoordinateCuda >::value_type
@@ -636,8 +608,8 @@ __global__ void kernelSimulationScBFMCheckSpecies
     T_Id                const              nMonomers               ,
     uint64_t            const              rSeed                   ,
     uint64_t            const              rGlobalIteration        ,
-    typename RNG::GlobalState *            rGlobalRngStates        ,
-    cudaTextureObject_t const              texLatticeRefOut
+    cudaTextureObject_t const              texLatticeRefOut        ,
+    BoxCheck                               bCheck
 )
 {
     uint32_t rn;
@@ -651,12 +623,8 @@ __global__ void kernelSimulationScBFMCheckSpecies
         //select random direction. Own implementation of an rng :S? But I think it at least# was initialized using the LeMonADE RNG ...
         if ( iGrid % 1 == 0 ) // 12 = floor( log(2^32) / log(6) )
         {
-            RNG rng;
-            if ( RNG::needsGlobalState() ) rng.setGlobalState( rGlobalRngStates  );
-            if ( RNG::needsIteration  () ) rng.setIteration  ( rGlobalIteration  );
-            if ( RNG::needsSubsequence() ) rng.setSubsequence( iMonomer          );
-            if ( RNG::needsSeed       () ) rng.setSeed       ( rSeed             );
-            rn = rng.rng32();
+	  Saru rng(rGlobalIteration,iMonomer,rSeed);
+	  rn =rng.rng32();
         }
 
         int direction = rn % 6;
@@ -679,15 +647,7 @@ __global__ void kernelSimulationScBFMCheckSpecies
          *   0 <= x1 <= dcBoxX is useless, we need to replace, not add to it!
          *   0 < x0 <= dxBoxXM1 || ( x0 == 0 && x1 <= 1 ) || ( x0 == 255 && x1 >= 254 )
          */
-        if ( ( T_IsPeriodicX || ( ( 0 < r0.x && r1.x < dcBoxXM1 ) ||
-                                  ( r0.x == 0 && r1.x <= 1 ) ||
-                                  ( r0.x == dcBoxXM1 && r1.x > 1 ) ) ) &&
-             ( T_IsPeriodicY || ( ( 0 < r0.y && r1.y < dcBoxXM1 ) ||
-                                  ( r0.y == 0 && r1.y <= 1 ) ||
-                                  ( r0.y == dcBoxXM1 && r1.y > 1 ) ) ) &&
-             ( T_IsPeriodicZ || ( ( 0 < r0.z && r1.z < dcBoxXM1 ) ||
-                                  ( r0.z == 0 && r1.z <= 1 ) ||
-                                  ( r0.z == dcBoxXM1 && r1.z > 1 ) ) ) )
+	if( bCheck(r1.x,r1.y,r1.z) )
         {
             /* check whether the new position would result in invalid bonds
              * between this monomer and its neighbors */
@@ -724,7 +684,7 @@ __global__ void kernelSimulationScBFMCheckSpecies
 /*
 colordiff <( sed -n 931,1028p ../src/pscbfm/UpdaterGPUScBFM_AB_Type.cu ) <( sed -n 1031,1090p ../src/pscbfm/UpdaterGPUScBFM_AB_Type.cu )
 */
-template< typename T_UCoordinateCuda, bool T_IsPeriodicX, bool T_IsPeriodicY, bool T_IsPeriodicZ >
+template< typename T_UCoordinateCuda, class BoxCheck >
 __global__ void kernelCountFilteredCheck
 (
     typename CudaVec4< T_UCoordinateCuda >::value_type
@@ -737,7 +697,8 @@ __global__ void kernelCountFilteredCheck
     uint8_t          const * const              dpNeighborsSizes       ,
     T_Id                     const              nMonomers              ,
     cudaTextureObject_t      const              texLatticeRefOut       ,
-    unsigned long long int * const              dpFiltered
+    unsigned long long int * const              dpFiltered             ,
+    BoxCheck                                    bCheck
 )
 {
     for ( auto iMonomer = blockIdx.x * blockDim.x + threadIdx.x;
@@ -753,15 +714,7 @@ __global__ void kernelCountFilteredCheck
             T_UCoordinateCuda( r0.z + DZTable_d[ direction ] )
         };
 
-        if ( ( T_IsPeriodicX || ( ( 0 < r0.x && r1.x < dcBoxXM1 ) ||
-                                  ( r0.x == 0 && r1.x <= 1 ) ||
-                                  ( r0.x == dcBoxXM1 && r1.x > 1 ) ) ) &&
-             ( T_IsPeriodicY || ( ( 0 < r0.y && r1.y < dcBoxXM1 ) ||
-                                  ( r0.y == 0 && r1.y <= 1 ) ||
-                                  ( r0.y == dcBoxXM1 && r1.y > 1 ) ) ) &&
-             ( T_IsPeriodicZ || ( ( 0 < r0.z && r1.z < dcBoxXM1 ) ||
-                                  ( r0.z == 0 && r1.z <= 1 ) ||
-                                  ( r0.z == dcBoxXM1 && r1.z > 1 ) ) ) )
+	if( bCheck(r1.x,r1.y,r1.z) )
         {
             auto const nNeighbors = dpNeighborsSizes[ iMonomer ];
             bool forbiddenBond = false;
@@ -1088,10 +1041,8 @@ UpdaterGPUScBFM_AB_Type< T_UCoordinateCuda >::UpdaterGPUScBFM_AB_Type()
    mBoxZM1                          ( 0    ),
    mBoxXLog2                        ( 0    ),
    mBoxXYLog2                       ( 0    ),
-   miRngToUse                       ( Rng::IntHash ),
-   mRngVectorXorwow                 ( NULL ),
-   mStateVectorPcg                  ( NULL ),
-   mnSplitColors                    ( 0    )
+   mnSplitColors                    ( 0    ),
+   mGlobalIterator                  ( 0    )
 {
     /**
      * Log control.
@@ -1162,8 +1113,6 @@ void UpdaterGPUScBFM_AB_Type< T_UCoordinateCuda >::destruct()
     deletePointer( mNeighbors                      , "mNeighbors"                       );
     deletePointer( mNeighborsSorted                , "mNeighborsSorted"                 );
     deletePointer( mNeighborsSortedSizes           , "mNeighborsSortedSizes"            );
-    deletePointer( mRngVectorXorwow                , "mRngVectorXorwow"                 );
-    deletePointer( mStateVectorPcg                 , "mStateVectorPcg"                  );
     if ( deletePointer.nBytesFreed > 0 )
     {
         mLog( "Info" )
@@ -2210,7 +2159,7 @@ void UpdaterGPUScBFM_AB_Type< T_UCoordinateCuda >::initialize( void )
     if ( mUsePeriodicMonomerSorting )
         mLog( "Info" ) << " - periodically sorting the monomers inside the array in respect to their spatial position every " << mnStepsBetweenSortings << "-th step to increase cache hit rates\n";
 
-    mLog( "Info" ) << "use randomg number generator " << (int) miRngToUse << "\n";
+    mLog( "Info" ) << "use randomg number generator Saru " << "\n";
 
     auto constexpr maxBoxSize = ( 1llu << ( CHAR_BIT * sizeof( T_CoordinateCuda ) ) );
     if ( mBoxX > maxBoxSize || mBoxY > maxBoxSize || mBoxZ > maxBoxSize )
@@ -2258,25 +2207,6 @@ void UpdaterGPUScBFM_AB_Type< T_UCoordinateCuda >::initialize( void )
     if ( mAge != 0 )
         doSpatialSorting();
 
-    /* initializeRandomNumbers */
-    if ( miRngToUse == Rng::Xorwow )
-    {
-        mSeedXorwow      = randomNumbers.r250_rand32();
-        mRngVectorXorwow = new MirroredVector< Rngs::RNGload::GlobalState /* uint32_t */ >( mnAllMonomers );
-        CURAND_CALL( curandCreateGenerator( & mGenXorwow, CURAND_RNG_PSEUDO_DEFAULT ) );
-        cudaStreamCreate( &mStreamXorwow );
-        CURAND_CALL( curandSetStream ( mGenXorwow, mStreamXorwow ) );
-        CURAND_CALL( curandSetPseudoRandomGeneratorSeed( mGenXorwow, mSeedXorwow ) );
-        CURAND_CALL( curandGenerate( mGenXorwow, mRngVectorXorwow->gpu, mnAllMonomers ) ); //Generate a first set of RNGs
-    }
-    else if ( miRngToUse == Rng::Pcg )
-    {
-        mSeedPcg = randomNumbers.r250_rand32();
-        mStateVectorPcg = new MirroredVector< Rngs::PCG::State >( mnAllMonomers );
-        for ( unsigned int i = 0; i < mnAllMonomers; ++i )
-                mStateVectorPcg->host[i] = Rngs::PCG::State( mSeedPcg, i );
-        mStateVectorPcg->push();
-    }
     /* Saru, IntHash and Philox don't need any particular initialization */
 
     CUDA_ERROR( cudaGetDevice( &miGpuToUse ) );
@@ -2756,7 +2686,6 @@ void UpdaterGPUScBFM_AB_Type< T_UCoordinateCuda >::runSimulationOnGPU
          *  - each particle could be touched, not just one group */
         for ( uint32_t iSubStep = 0; iSubStep < nSpecies; ++iSubStep )
         {
-            auto const currentAge = mAge + iStep * nSpecies + iSubStep;
             #if defined( USE_NBUFFERED_TMP_LATTICE )
                 auto const iStepTotal = iStep * nSpecies + iSubStep;
                 auto const iOffsetLatticeTmp = ( iStepTotal % mnLatticeTmpBuffers )
@@ -2790,91 +2719,43 @@ void UpdaterGPUScBFM_AB_Type< T_UCoordinateCuda >::runSimulationOnGPU
                 mLog( "Info" ) << "Calling Check-Kernel for species " << iSpecies << " for uint32_t * " << (void*) mNeighborsSorted->gpu << " + " << mNeighborsSortedInfo.getMatrixOffsetElements( iSpecies ) << " = " << (void*)( mNeighborsSorted->gpu + mNeighborsSortedInfo.getMatrixOffsetElements( iSpecies ) ) << " with pitch " << mNeighborsSortedInfo.getMatrixPitchElements( iSpecies ) << "\n";
             */
 
-            /* Wait for RNGs to be generated */
-            if ( miRngToUse == Rng::Xorwow )
-                cudaStreamSynchronize( mStreamXorwow );
-
-            #define TMP_CALL_KERNEL_CHECK( RNG, SEED, SUBSEQ, STATE, PX, PY, PZ ) \
-            kernelSimulationScBFMCheckSpecies< T_UCoordinateCuda, RNG, PX, PY, PZ > \
-            <<< nBlocks, nThreads, 0, mStream >>>(                             \
-                mPolymerSystemSorted->gpu,                                     \
-                mPolymerFlags->gpu + mviSubGroupOffsets[ iSpecies ],           \
-                mviSubGroupOffsets[ iSpecies ],                                \
-                mLatticeTmp->gpu + iOffsetLatticeTmp,                          \
-                mNeighborsSorted->gpu + mNeighborsSortedInfo.getMatrixOffsetElements( iSpecies ), \
-                mNeighborsSortedInfo.getMatrixPitchElements( iSpecies ),       \
-                mNeighborsSortedSizes->gpu + mviSubGroupOffsets[ iSpecies ],   \
-                mnElementsInGroup[ iSpecies ],                                 \
-                SEED, SUBSEQ, STATE,                                           \
-                mLatticeOut->texture                                           \
+	    BoxCheck boxCheck( mIsPeriodicX, mIsPeriodicY, mIsPeriodicZ, mBoxX, mBoxY, mBoxZ );
+	    kernelSimulationScBFMCheckSpecies< T_UCoordinateCuda > 
+            <<< nBlocks, nThreads, 0, mStream >>>(                             
+                mPolymerSystemSorted->gpu,                                     
+                mPolymerFlags->gpu + mviSubGroupOffsets[ iSpecies ],           
+                mviSubGroupOffsets[ iSpecies ],                                
+                mLatticeTmp->gpu + iOffsetLatticeTmp,                          
+                mNeighborsSorted->gpu + mNeighborsSortedInfo.getMatrixOffsetElements( iSpecies ), 
+                mNeighborsSortedInfo.getMatrixPitchElements( iSpecies ),       
+                mNeighborsSortedSizes->gpu + mviSubGroupOffsets[ iSpecies ],   
+                mnElementsInGroup[ iSpecies ],                                 
+                seed, 
+		mGlobalIterator,                                         
+                mLatticeOut->texture,
+		boxCheck
             );
-            auto const periodicity = ( mIsPeriodicX << 2 ) + ( mIsPeriodicY << 1 ) + mIsPeriodicZ;
-            #define TMP_CALL_KERNEL_CHECK2( RNG, SEED, SUBSEQ, STATE ) \
-            switch ( periodicity )                \
-            {                                     \
-                case 0: TMP_CALL_KERNEL_CHECK( RNG, SEED, SUBSEQ, STATE, false, false, false ); break; \
-                case 1: TMP_CALL_KERNEL_CHECK( RNG, SEED, SUBSEQ, STATE, false, false,  true ); break; \
-                case 2: TMP_CALL_KERNEL_CHECK( RNG, SEED, SUBSEQ, STATE, false,  true, false ); break; \
-                case 3: TMP_CALL_KERNEL_CHECK( RNG, SEED, SUBSEQ, STATE, false,  true,  true ); break; \
-                case 4: TMP_CALL_KERNEL_CHECK( RNG, SEED, SUBSEQ, STATE,  true, false, false ); break; \
-                case 5: TMP_CALL_KERNEL_CHECK( RNG, SEED, SUBSEQ, STATE,  true, false,  true ); break; \
-                case 6: TMP_CALL_KERNEL_CHECK( RNG, SEED, SUBSEQ, STATE,  true,  true, false ); break; \
-                case 7: TMP_CALL_KERNEL_CHECK( RNG, SEED, SUBSEQ, STATE,  true,  true,  true ); break; \
-                default: std::cerr << "Can't match periodicity " << periodicity << "!\n"; assert( false ); \
-            }
-            switch ( miRngToUse )
-            {
-                case Rng::IntHash: TMP_CALL_KERNEL_CHECK2( Rngs::Hash           , seed, currentAge, NULL ); break;
-                case Rng::Saru   : TMP_CALL_KERNEL_CHECK2( Rngs::Saru           , seed, currentAge, NULL ); break;
-                case Rng::Philox : TMP_CALL_KERNEL_CHECK2( Rngs::lemonade_philox, seed, currentAge, NULL ); break;
-                case Rng::Pcg    : TMP_CALL_KERNEL_CHECK2( Rngs::PCG, mSeedPcg, currentAge, mStateVectorPcg->gpu ); break;
-                case Rng::Xorwow : TMP_CALL_KERNEL_CHECK2( Rngs::RNGload, mSeedXorwow, currentAge, mRngVectorXorwow->gpu ); break;
-                default: std::cerr <<"Unsupported RNG " << (int) miRngToUse << "!\n"; assert( false );
-            }
-            #undef TMP_CALL_KERNEL_CHECK2
-            #undef TMP_CALL_KERNEL_CHECK
-
-            /* The counting kernel can come after the Check-kernel, because the
+	    /** The counting kernel can come after the Check-kernel, because the
              * Check-kernel only modifies the polymer flags which it does not
              * read itself. It actually wouldn't work else, because the count
-             * kernel needs to query the drawn direction */
-            #define TMP_CALL_KERNEL_CHECK_COUNT( PX, PY, PZ )                  \
-            {                                                                  \
-                kernelCountFilteredCheck< T_UCoordinateCuda, PX, PY, PZ >      \
-                <<< nBlocks, nThreads, 0, mStream >>>(                         \
-                    mPolymerSystemSorted->gpu,                                 \
-                    mPolymerFlags->gpu + mviSubGroupOffsets[ iSpecies ],       \
-                    mviSubGroupOffsets[ iSpecies ],                            \
-                    mLatticeTmp->gpu + iOffsetLatticeTmp,                      \
-                    mNeighborsSorted->gpu + mNeighborsSortedInfo.getMatrixOffsetElements( iSpecies ), \
-                    mNeighborsSortedInfo.getMatrixPitchElements( iSpecies ),   \
-                    mNeighborsSortedSizes->gpu + mviSubGroupOffsets[ iSpecies ], \
-                    mnElementsInGroup[ iSpecies ],                             \
-                    mLatticeOut->texture,                                      \
-                    dpFiltered                                                 \
-                );                                                             \
-            }
-            if ( mLog.isActive( "Stats" ) ) switch ( periodicity )
-            {
-                case 0: TMP_CALL_KERNEL_CHECK_COUNT( false, false, false ); break;
-                case 1: TMP_CALL_KERNEL_CHECK_COUNT( false, false,  true ); break;
-                case 2: TMP_CALL_KERNEL_CHECK_COUNT( false,  true, false ); break;
-                case 3: TMP_CALL_KERNEL_CHECK_COUNT( false,  true,  true ); break;
-                case 4: TMP_CALL_KERNEL_CHECK_COUNT(  true, false, false ); break;
-                case 5: TMP_CALL_KERNEL_CHECK_COUNT(  true, false,  true ); break;
-                case 6: TMP_CALL_KERNEL_CHECK_COUNT(  true,  true, false ); break;
-                case 7: TMP_CALL_KERNEL_CHECK_COUNT(  true,  true,  true ); break;
-                default: assert( false );
-            }
-            #undef TMP_CALL_KERNEL_CHECK_COUNT
-
-            if ( miRngToUse == Rng::Xorwow )
-            {
-                /* Wait for the first kernel to finish, before overwriting the RNGs
-                 * Optimize: two arrays and a pointer swap */
-                cudaStreamSynchronize( mStream );
-                CURAND_CALL( curandGenerate( mGenXorwow, mRngVectorXorwow->gpu, mnAllMonomers ) );
-            }
+             * kernel needs to query the drawn direction 
+	     * @todo find the bug !!!
+	     */
+	    //somehow it does not work with the boxCheck method. 
+/*	    kernelCountFilteredCheck< T_UCoordinateCuda >
+	    <<< nBlocks, nThreads, 0, mStream >>>(                 
+		mPolymerSystemSorted->gpu,                         
+		mPolymerFlags->gpu + mviSubGroupOffsets[ iSpecies ],
+		mviSubGroupOffsets[ iSpecies ],                     
+		mLatticeTmp->gpu + iOffsetLatticeTmp,               
+		mNeighborsSorted->gpu + mNeighborsSortedInfo.getMatrixOffsetElements( iSpecies ), 
+		mNeighborsSortedInfo.getMatrixPitchElements( iSpecies ),   
+		mNeighborsSortedSizes->gpu + mviSubGroupOffsets[ iSpecies ], 
+		mnElementsInGroup[ iSpecies ],                             
+		mLatticeOut->texture,                                     
+		dpFiltered,
+		boxCheck
+	    );*/ 
 
             if ( mLog.isActive( "Stats" ) )
             {
@@ -3207,8 +3088,6 @@ void UpdaterGPUScBFM_AB_Type< T_UCoordinateCuda >::cleanup()
 {
     this->destruct();
 
-    if ( miRngToUse == Rng::Xorwow )
-        cudaStreamDestroy( mStreamXorwow );
     cudaDeviceSynchronize();
     cudaProfilerStop();
 }
