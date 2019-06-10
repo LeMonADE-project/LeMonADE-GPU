@@ -3,7 +3,7 @@
 
 /**
  * @brief class for checking the coordinates for periodic boundary conditions
- * 
+ * @todo hand over a pointer to the box sizes on the device with cudaGetSymbolAdress(void** devPtr, const void**  symbol)
  */
 struct BoxCheck
 {
@@ -18,7 +18,6 @@ private:
 	       
   int myperiodicmode;
   bool pX, pY, pZ;
-  uint32_t boxX, boxY, boxZ;
   
 public:
   /*standard constructor*/
@@ -28,7 +27,7 @@ public:
    * @param myperiodicmode_ periodicityas enum 
    * 
    */
-  BoxCheck(int myperiodicmode_, uint32_t boxX_, uint32_t boxY_, uint32_t boxZ_ ):myperiodicmode(myperiodicmode_),boxX(boxX_), boxY(boxY_), boxZ(boxZ_)
+  BoxCheck(int myperiodicmode_ ):myperiodicmode(myperiodicmode_)
   {  }
   
   /**
@@ -37,7 +36,7 @@ public:
    * @param pY_ periodicity in y-direction
    * @param pZ_ periodicity in z-direction
    */
-  BoxCheck( bool pX_,  bool pY_,  bool pZ_, uint32_t boxX_, uint32_t boxY_, uint32_t boxZ_ ):pX(pX_),pY(pY_),pZ(pZ_),boxX(boxX_), boxY(boxY_), boxZ(boxZ_)
+  BoxCheck( bool pX_,  bool pY_,  bool pZ_):pX(pX_),pY(pY_),pZ(pZ_)
   {
     if      (   pX &&   pY &&   pZ )  //111 periodic 
 	myperiodicmode=0;
@@ -61,19 +60,19 @@ public:
   {
     switch(myperiodicmode)
     { 
-	case periodic111: return  true                                ;
-// 	case periodic000: return ((0) <= x && x <  dcBoxXM1 &&
-// 				  (0) <= y && y <  dcBoxYM1 &&
-// 				  (0) <= z && z <  dcBoxZM1 )  ;  
-// 	case periodic100: return ((0) <= y && y <  dcBoxYM1 &&
-// 				  (0) <= z && z <  dcBoxZM1 )  ;
-// 	case periodic010: return ((0) <= x && x <  dcBoxXM1 &&
-// 				  (0) <= z && z <  dcBoxZM1 )  ;
-// 	case periodic001: return ((0) <= x && x <  dcBoxXM1 &&
-// 				  (0) <= y && y <  dcBoxYM1 )  ;
-// 	case periodic110: return ((0) <= z && z <  dcBoxZM1 )  ;
-// 	case periodic011: return ((0) <= x && x <  dcBoxXM1 )  ;
-// 	case periodic101: return ((0) <= y && y <  dcBoxYM1 )  ;
+	case periodic111: return  true                         ;
+	case periodic000: return ((0) <= x && x <  dcBoxXM1 &&
+				  (0) <= y && y <  dcBoxYM1 &&
+				  (0) <= z && z <  dcBoxZM1 )  ;  
+	case periodic100: return ((0) <= y && y <  dcBoxYM1 &&
+				  (0) <= z && z <  dcBoxZM1 )  ;
+	case periodic010: return ((0) <= x && x <  dcBoxXM1 &&
+				  (0) <= z && z <  dcBoxZM1 )  ;
+	case periodic001: return ((0) <= x && x <  dcBoxXM1 &&
+				  (0) <= y && y <  dcBoxYM1 )  ;
+	case periodic110: return ((0) <= z && z <  dcBoxZM1 )  ;
+	case periodic011: return ((0) <= x && x <  dcBoxXM1 )  ;
+	case periodic101: return ((0) <= y && y <  dcBoxYM1 )  ;
 	default         : return false                                ; //maybe throw an error?! 
     };
   }
