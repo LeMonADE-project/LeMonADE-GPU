@@ -32,28 +32,17 @@
 #include <thrust/transform.h>
 #include <thrust/sort.h>                    // sort_by_key
 
+//extract only the things which are really needed from the below two files:
 #include <extern/Fundamental/BitsCompileTime.hpp>
 #include <LeMonADEGPU/utility/cudacommon.hpp>
+
 #include <LeMonADEGPU/utility/SelectiveLogger.hpp>
 #include <LeMonADEGPU/utility/graphColoring.tpp>
 #include <LeMonADEGPU/core/rngs/Saru.h>
 #include <LeMonADEGPU/core/MonomerEdges.h>
+#include <LeMonADEGPU/>
 
-
-#include <curand.h>
-
-#define CURAND_CALL(x)                                          \
-do                                                              \
-{                                                               \
-    if ( ( x ) != CURAND_STATUS_SUCCESS )                       \
-    {                                                           \
-        printf( "Error at %s:%d\n", __FILENAME__, __LINE__ );   \
-        return ;                                                \
-    }                                                           \
-} while (0)
-
-#define DEBUG_UPDATERGPUSCBFM_AB_TYPE 100
-#if defined( USE_BIT_PACKING_TMP_LATTICE ) || defined( USE_BIT_PACKING_LATTICE )
+#if defined( USE_BIT_PACKING_TMP_LATTICE )
 #   define USE_BIT_PACKING
 #endif
 
@@ -2255,6 +2244,9 @@ void UpdaterGPUScBFM_AB_Type< T_UCoordinateCuda >::setPeriodicity
 template< typename T_UCoordinateCuda >
 void UpdaterGPUScBFM_AB_Type< T_UCoordinateCuda >::setAttribute( T_Id i, int32_t attribute ){ mAttributeSystem.at(i) = attribute; }
 
+/**
+ * @todo add a runtime error for coordinates exceeding the maximum type range
+ */
 template< typename T_UCoordinateCuda >
 void UpdaterGPUScBFM_AB_Type< T_UCoordinateCuda >::setMonomerCoordinates
 (
@@ -2264,24 +2256,6 @@ void UpdaterGPUScBFM_AB_Type< T_UCoordinateCuda >::setMonomerCoordinates
     T_Coordinate  const z
 )
 {
-#if DEBUG_UPDATERGPUSCBFM_AB_TYPE > 1
-    //if ( ! ( 0 <= x && (T_BoxSize) x < mBoxX ) )
-    //    std::cout << i << ": (" << x << "," << y << "," << z << ")\n";
-    /* can I apply periodic modularity here to allow the full range ??? */
-    if ( ! inRange< decltype( mPolymerSystem->host[0].x ) >(x) ||
-         ! inRange< decltype( mPolymerSystem->host[0].y ) >(y) ||
-         ! inRange< decltype( mPolymerSystem->host[0].z ) >(z)    )
-    {
-        std::stringstream msg;
-        msg << "[" << __FILENAME__ << "::setMonomerCoordinates" << "] "
-            << "One or more of the given coordinates "
-            << "(" << x << "," << y << "," << z << ") "
-            << "is larger than the internal integer data type for "
-            << "representing positions allow! (" << std::numeric_limits< T_Coordinate >::min()
-            << " <= size <= " << std::numeric_limits< T_Coordinate >::max() << ")";
-        throw std::invalid_argument( msg.str() );
-    }
-#endif
     mPolymerSystem->host[i].x = x;
     mPolymerSystem->host[i].y = y;
     mPolymerSystem->host[i].z = z;
@@ -2719,7 +2693,7 @@ void UpdaterGPUScBFM_AB_Type< T_UCoordinateCuda >::runSimulationOnGPU
                 mLog( "Info" ) << "Calling Check-Kernel for species " << iSpecies << " for uint32_t * " << (void*) mNeighborsSorted->gpu << " + " << mNeighborsSortedInfo.getMatrixOffsetElements( iSpecies ) << " = " << (void*)( mNeighborsSorted->gpu + mNeighborsSortedInfo.getMatrixOffsetElements( iSpecies ) ) << " with pitch " << mNeighborsSortedInfo.getMatrixPitchElements( iSpecies ) << "\n";
             */
 
-	    BoxCheck boxCheck( mIsPeriodicX, mIsPeriodicY, mIsPeriodicZ, mBoxX, mBoxY, mBoxZ );
+	    BoxCheck boxCheck( mIsPeriodicX, mIsPeriodicY, mIsPeriodicZ );
 	    kernelSimulationScBFMCheckSpecies< T_UCoordinateCuda > 
             <<< nBlocks, nThreads, 0, mStream >>>(                             
                 mPolymerSystemSorted->gpu,                                     
