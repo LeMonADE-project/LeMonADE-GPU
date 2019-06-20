@@ -51,6 +51,16 @@
 
 #include <LeMonADEGPU/utility/alignedMatrizes.h>
 #include <LeMonADEGPU/core/MonomerEdges.h>
+#include <LeMonADEGPU/core/SpaceFillingCurve.h>
+class Method {
+
+private:    
+    SpaceFillingCurve curve; 
+  
+public:
+   __device__ __host__ const SpaceFillingCurve&   getCurve() const {return curve; }
+   SpaceFillingCurve&   modifyCurve() {return curve; }
+};
 
 template< typename T_UCoordinateCuda > 
 class UpdaterGPUScBFM_AB_Type
@@ -300,7 +310,13 @@ private:
     T_BoxSize mBoxXLog2 ;
     T_BoxSize mBoxXYLog2;
     uint32_t mGlobalIterator; // used for the RNG, equal to mAge + iStep * nSpecies + iSubstep
-
+    
+    //holds some methods which can be set before usage of the GPU..
+    Method met;
+public: 
+  void setMethod(Method& met_){met=met_;}
+  Method getMethod(){met;}
+private:
     int            miGpuToUse;
     cudaDeviceProp mCudaProps;
 
@@ -374,8 +390,8 @@ public:
     void setLatticeSize       ( T_BoxSize boxX, T_BoxSize boxY, T_BoxSize boxZ );
     /* how often to double the initial number of colors */
     inline void setSplitColors( uint8_t const rnSplitColors ){ mnSplitColors = rnSplitColors; };
-
-    void runSimulationOnGPU( uint32_t nrMCS_per_Call );
+    
+    void runSimulationOnGPU  ( uint32_t nrMCS_per_Call );
 
     /* using T_Coordinate with int64_t throws error as LeMonADE itself is limited to 32 bit positions! */
     int32_t getMonomerPositionInX( T_Id i );

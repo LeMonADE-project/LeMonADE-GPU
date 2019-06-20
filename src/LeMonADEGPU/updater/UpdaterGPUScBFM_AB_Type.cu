@@ -41,6 +41,7 @@
 #include <LeMonADEGPU/core/rngs/Saru.h>
 #include <LeMonADEGPU/core/MonomerEdges.h>
 #include <LeMonADEGPU/core/constants.cuh>
+#include <LeMonADEGPU/core/SpaceFillingCurve.h>
 
 #if defined( USE_BIT_PACKING_TMP_LATTICE )
 #   define USE_BIT_PACKING
@@ -518,7 +519,7 @@ namespace {
  *       Why are there three kernels instead of just one
  *        -> for global synchronization
  */
-template< typename T_UCoordinateCuda , class BoxCheck >
+template< typename T_UCoordinateCuda >
 __global__ void kernelSimulationScBFMCheckSpecies
 (
     typename CudaVec4< T_UCoordinateCuda >::value_type
@@ -533,7 +534,8 @@ __global__ void kernelSimulationScBFMCheckSpecies
     uint64_t            const              rSeed                   ,
     uint64_t            const              rGlobalIteration        ,
     cudaTextureObject_t const              texLatticeRefOut        ,
-    BoxCheck                               bCheck
+    BoxCheck                               bCheck, 
+    Method met 
 )
 {
     uint32_t rn;
@@ -595,9 +597,9 @@ __global__ void kernelSimulationScBFMCheckSpecies
                  * Then again the written / changed bits are never used in the above code ... */
                 direction += T_Flags(8) /* can-move-flag */;
             #ifdef USE_BIT_PACKING_TMP_LATTICE
-                bitPackedSet( dpLatticeTmp, linearizeBoxVectorIndex( r1.x, r1.y, r1.z ) );
+                bitPackedSet( dpLatticeTmp, met.getCurve().linearizeBoxVectorIndex( r1.x, r1.y, r1.z ) );
             #else
-                dpLatticeTmp[ linearizeBoxVectorIndex( r1.x, r1.y, r1.z ) ] = 1;
+                dpLatticeTmp[ met.getCurve().linearizeBoxVectorIndex( r1.x, r1.y, r1.z ) ] = 1;
             #endif
             }
         }
@@ -608,7 +610,7 @@ __global__ void kernelSimulationScBFMCheckSpecies
 /*
 colordiff <( sed -n 931,1028p ../src/pscbfm/UpdaterGPUScBFM_AB_Type.cu ) <( sed -n 1031,1090p ../src/pscbfm/UpdaterGPUScBFM_AB_Type.cu )
 */
-template< typename T_UCoordinateCuda, class BoxCheck >
+template< typename T_UCoordinateCuda >
 __global__ void kernelCountFilteredCheck
 (
     typename CudaVec4< T_UCoordinateCuda >::value_type
@@ -677,7 +679,8 @@ __global__ void kernelSimulationScBFMPerformSpecies
     T_Flags                   * const              dpPolymerFlags ,
     T_Lattice                 * const __restrict__ dpLattice      ,
     T_Id                        const              nMonomers      ,
-    cudaTextureObject_t         const              texLatticeTmp
+    cudaTextureObject_t         const              texLatticeTmp,
+     Method met 
 )
 {
     for ( auto iMonomer = blockIdx.x * blockDim.x + threadIdx.x;
@@ -701,7 +704,7 @@ __global__ void kernelSimulationScBFMPerformSpecies
         /* If possible, perform move now on normal lattice */
         dpPolymerFlags[ iMonomer ] = properties | T_Flags(16); // indicating allowed move
         dpLattice[ iOldPos ] = 0;
-        dpLattice[ linearizeBoxVectorIndex( r0.x + DXTable_d[ direction ],
+        dpLattice[ met.getCurve().linearizeBoxVectorIndex( r0.x + DXTable_d[ direction ],
                                             r0.y + DYTable_d[ direction ],
                                             r0.z + DZTable_d[ direction ] ) ] = 1;
         /* We can't clean the temporary lattice in here, because it still is being
@@ -720,7 +723,8 @@ __global__ void kernelSimulationScBFMPerformSpeciesAndApply
     T_Flags             * const              dpPolymerFlags ,
     T_Lattice           * const __restrict__ dpLattice      ,
     T_Id                  const              nMonomers      ,
-    cudaTextureObject_t   const              texLatticeTmp
+    cudaTextureObject_t   const              texLatticeTmp,
+    Method 				     met 
 )
 {
     for ( auto iMonomer = blockIdx.x * blockDim.x + threadIdx.x;
@@ -750,7 +754,7 @@ __global__ void kernelSimulationScBFMPerformSpeciesAndApply
             T_UCoordinateCuda( r0.z + DZTable_d[ direction ] ),
             T_UCoordinateCuda( 0 )
         };
-        dpLattice[ linearizeBoxVectorIndex( r1.x, r1.y, r1.z ) ] = 1;
+        dpLattice[ met.getCurve().linearizeBoxVectorIndex( r1.x, r1.y, r1.z ) ] = 1;
         /* If possible, perform move now on normal lattice */
         dpPolymerSystem[ iMonomer ] = r1;
     }
@@ -808,7 +812,8 @@ __global__ void kernelSimulationScBFMZeroArraySpecies
                     * const              dpPolymerSystem,
     T_Flags   const * const              dpPolymerFlags ,
     T_Lattice       * const __restrict__ dpLatticeTmp   ,
-    T_Id              const              nMonomers
+    T_Id              const              nMonomers      ,
+    Method 				 met 
 )
 {
     for ( auto iMonomer = blockIdx.x * blockDim.x + threadIdx.x;
@@ -826,9 +831,9 @@ __global__ void kernelSimulationScBFMZeroArraySpecies
         r0.z += DZTable_d[ direction ];
     #ifdef USE_BIT_PACKING_TMP_LATTICE
         //bitPackedUnset( dpLatticeTmp, linearizeBoxVectorIndex( r0.x, r0.y, r0.z ) );
-        dpLatticeTmp[ linearizeBoxVectorIndex( r0.x, r0.y, r0.z ) >> 3 ] = 0;
+        dpLatticeTmp[ met.getCurve().linearizeBoxVectorIndex( r0.x, r0.y, r0.z ) >> 3 ] = 0;
     #else
-        dpLatticeTmp[ linearizeBoxVectorIndex( r0.x, r0.y, r0.z ) ] = 0;
+        dpLatticeTmp[ met.getCurve().linearizeBoxVectorIndex( r0.x, r0.y, r0.z ) ] = 0;
     #endif
         if ( properties & T_Flags(16))
             dpPolymerSystem[ iMonomer ] = r0;
@@ -1811,7 +1816,7 @@ void UpdaterGPUScBFM_AB_Type< T_UCoordinateCuda >::initializeLattices( void )
     std::memset( mLatticeOut->host, 0, mLatticeOut->nBytes );
     for ( T_Id iMonomer = 0; iMonomer < mnAllMonomers; ++iMonomer )
     {
-        mLatticeOut->host[ linearizeBoxVectorIndex(
+        mLatticeOut->host[ met.getCurve().linearizeBoxVectorIndex(
             mPolymerSystem->host[ iMonomer ].x,
             mPolymerSystem->host[ iMonomer ].y,
             mPolymerSystem->host[ iMonomer ].z
@@ -2408,14 +2413,14 @@ void UpdaterGPUScBFM_AB_Type< T_UCoordinateCuda >::checkSystem() const
          *    +---+---+'''
          * @endverbatim
          */
-        lattice[ linearizeBoxVectorIndex( x  , y  , z   ) ] = 1; /* 0 */
-        lattice[ linearizeBoxVectorIndex( x+1, y  , z   ) ] = 1; /* 1 */
-        lattice[ linearizeBoxVectorIndex( x  , y+1, z   ) ] = 1; /* 2 */
-        lattice[ linearizeBoxVectorIndex( x+1, y+1, z   ) ] = 1; /* 3 */
-        lattice[ linearizeBoxVectorIndex( x  , y  , z+1 ) ] = 1; /* 4 */
-        lattice[ linearizeBoxVectorIndex( x+1, y  , z+1 ) ] = 1; /* 5 */
-        lattice[ linearizeBoxVectorIndex( x  , y+1, z+1 ) ] = 1; /* 6 */
-        lattice[ linearizeBoxVectorIndex( x+1, y+1, z+1 ) ] = 1; /* 7 */
+        lattice[ met.getCurve().linearizeBoxVectorIndex( x  , y  , z   ) ] = 1; /* 0 */
+        lattice[ met.getCurve().linearizeBoxVectorIndex( x+1, y  , z   ) ] = 1; /* 1 */
+        lattice[ met.getCurve().linearizeBoxVectorIndex( x  , y+1, z   ) ] = 1; /* 2 */
+        lattice[ met.getCurve().linearizeBoxVectorIndex( x+1, y+1, z   ) ] = 1; /* 3 */
+        lattice[ met.getCurve().linearizeBoxVectorIndex( x  , y  , z+1 ) ] = 1; /* 4 */
+        lattice[ met.getCurve().linearizeBoxVectorIndex( x+1, y  , z+1 ) ] = 1; /* 5 */
+        lattice[ met.getCurve().linearizeBoxVectorIndex( x  , y+1, z+1 ) ] = 1; /* 6 */
+        lattice[ met.getCurve().linearizeBoxVectorIndex( x+1, y+1, z+1 ) ] = 1; /* 7 */
     }
     /* check total occupied cells inside lattice to ensure that the above
      * transfer went without problems. Note that the number will be smaller
@@ -2485,7 +2490,8 @@ void UpdaterGPUScBFM_AB_Type< T_UCoordinateCuda >::checkSystem() const
     }
 }
 
-template< typename T_UCoordinateCuda >
+
+template< typename T_UCoordinateCuda  >
 void UpdaterGPUScBFM_AB_Type< T_UCoordinateCuda >::runSimulationOnGPU
 (
     uint32_t const nMonteCarloSteps
@@ -2629,21 +2635,23 @@ void UpdaterGPUScBFM_AB_Type< T_UCoordinateCuda >::runSimulationOnGPU
             */
 
 	    BoxCheck boxCheck( mIsPeriodicX, mIsPeriodicY, mIsPeriodicZ );
-	    kernelSimulationScBFMCheckSpecies< T_UCoordinateCuda > 
-            <<< nBlocks, nThreads, 0, mStream >>>(                             
-                mPolymerSystemSorted->gpu,                                     
-                mPolymerFlags->gpu + mviSubGroupOffsets[ iSpecies ],           
-                mviSubGroupOffsets[ iSpecies ],                                
-                mLatticeTmp->gpu + iOffsetLatticeTmp,                          
-                mNeighborsSorted->gpu + mNeighborsSortedInfo.getMatrixOffsetElements( iSpecies ), 
-                mNeighborsSortedInfo.getMatrixPitchElements( iSpecies ),       
-                mNeighborsSortedSizes->gpu + mviSubGroupOffsets[ iSpecies ],   
-                mnElementsInGroup[ iSpecies ],                                 
-                seed, 
-		mGlobalIterator,                                         
-                mLatticeOut->texture,
-		boxCheck
-            );
+// 	    SpaceFillingCurve curve(met.getCurve());
+	      kernelSimulationScBFMCheckSpecies< T_UCoordinateCuda > 
+	      <<< nBlocks, nThreads, 0, mStream >>>(                
+		  mPolymerSystemSorted->gpu,                                     
+		  mPolymerFlags->gpu + mviSubGroupOffsets[ iSpecies ],           
+		  mviSubGroupOffsets[ iSpecies ],                                
+		  mLatticeTmp->gpu + iOffsetLatticeTmp,                          
+		  mNeighborsSorted->gpu + mNeighborsSortedInfo.getMatrixOffsetElements( iSpecies ), 
+		  mNeighborsSortedInfo.getMatrixPitchElements( iSpecies ),       
+		  mNeighborsSortedSizes->gpu + mviSubGroupOffsets[ iSpecies ],   
+		  mnElementsInGroup[ iSpecies ],                                 
+		  seed, 
+		  mGlobalIterator,                                         
+		  mLatticeOut->texture,
+		  boxCheck, met 
+	      );
+
 	    /** The counting kernel can come after the Check-kernel, because the
              * Check-kernel only modifies the polymer flags which it does not
              * read itself. It actually wouldn't work else, because the count
@@ -2687,7 +2695,7 @@ void UpdaterGPUScBFM_AB_Type< T_UCoordinateCuda >::runSimulationOnGPU
                     mPolymerFlags->gpu + mviSubGroupOffsets[ iSpecies ],
                     mLatticeOut->gpu,
                     mnElementsInGroup[ iSpecies ],
-                    texLatticeTmp
+                    texLatticeTmp, met 
                 );
             }
             else
@@ -2698,7 +2706,7 @@ void UpdaterGPUScBFM_AB_Type< T_UCoordinateCuda >::runSimulationOnGPU
                     mPolymerFlags->gpu + mviSubGroupOffsets[ iSpecies ],
                     mLatticeOut->gpu,
                     mnElementsInGroup[ iSpecies ],
-                    texLatticeTmp
+                    texLatticeTmp, met 
                 );
             }
 
@@ -2729,7 +2737,7 @@ void UpdaterGPUScBFM_AB_Type< T_UCoordinateCuda >::runSimulationOnGPU
                     mPolymerSystemSorted->gpu + mviSubGroupOffsets[ iSpecies ],
                     mPolymerFlags->gpu + mviSubGroupOffsets[ iSpecies ],
                     mLatticeTmp->gpu,
-                    mnElementsInGroup[ iSpecies ]
+                    mnElementsInGroup[ iSpecies ], met 
                 );
             }
 
@@ -3003,7 +3011,22 @@ void UpdaterGPUScBFM_AB_Type< T_UCoordinateCuda >::cleanup()
 
 
 template class UpdaterGPUScBFM_AB_Type< uint8_t  >;
+// template void UpdaterGPUScBFM_AB_Type< uint8_t  >:: template runSimulationOnGPU < ZOrderCurve > (uint32_t);
+// template void UpdaterGPUScBFM_AB_Type< uint8_t  >:: template runSimulationOnGPU<LinearCurve>(uint32_t);
+// template void UpdaterGPUScBFM_AB_Type< uint8_t  >:: template runSimulationOnGPU<LinearCurvePowOfTwo>(uint32_t);
 template class UpdaterGPUScBFM_AB_Type< uint16_t >;
+// template void UpdaterGPUScBFM_AB_Type< uint16_t  >:: template runSimulationOnGPU<ZOrderCurve>(uint32_t);
+// template void UpdaterGPUScBFM_AB_Type< uint16_t  >:: template runSimulationOnGPU<LinearCurve>(uint32_t);
+// template void UpdaterGPUScBFM_AB_Type< uint16_t  >:: template runSimulationOnGPU<LinearCurvePowOfTwo>(uint32_t);
 template class UpdaterGPUScBFM_AB_Type< uint32_t >;
+// template void UpdaterGPUScBFM_AB_Type< uint32_t  >:: template runSimulationOnGPU<ZOrderCurve>(uint32_t);
+// template void UpdaterGPUScBFM_AB_Type< uint32_t  >:: template runSimulationOnGPU<LinearCurve>(uint32_t);
+// template void UpdaterGPUScBFM_AB_Type< uint32_t  >:: template runSimulationOnGPU<LinearCurvePowOfTwo>(uint32_t);
 template class UpdaterGPUScBFM_AB_Type<  int16_t >;
+// template void UpdaterGPUScBFM_AB_Type< int16_t  >:: template runSimulationOnGPU<ZOrderCurve>(uint32_t);
+// template void UpdaterGPUScBFM_AB_Type< int16_t  >:: template runSimulationOnGPU<LinearCurve>(uint32_t);
+// template void UpdaterGPUScBFM_AB_Type< int16_t  >:: template runSimulationOnGPU<LinearCurvePowOfTwo>(uint32_t);
 template class UpdaterGPUScBFM_AB_Type<  int32_t >;
+// template void UpdaterGPUScBFM_AB_Type< int32_t  >:: template runSimulationOnGPU<ZOrderCurve>(uint32_t);
+// template void UpdaterGPUScBFM_AB_Type< int32_t  >:: template runSimulationOnGPU<LinearCurve>(uint32_t);
+// template void UpdaterGPUScBFM_AB_Type< int32_t  >:: template runSimulationOnGPU<LinearCurvePowOfTwo>(uint32_t);

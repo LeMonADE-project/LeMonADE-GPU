@@ -12,7 +12,7 @@
 #include <LeMonADEGPU/updater/UpdaterGPUScBFM_AB_Type.h>
 // #include "../updater/UpdaterGPUScBFM_AB_Type.h"
 #include <LeMonADEGPU/utility/SelectiveLogger.hpp>
-
+#include <LeMonADEGPU/core/SpaceFillingCurve.h>
 
 #define USE_UINT8_POSITIONS
 
@@ -186,7 +186,11 @@ public:
             /* !!! The negation is confusing, again there should be a better way to copy the bond set */
             mUpdaterGpu.copyBondSet( dx, dy, dz, ! mIngredients.getBondset().isValid( VectorInt3( dx, dy, dz ) ) );
         }
-
+	
+	Method met ;
+	met.modifyCurve().setCurve(0);
+	mUpdaterGpu.setMethod(met);
+	
         mLog( "Info" ) << "[" << __FILENAME__ << "::initialize] initialize GPU updater\n";
         mUpdaterGpu.initialize();
 
@@ -211,7 +215,7 @@ public:
         mLog( "Info" ) << "[" << __FILENAME__ << "] start simulation on GPU\n";
 
         mUpdaterGpu.setAge( mIngredients.modifyMolecules().getAge() );
-        mUpdaterGpu.runSimulationOnGPU( mnSteps ); 
+	mUpdaterGpu.runSimulationOnGPU( mnSteps ); 
 
         // copy back positions of all monomers
         mLog( "Info" ) << "[" << __FILENAME__ << "] copy back monomers from GPU updater to CPU 'molecules' to be used with analyzers\n";
