@@ -854,28 +854,6 @@ __global__ void kernelTreatOverflows
 
 } // end anonymous namespace with typedefs for kernels
 
-template< typename T_UCoordinateCuda >
-T_Id UpdaterGPUScBFM_AB_Type< T_UCoordinateCuda >::linearizeBoxVectorIndex
-(
-    T_Coordinate const & ix,
-    T_Coordinate const & iy,
-    T_Coordinate const & iz
-) const
-{
-    #if defined ( USE_ZCURVE_FOR_LATTICE )
-        return diluteBits< T_Id, 2 >( T_Id( ix ) & mBoxXM1 )        +
-             ( diluteBits< T_Id, 2 >( T_Id( iy ) & mBoxYM1 ) << 1 ) +
-             ( diluteBits< T_Id, 2 >( T_Id( iz ) & mBoxZM1 ) << 2 );
-    #elif defined( NOMAGIC )
-        return ( ix % mBoxX ) +
-               ( iy % mBoxY ) * mBoxX +
-               ( iz % mBoxZ ) * mBoxX * mBoxY;
-    #else
-        return   ( T_Id( ix ) & mBoxXM1 ) +
-               ( ( T_Id( iy ) & mBoxYM1 ) << mBoxXLog2  ) +
-               ( ( T_Id( iz ) & mBoxZM1 ) << mBoxXYLog2 );
-    #endif
-}
 
 template< typename T_UCoordinateCuda >
 UpdaterGPUScBFM_AB_Type< T_UCoordinateCuda >::UpdaterGPUScBFM_AB_Type()

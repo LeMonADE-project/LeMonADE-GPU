@@ -324,20 +324,6 @@ private:
 private:
     uint8_t mnSplitColors;
 
-
-    /**
-     * If we constrict each index to 1024=2^10 which already is quite large,
-     * 256=2^8 being normally large, then this means that the linearzed index
-     * should have a range of 2^30, meaning uint32_t as output is pretty
-     * fixed with uint16_t being way too few bits
-     */
-    T_Id linearizeBoxVectorIndex
-    (
-        T_Coordinate const & ix,
-        T_Coordinate const & iy,
-        T_Coordinate const & iz
-    ) const;
-
     /**
      * Checks for excluded volume condition and for correctness of all monomer bonds
      */
