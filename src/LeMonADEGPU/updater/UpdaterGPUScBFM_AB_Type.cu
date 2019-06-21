@@ -67,30 +67,6 @@ using T_Id               = UpdaterGPUScBFM_AB_Type< uint8_t >::T_Id         ;
  * => they only exist for kepler -.- ...
  */
 
-/**
- * same as above, but instead of mBoxXM1 it uses dcBoxXM1,
- * which resides in constant memory
- * Input coordinates are implicitly converted to T_Id on call assuming
- * that T_Id is generally larger than T_Coordinate
- */
-__device__ inline T_Id linearizeBoxVectorIndex
-(
-    uint32_t const & ix,
-    uint32_t const & iy,
-    uint32_t const & iz
-)
-{
-    #if defined ( USE_ZCURVE_FOR_LATTICE )
-        return diluteBits< T_Id, 2 >( ix & dcBoxXM1 )        +
-             ( diluteBits< T_Id, 2 >( iy & dcBoxYM1 ) << 1 ) +
-             ( diluteBits< T_Id, 2 >( iz & dcBoxZM1 ) << 2 );
-    #else
-        return   ( ix & dcBoxXM1 ) +
-               ( ( iy & dcBoxYM1 ) << dcBoxXLog2  ) +
-               ( ( iz & dcBoxZM1 ) << dcBoxXYLog2 );
-    #endif
-}
-
 #ifdef USE_BIT_PACKING
     template< typename T, typename T_Id > __device__ __host__ inline
     T bitPackedGet( T const * const & p, T_Id const & i )
@@ -187,20 +163,21 @@ __device__ inline bool checkFront
     uint32_t            const & y0        ,
     uint32_t            const & z0        ,
     T_Flags             const & axis      ,
+    Method		const & method    ,
     T_Lattice (*fetch)( cudaTextureObject_t, int ) = &tex1Dfetch< T_Lattice >,
     T_Id              * const   iOldPos = NULL
 )
 {
 #if 0 // defined( NOMAGIC )
     if ( iOldPos != NULL )
-        *iOldPos =  linearizeBoxVectorIndex( x0, y0, z0 );
+        *iOldPos =  met.getCurve().linearizeBoxVectorIndex( x0, y0, z0 );
 
     bool isOccupied = false;
     auto const shift = 4*(axis & 1)-2;
     switch ( axis >> 1 )
     {
         #define TMP_FETCH( x,y,z ) \
-            (*fetch)( texLattice, linearizeBoxVectorIndex(x,y,z) )
+            (*fetch)( texLattice, met.getCurve().linearizeBoxVectorIndex(x,y,z) )
         case 0: //-+x
         {
             uint32_t const x1 = x0 + shift;
@@ -532,7 +509,7 @@ __global__ void kernelSimulationScBFMCheckSpecies
                     break;
                 }
             }
-            if ( ! forbiddenBond && ! checkFront( texLatticeRefOut, r0.x, r0.y, r0.z, direction ) )
+            if ( ! forbiddenBond && ! checkFront( texLatticeRefOut, r0.x, r0.y, r0.z, direction, met ) )
             {
                 /* everything fits so perform move on temporary lattice */
                 /* can I do this ??? dpPolymerSystem is the device pointer to the read-only
@@ -567,7 +544,8 @@ __global__ void kernelCountFilteredCheck
     T_Id                     const              nMonomers              ,
     cudaTextureObject_t      const              texLatticeRefOut       ,
     unsigned long long int * const              dpFiltered             ,
-    BoxCheck                                    bCheck
+    BoxCheck                                    bCheck		       ,
+    Method                                      met
 )
 {
     for ( auto iMonomer = blockIdx.x * blockDim.x + threadIdx.x;
@@ -598,7 +576,7 @@ __global__ void kernelCountFilteredCheck
                     break;
                 }
             }
-            if ( checkFront( texLatticeRefOut, r0.x, r0.y, r0.z, direction ) )
+            if ( checkFront( texLatticeRefOut, r0.x, r0.y, r0.z, direction, met ) )
             {
                 atomicAdd( dpFiltered+2, 1ull );
                 if ( ! forbiddenBond ) /* this is the more real relative use-case where invalid bonds are already filtered out */
@@ -638,9 +616,9 @@ __global__ void kernelSimulationScBFMPerformSpecies
         auto const direction = properties & T_Flags(7); // 7=0b111
         uint32_t iOldPos;
     #ifdef USE_BIT_PACKING_TMP_LATTICE
-        if ( checkFront( texLatticeTmp, r0.x, r0.y, r0.z, direction, &bitPackedTextureGet< T_Lattice >, &iOldPos ) )
+        if ( checkFront( texLatticeTmp, r0.x, r0.y, r0.z, direction, met, &bitPackedTextureGet< T_Lattice >, &iOldPos ) )
     #else
-        if ( checkFront( texLatticeTmp, r0.x, r0.y, r0.z, direction, &tex1Dfetch< T_Lattice >, &iOldPos ) )
+        if ( checkFront( texLatticeTmp, r0.x, r0.y, r0.z, direction, met, &tex1Dfetch< T_Lattice >, &iOldPos ) )
     #endif
             continue;
 
@@ -681,9 +659,9 @@ __global__ void kernelSimulationScBFMPerformSpeciesAndApply
         auto const direction = properties & T_Flags(7); // 7=0b111
         uint32_t iOldPos;
     #ifdef USE_BIT_PACKING_TMP_LATTICE
-        if ( checkFront( texLatticeTmp, r0.x, r0.y, r0.z, direction, &bitPackedTextureGet< T_Lattice >, &iOldPos ) )
+        if ( checkFront( texLatticeTmp, r0.x, r0.y, r0.z, direction, met, &bitPackedTextureGet< T_Lattice >, &iOldPos ) )
     #else
-        if ( checkFront( texLatticeTmp, r0.x, r0.y, r0.z, direction, &tex1Dfetch< T_Lattice >, &iOldPos ) )
+        if ( checkFront( texLatticeTmp, r0.x, r0.y, r0.z, direction, met, &tex1Dfetch< T_Lattice >, &iOldPos ) )
     #endif
             continue;
 
@@ -712,7 +690,8 @@ __global__ void kernelCountFilteredPerform
     T_Lattice        const * const __restrict__ /* dpLattice */  ,
     T_Id                     const              nMonomers        ,
     cudaTextureObject_t      const              texLatticeTmp    ,
-    unsigned long long int * const              dpFiltered
+    unsigned long long int * const              dpFiltered       ,
+    Method 					met
 )
 {
     for ( auto iMonomer = blockIdx.x * blockDim.x + threadIdx.x;
@@ -725,9 +704,9 @@ __global__ void kernelCountFilteredPerform
         auto const r0 = dpPolymerSystem[ iMonomer ];
         auto const direction = properties & T_Flags(7); // 7=0b111
     #ifdef USE_BIT_PACKING_TMP_LATTICE
-        if ( checkFront( texLatticeTmp, r0.x, r0.y, r0.z, direction, &bitPackedTextureGet< T_Lattice >, NULL ) )
+        if ( checkFront( texLatticeTmp, r0.x, r0.y, r0.z, direction, met, &bitPackedTextureGet< T_Lattice >, NULL ) )
     #else
-        if ( checkFront( texLatticeTmp, r0.x, r0.y, r0.z, direction, &tex1Dfetch< T_Lattice >, NULL ) )
+        if ( checkFront( texLatticeTmp, r0.x, r0.y, r0.z, direction, met, &tex1Dfetch< T_Lattice >, NULL ) )
     #endif
             atomicAdd( dpFiltered+4, size_t(1) );
     }
@@ -1379,11 +1358,13 @@ __global__ void kernelSplitMonomerPositions
 template< typename T_UCoordinateCuda >
 struct LinearizeBoxVectorIndexFunctor
 {
-    using T_UCoordinatesCuda = typename CudaVec4< T_UCoordinateCuda >::value_type;
-    __device__ inline T_Id operator()( T_UCoordinatesCuda const & r ) const
-    {
-        return linearizeBoxVectorIndex( r.x, r.y, r.z );
-    }
+  Method met;
+  LinearizeBoxVectorIndexFunctor(const Method& met_ ):met(met_){} 
+  using T_UCoordinatesCuda = typename CudaVec4< T_UCoordinateCuda >::value_type;
+  __device__ inline T_Id operator()( T_UCoordinatesCuda const & r ) const
+  {
+      return met.getCurve().linearizeBoxVectorIndex( r.x, r.y, r.z );
+  }
 };
 
 /**
@@ -1450,7 +1431,7 @@ void UpdaterGPUScBFM_AB_Type< T_UCoordinateCuda >::doSpatialSorting( void )
         mPolymerSystemSorted ->gpu,
         mPolymerSystemSorted ->gpu + mPolymerSystemSorted->nElements,
         mvKeysZOrderLinearIds->gpu,
-        LinearizeBoxVectorIndexFunctor< T_UCoordinateCuda >()
+        LinearizeBoxVectorIndexFunctor< T_UCoordinateCuda >(met)
     );
     /* sort per sublists (each species) by key, not the whole list */
     for ( auto iSpecies = 0u; iSpecies < mnElementsInGroup.size(); ++iSpecies )
@@ -2592,7 +2573,8 @@ void UpdaterGPUScBFM_AB_Type< T_UCoordinateCuda >::runSimulationOnGPU
 		mnElementsInGroup[ iSpecies ],                             
 		mLatticeOut->texture,                                     
 		dpFiltered,
-		boxCheck
+		boxCheck,
+		met
 	    );*/ 
 
             if ( mLog.isActive( "Stats" ) )
@@ -2604,7 +2586,8 @@ void UpdaterGPUScBFM_AB_Type< T_UCoordinateCuda >::runSimulationOnGPU
                     mLatticeOut->gpu,
                     mnElementsInGroup[ iSpecies ],
                     texLatticeTmp,
-                    dpFiltered
+                    dpFiltered,
+		    met
                 );
             }
 
