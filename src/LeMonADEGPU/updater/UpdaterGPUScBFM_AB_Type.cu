@@ -67,63 +67,6 @@ using T_Id               = UpdaterGPUScBFM_AB_Type< uint8_t >::T_Id         ;
  * => they only exist for kepler -.- ...
  */
 
-
-/**
- * Morton / Z-curve ordering is a mapping N^n->N: (x,y,..)->i
- * When drawing a line by following i sequentially it looks like a
- * fractal Z-Curve:
- * @verbatim
- * y\x |      |   0  |   1  |   2  |   3
- * ----+------+------+------+------+------
- * dec | bin  | 0b00 | 0b01 | 0b10 | 0b11
- * ----+------+------+------+------+------
- *  0  | 0b00 | 0000 | 0001 | 0100 | 0101
- *     |      |   0  |   1  |   4  |   5
- *  1  | 0b01 | 0010 | 0011 | 0110 | 0111
- *     |      |   2  |   3  |   6  |   7
- *  2  | 0b10 | 1000 | 1001 | 1100 | 1101
- *     |      |   8  |   9  |  12  |  13
- *  3  | 0b11 | 1010 | 1011 | 1110 | 1111
- *     |      |  10  |  11  |  14  |  15
- * @endverbatim
- * As can be see from this:
- *  - The (x,y)->i follows a simple scheme in the bit representation,
- *    i.e. the bit representations of x and y get interleaved, for z
- *    and higher coordinates it would be similar
- *  - The grid must have a size of power of two in each dimension.
- *    Padding a grid would be problematic, as the padded unused
- *    cells are intermingled inbetween the used memory locations
- */
-
-
-
-/**
- * Legacy function which ironically might be more readable than my version
- * which derives and thereby documents in-code where the magic constants
- * derive from :(
- * Might be needed to compare performance to the template version.
- *  => is slower by 1%
- * Why is it using ^ instead of | ??? !!!
- */
-/*
-__device__ uint32_t part1by2_d( uint32_t n )
-{
-    n&= 0x000003ff;
-    n = (n ^ (n << 16)) & 0xff0000ff; // 0b 0000 0000 1111 1111
-    n = (n ^ (n <<  8)) & 0x0300f00f; // 0b 1111 0000 0000 1111
-    n = (n ^ (n <<  4)) & 0x030c30c3; // 0b 0011 0000 1100 0011
-    n = (n ^ (n <<  2)) & 0x09249249; // 0b 1001 0010 0100 1001
-    return n;
-}
-*/
-
-template< typename T >
-__device__ __host__ inline bool isPowerOfTwo( T const & x )
-{
-    //popc returns the number of bits which are one
-    return __popc( x ) <= 1;
-}
-
 /**
  * same as above, but instead of mBoxXM1 it uses dcBoxXM1,
  * which resides in constant memory

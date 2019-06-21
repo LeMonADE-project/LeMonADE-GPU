@@ -32,7 +32,15 @@
 It seems you might be conflating two things - how to differentiate between the host and device compilation trajectories when nvcc is processing CUDA code, and how to differentiate between CUDA and non-CUDA code. There is a subtle difference between the two. __CUDA_ARCH__ answers the first question, and __CUDACC__ answers the second.
 */
 #if defined( __CUDACC__ )
-
+/** @brief checks if param is power of two (true) or not (false)
+ *  @return bool 
+ */
+template< typename T >
+__device__ __host__ inline bool isPowerOfTwo( T const & x )
+{
+    //popc returns the number of bits which are one
+    return __popc( x ) <= 1;
+}
 inline void checkCudaError
 (
     cudaError_t  const rValue,
