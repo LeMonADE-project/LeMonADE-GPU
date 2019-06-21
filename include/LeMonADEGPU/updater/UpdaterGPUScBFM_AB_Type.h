@@ -315,7 +315,7 @@ private:
     Method met;
 public: 
   void setMethod(Method& met_){met=met_;}
-  Method getMethod(){met;}
+  Method getMethod(){ return met;}
 private:
     int            miGpuToUse;
     cudaDeviceProp mCudaProps;

@@ -188,7 +188,7 @@ public:
         }
 	
 	Method met ;
-	met.modifyCurve().setCurve(0);
+	met.modifyCurve().setMode(0);
 	mUpdaterGpu.setMethod(met);
 	
         mLog( "Info" ) << "[" << __FILENAME__ << "::initialize] initialize GPU updater\n";

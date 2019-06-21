@@ -55,8 +55,9 @@ public:
     else if (   pX && ! pY &&   pZ )  //101
 	myperiodicmode=7;
   }
-  template <class T >
-  __device__ bool operator()(const T & x, const T &  y, const T & z)
+//   template <class T >
+// __device__ bool operator()(const T & x, const T &  y, const T & z) //throws a lot of warnings....because uint compares with 0 
+  __device__ bool operator()(const int & x, const int &  y, const int & z)
   {
     switch(myperiodicmode)
     { 
@@ -73,6 +74,27 @@ public:
 	case periodic110: return ((0) <= z && z <  dcBoxZM1 )  ;
 	case periodic011: return ((0) <= x && x <  dcBoxXM1 )  ;
 	case periodic101: return ((0) <= y && y <  dcBoxYM1 )  ;
+	default         : return false                                ; //maybe throw an error?! 
+    };
+  }
+  
+  __device__ bool operator()(const uint & x, const uint &  y, const uint & z)
+  {
+    switch(myperiodicmode)
+    { 
+	case periodic111: return  true                         ;
+	case periodic000: return ( x <  dcBoxXM1 &&
+				   y <  dcBoxYM1 &&
+				   z <  dcBoxZM1 )  ;  
+	case periodic100: return ( y <  dcBoxYM1 &&
+				   z <  dcBoxZM1 )  ;
+	case periodic010: return ( x <  dcBoxXM1 &&
+				   z <  dcBoxZM1 )  ;
+	case periodic001: return ( x <  dcBoxXM1 &&
+				   y <  dcBoxYM1 )  ;
+	case periodic110: return ( z <  dcBoxZM1 )  ;
+	case periodic011: return ( x <  dcBoxXM1 )  ;
+	case periodic101: return ( y <  dcBoxYM1 )  ;
 	default         : return false                                ; //maybe throw an error?! 
     };
   }

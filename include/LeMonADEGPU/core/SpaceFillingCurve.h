@@ -47,7 +47,7 @@ public:
 
 template< typename T >
 __host__ __device__ inline T_Id linearizeBoxVectorIndex
-( T const & ix, T const & iy, T const & iz) const { static_cast<specializedCurve*>(this)->linearizeBoxVectorIndex(ix,iy,iz);}
+( T const & ix, T const & iy, T const & iz) const { return static_cast<specializedCurve*>(this)->linearizeBoxVectorIndex(ix,iy,iz);}
 
 template < class IngredientsType >
 void initialize(const IngredientsType& ing){ static_cast<specializedCurve*>(this)->initialize(ing);}
@@ -241,8 +241,8 @@ private:
   LinearCurve lCurve;
   LinearCurvePowOfTwo lP2Curve;
 public:  
-  int getCurve() const {return mode;}
-  void setCurve( int mode_) { mode=mode_; }
+  int getMode() const {return mode;}
+  void setMode( int mode_) { mode=mode_; }
   
 template< typename T >
 __host__ __device__ inline T_Id linearizeBoxVectorIndex
@@ -252,6 +252,7 @@ __host__ __device__ inline T_Id linearizeBoxVectorIndex
     case LinearMode         : return lCurve.linearizeBoxVectorIndex(ix,iy,iz);
     case LinearPowOfTwoMode : return lP2Curve.linearizeBoxVectorIndex(ix,iy,iz);
   };
+  return T_Id(); // to supress warnings 
 }
 };
 
