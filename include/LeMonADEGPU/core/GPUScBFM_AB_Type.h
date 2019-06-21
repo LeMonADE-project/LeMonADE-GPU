@@ -187,8 +187,9 @@ public:
             mUpdaterGpu.copyBondSet( dx, dy, dz, ! mIngredients.getBondset().isValid( VectorInt3( dx, dy, dz ) ) );
         }
 	
-	Method met ;
+	Method met;
 	met.modifyCurve().setMode(0);
+	met.modifyCurve().setBox(mIngredients.getBoxX(),mIngredients.getBoxY(),mIngredients.getBoxZ());
 	mUpdaterGpu.setMethod(met);
 	
         mLog( "Info" ) << "[" << __FILENAME__ << "::initialize] initialize GPU updater\n";

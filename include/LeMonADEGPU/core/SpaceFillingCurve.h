@@ -69,6 +69,7 @@ class ZOrderCurve:public AbstractSpaceFillingCurve<ZOrderCurve>
 {
   
 public:
+  ZOrderCurve():mBoxXM1(0),mBoxYM1(0),mBoxZM1(0){};
   template <class IngredientsType >
   void initialize(const IngredientsType& ing)
   {
@@ -108,6 +109,7 @@ private:
 class LinearCurvePowOfTwo:public AbstractSpaceFillingCurve<LinearCurvePowOfTwo>{
 
 public:
+  LinearCurvePowOfTwo():mBoxXM1(0),mBoxYM1(0),mBoxZM1(0),mBoxXLog2(0),mBoxXYLog2(0){};
   template <class IngredientsType >
   void initialize(const IngredientsType& ing){
     auto mBoxX =  ing.getBoxX();
@@ -182,6 +184,9 @@ private:
 class LinearCurve:public AbstractSpaceFillingCurve<LinearCurve>{
 
 public:
+  
+  LinearCurve():mBoxX(0),mBoxY(0),mBoxZ(0){};
+  
   template <class IngredientsType >
   void initialize(const IngredientsType& ing){
     mBoxX =  ing.getBoxX();
@@ -235,6 +240,14 @@ public:
     lCurve.initialize(mBoxX_,mBoxY_,mBoxZ_);
     lP2Curve.initialize(mBoxX_,mBoxY_,mBoxZ_);
   }
+  template <class T >
+  void setBox(T mBoxX_, T mBoxY_, T mBoxZ_)
+  {
+    zCurve.initialize(mBoxX_,mBoxY_,mBoxZ_);
+    lCurve.initialize(mBoxX_,mBoxY_,mBoxZ_);
+    lP2Curve.initialize(mBoxX_,mBoxY_,mBoxZ_);
+  }
+  
 private:
   int mode;
   ZOrderCurve zCurve;
