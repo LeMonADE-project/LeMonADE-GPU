@@ -28,7 +28,7 @@
 
 //keep this 
 #define USE_BIT_PACKING_TMP_LATTICE
-#define USE_ZCURVE_FOR_LATTICE
+// #define USE_ZCURVE_FOR_LATTICE
 #if defined( USE_BIT_PACKING_TMP_LATTICE )
 #   define USE_NBUFFERED_TMP_LATTICE
 #endif

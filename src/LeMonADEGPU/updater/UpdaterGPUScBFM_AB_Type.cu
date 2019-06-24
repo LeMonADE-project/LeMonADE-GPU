@@ -163,99 +163,21 @@ __device__ inline bool checkFront
     uint32_t            const & y0        ,
     uint32_t            const & z0        ,
     T_Flags             const & axis      ,
-    Method		const & method    ,
+    Method		const & met       ,
     T_Lattice (*fetch)( cudaTextureObject_t, int ) = &tex1Dfetch< T_Lattice >,
     T_Id              * const   iOldPos = NULL
 )
 {
-#if 0 // defined( NOMAGIC )
-    if ( iOldPos != NULL )
-        *iOldPos =  met.getCurve().linearizeBoxVectorIndex( x0, y0, z0 );
-
-    bool isOccupied = false;
-    auto const shift = 4*(axis & 1)-2;
-    switch ( axis >> 1 )
-    {
-        #define TMP_FETCH( x,y,z ) \
-            (*fetch)( texLattice, met.getCurve().linearizeBoxVectorIndex(x,y,z) )
-        case 0: //-+x
-        {
-            uint32_t const x1 = x0 + shift;
-            isOccupied = TMP_FETCH( x1, y0 - 1, z0     ) |
-                         TMP_FETCH( x1, y0    , z0     ) |
-                         TMP_FETCH( x1, y0 + 1, z0     ) |
-                         TMP_FETCH( x1, y0 - 1, z0 - 1 ) |
-                         TMP_FETCH( x1, y0    , z0 - 1 ) |
-                         TMP_FETCH( x1, y0 + 1, z0 - 1 ) |
-                         TMP_FETCH( x1, y0 - 1, z0 + 1 ) |
-                         TMP_FETCH( x1, y0    , z0 + 1 ) |
-                         TMP_FETCH( x1, y0 + 1, z0 + 1 );
-            break;
-        }
-        case 1: //-+y
-        {
-            uint32_t const y1 = y0 + shift;
-            isOccupied = TMP_FETCH( x0 - 1, y1, z0 - 1 ) |
-                         TMP_FETCH( x0    , y1, z0 - 1 ) |
-                         TMP_FETCH( x0 + 1, y1, z0 - 1 ) |
-                         TMP_FETCH( x0 - 1, y1, z0     ) |
-                         TMP_FETCH( x0    , y1, z0     ) |
-                         TMP_FETCH( x0 + 1, y1, z0     ) |
-                         TMP_FETCH( x0 - 1, y1, z0 + 1 ) |
-                         TMP_FETCH( x0    , y1, z0 + 1 ) |
-                         TMP_FETCH( x0 + 1, y1, z0 + 1 );
-            break;
-        }
-        case 2: //-+z
-        {
-            /**
-             * @verbatim
-             *   +---+---+---+  y
-             *   | 6 | 7 | 8 |  ^ z
-             *   +---+---+---+  |/
-             *   | 3 | 4 | 5 |  +--> x
-             *   +---+---+---+
-             *   | 0 | 1 | 2 |
-             *   +---+---+---+
-             * @endverbatim
-             */
-            uint32_t const z1 = z0 + shift;
-            isOccupied = TMP_FETCH( x0 - 1, y0 - 1, z1 ) | /* 0 */
-                         TMP_FETCH( x0    , y0 - 1, z1 ) | /* 1 */
-                         TMP_FETCH( x0 + 1, y0 - 1, z1 ) | /* 2 */
-                         TMP_FETCH( x0 - 1, y0    , z1 ) | /* 3 */
-                         TMP_FETCH( x0    , y0    , z1 ) | /* 4 */
-                         TMP_FETCH( x0 + 1, y0    , z1 ) | /* 5 */
-                         TMP_FETCH( x0 - 1, y0 + 1, z1 ) | /* 6 */
-                         TMP_FETCH( x0    , y0 + 1, z1 ) | /* 7 */
-                         TMP_FETCH( x0 + 1, y0 + 1, z1 );  /* 8 */
-            break;
-        }
-        #undef TMP_FETCH
-    }
-    return isOccupied;
-#else
-    #if defined( USE_ZCURVE_FOR_LATTICE ) 
-        auto const x0MDX  = diluteBits< uint32_t, 2 >( ( x0 - uint32_t(1) ) & dcBoxXM1 );
-        auto const x0Abs  = diluteBits< uint32_t, 2 >( ( x0               ) & dcBoxXM1 );
-        auto const x0PDX  = diluteBits< uint32_t, 2 >( ( x0 + uint32_t(1) ) & dcBoxXM1 );
-        auto const y0MDY  = diluteBits< uint32_t, 2 >( ( y0 - uint32_t(1) ) & dcBoxYM1 ) << 1;
-        auto const y0Abs  = diluteBits< uint32_t, 2 >( ( y0               ) & dcBoxYM1 ) << 1;
-        auto const y0PDY  = diluteBits< uint32_t, 2 >( ( y0 + uint32_t(1) ) & dcBoxYM1 ) << 1;
-        auto const z0MDZ  = diluteBits< uint32_t, 2 >( ( z0 - uint32_t(1) ) & dcBoxZM1 ) << 2;
-        auto const z0Abs  = diluteBits< uint32_t, 2 >( ( z0               ) & dcBoxZM1 ) << 2;
-        auto const z0PDZ  = diluteBits< uint32_t, 2 >( ( z0 + uint32_t(1) ) & dcBoxZM1 ) << 2;
-    #else
-        auto const x0MDX  =   ( x0 - uint32_t(1) ) & dcBoxXM1;
-        auto const x0Abs  =   ( x0               ) & dcBoxXM1;
-        auto const x0PDX  =   ( x0 + uint32_t(1) ) & dcBoxXM1;
-        auto const y0MDY  = ( ( y0 - uint32_t(1) ) & dcBoxYM1 ) << dcBoxXLog2;
-        auto const y0Abs  = ( ( y0               ) & dcBoxYM1 ) << dcBoxXLog2;
-        auto const y0PDY  = ( ( y0 + uint32_t(1) ) & dcBoxYM1 ) << dcBoxXLog2;
-        auto const z0MDZ  = ( ( z0 - uint32_t(1) ) & dcBoxZM1 ) << dcBoxXYLog2;
-        auto const z0Abs  = ( ( z0               ) & dcBoxZM1 ) << dcBoxXYLog2;
-        auto const z0PDZ  = ( ( z0 + uint32_t(1) ) & dcBoxZM1 ) << dcBoxXYLog2;
-    #endif
+   
+    auto const x0MDX  = met.getCurve().linearizeBoxVectorIndexX( x0 - uint32_t(1) );
+    auto const x0Abs  = met.getCurve().linearizeBoxVectorIndexX( x0               );
+    auto const x0PDX  = met.getCurve().linearizeBoxVectorIndexX( x0 + uint32_t(1) );
+    auto const y0MDY  = met.getCurve().linearizeBoxVectorIndexY( y0 - uint32_t(1) );
+    auto const y0Abs  = met.getCurve().linearizeBoxVectorIndexY( y0               );
+    auto const y0PDY  = met.getCurve().linearizeBoxVectorIndexY( y0 + uint32_t(1) );
+    auto const z0MDZ  = met.getCurve().linearizeBoxVectorIndexZ( z0 - uint32_t(1) );
+    auto const z0Abs  = met.getCurve().linearizeBoxVectorIndexZ( z0               );
+    auto const z0PDZ  = met.getCurve().linearizeBoxVectorIndexZ( z0 + uint32_t(1) );
 
     auto const dx = DXTable_d[ axis ];   // 2*axis-1
     auto const dy = DYTable_d[ axis ];   // 2*(axis&1)-1
@@ -265,85 +187,58 @@ __device__ inline bool checkFront
         *iOldPos = x0Abs + y0Abs + z0Abs;
 
     uint32_t is[9];
-
-    #if defined( USE_ZCURVE_FOR_LATTICE ) 
-        switch ( axis >> 1 )
-        {
-            case 0: is[7] = ( x0 + dx + dx ) & dcBoxXM1; break;
-            case 1: is[7] = ( y0 + dy + dy ) & dcBoxYM1; break;
-            case 2: is[7] = ( z0 + dz + dz ) & dcBoxZM1; break;
-        }
-        is[7] = diluteBits< uint32_t, 2 >( is[7] ) << ( axis >> 1 );
-    #else
-        switch ( axis >> 1 )
-        {
-            case 0: is[7] =   ( x0 + 2*dx ) & dcBoxXM1; break;
-            case 1: is[7] = ( ( y0 + 2*dy ) & dcBoxYM1 ) << dcBoxXLog2; break;
-            case 2: is[7] = ( ( z0 + 2*dz ) & dcBoxZM1 ) << dcBoxXYLog2; break;
-        }
-    #endif
     switch ( axis >> 1 )
     {
-        case 0: //-+x
-            /* this line adds all three z directions */
-            is[2]  = is[7] + z0MDZ; is[5]  = is[7] + z0Abs; is[8]  = is[7] + z0PDZ;
-            /* now for all three results we generate all 3 different y positions */
-            is[0]  = is[2] + y0MDY; is[1]  = is[2] + y0Abs; is[2] +=         y0PDY;
-            is[3]  = is[5] + y0MDY; is[4]  = is[5] + y0Abs; is[5] +=         y0PDY;
-            is[6]  = is[8] + y0MDY; is[7]  = is[8] + y0Abs; is[8] +=         y0PDY;
-            break;
-            /**
-             * so the order for the 9 positions when moving in x direction is:
-             * @verbatim
-             * z ^
-             *   | 0 1 2
-             *   | 3 4 5
-             *   | 6 7 8
-             *   +------> y
-             * @endverbatim
-             */
-        case 1: //-+y
-            is[2]  = is[7] + z0MDZ; is[5]  = is[7] + z0Abs; is[8]  = is[7] + z0PDZ;
-            is[0]  = is[2] + x0MDX; is[1]  = is[2] + x0Abs; is[2] +=         x0PDX;
-            is[3]  = is[5] + x0MDX; is[4]  = is[5] + x0Abs; is[5] +=         x0PDX;
-            is[6]  = is[8] + x0MDX; is[7]  = is[8] + x0Abs; is[8] +=         x0PDX;
-            break;
-            /**
-             * @verbatim
-             * z ^
-             *   | 0 1 2
-             *   | 3 4 5
-             *   | 6 7 8
-             *   +------> x
-             * @endverbatim
-             */
-        case 2: //-+z
-            is[2]  = is[7] + y0MDY; is[5]  = is[7] + y0Abs; is[8]  = is[7] + y0PDY;
-            is[0]  = is[2] + x0MDX; is[1]  = is[2] + x0Abs; is[2] +=         x0PDX;
-            is[3]  = is[5] + x0MDX; is[4]  = is[5] + x0Abs; is[5] +=         x0PDX;
-            is[6]  = is[8] + x0MDX; is[7]  = is[8] + x0Abs; is[8] +=         x0PDX;
-            break;
-            /**
-             * @verbatim
-             * y ^
-             *   | 0 1 2
-             *   | 3 4 5
-             *   | 6 7 8
-             *   +------> x
-             * @endverbatim
-             */
+	case 0: is[7] = met.getCurve().linearizeBoxVectorIndexX( x0 + dx + dx ); 
+		/* this line adds all three z directions */
+		is[2]  = is[7] + z0MDZ; is[5]  = is[7] + z0Abs; is[8]  = is[7] + z0PDZ;
+		/* now for all three results we generate all 3 different y positions */
+		is[0]  = is[2] + y0MDY; is[1]  = is[2] + y0Abs; is[2] +=         y0PDY;
+		is[3]  = is[5] + y0MDY; is[4]  = is[5] + y0Abs; is[5] +=         y0PDY;
+		is[6]  = is[8] + y0MDY; is[7]  = is[8] + y0Abs; is[8] +=         y0PDY;
+		break;
+		/**
+		* so the order for the 9 positions when moving in x direction is:
+		* @verbatim
+		* z ^
+		*   | 0 1 2
+		*   | 3 4 5
+		*   | 6 7 8
+		*   +------> y
+		* @endverbatim
+		*/
+	case 1: is[7] = met.getCurve().linearizeBoxVectorIndexY( y0 + dy + dy ); 
+		is[2]  = is[7] + z0MDZ; is[5]  = is[7] + z0Abs; is[8]  = is[7] + z0PDZ;
+		is[0]  = is[2] + x0MDX; is[1]  = is[2] + x0Abs; is[2] +=         x0PDX;
+		is[3]  = is[5] + x0MDX; is[4]  = is[5] + x0Abs; is[5] +=         x0PDX;
+		is[6]  = is[8] + x0MDX; is[7]  = is[8] + x0Abs; is[8] +=         x0PDX;
+		break;
+		/**
+		* @verbatim
+		* z ^
+		*   | 0 1 2
+		*   | 3 4 5
+		*   | 6 7 8
+		*   +------> x
+		* @endverbatim
+		*/
+	case 2: is[7] = met.getCurve().linearizeBoxVectorIndexZ( z0 + dz + dz ); 
+		is[2]  = is[7] + y0MDY; is[5]  = is[7] + y0Abs; is[8]  = is[7] + y0PDY;
+		is[0]  = is[2] + x0MDX; is[1]  = is[2] + x0Abs; is[2] +=         x0PDX;
+		is[3]  = is[5] + x0MDX; is[4]  = is[5] + x0Abs; is[5] +=         x0PDX;
+		is[6]  = is[8] + x0MDX; is[7]  = is[8] + x0Abs; is[8] +=         x0PDX;
+		break;
+		/**
+		* @verbatim
+		* y ^
+		*   | 0 1 2
+		*   | 3 4 5
+		*   | 6 7 8
+		*   +------> x
+		* @endverbatim
+		*/
     }
     /**
-     * we might be able to profit from remporal caching by changing the fetch
-     * order ?! In that case the best should be in order of the z-curve.
-     * E.g. for a full 2x2x2 unit cell we have the order: A kind of problem is:
-     * we want to check a 3x3x1 front ... I don't think there is any easy way
-     * to derive a "correct" or "best order ... need to test all. There are
-     * 9! = 362880 possibilities ... ... ... I can't recompile all this every
-     * time, might have to to some templating and then loop ofer it but that
-     * could lead to code bloat ...
-     * First, manually try out if changing the order does change any thing in
-     * the first place ...
      * The z curve in 3D is:
      * @verbatim
      *   i -> bin  -> (z,y,x)
@@ -355,7 +250,6 @@ __device__ inline bool checkFront
      *   5 -> 101b -> (1,0,1)
      *   6 -> 110b -> (1,1,0)
      *   7 -> 111b -> (1,1,1)
-     *
      *
      *       .'+---+---+
      *     .'  | 0 | 1 |       y
@@ -376,8 +270,6 @@ __device__ inline bool checkFront
            (*fetch)( texLattice, is[ 6 ] ) +
            (*fetch)( texLattice, is[ 7 ] ) +
            (*fetch)( texLattice, is[ 8 ] );
-
-#endif // NOMAGIC
 }
 
 __device__ __host__ inline int16_t linearizeBondVectorIndex
@@ -1974,9 +1866,6 @@ void UpdaterGPUScBFM_AB_Type< T_UCoordinateCuda >::initialize( void )
     #if defined( USE_BIT_PACKING_TMP_LATTICE )
         << " - working with bit-packed temporary lattice\n"
     #endif
-    #if defined( USE_ZCURVE_FOR_LATTICE )
-        << " - using z-curve spatial ordering for the lattices\n"
-    #endif
     #if defined( USE_NBUFFERED_TMP_LATTICE )
         << " - using " << mnLatticeTmpBuffers << " temporary lattices to calculate on a fresh one while the rest is still cleaning in another stream\n"
     #endif
@@ -2915,22 +2804,7 @@ void UpdaterGPUScBFM_AB_Type< T_UCoordinateCuda >::cleanup()
 
 
 template class UpdaterGPUScBFM_AB_Type< uint8_t  >;
-// template void UpdaterGPUScBFM_AB_Type< uint8_t  >:: template runSimulationOnGPU < ZOrderCurve > (uint32_t);
-// template void UpdaterGPUScBFM_AB_Type< uint8_t  >:: template runSimulationOnGPU<LinearCurve>(uint32_t);
-// template void UpdaterGPUScBFM_AB_Type< uint8_t  >:: template runSimulationOnGPU<LinearCurvePowOfTwo>(uint32_t);
 template class UpdaterGPUScBFM_AB_Type< uint16_t >;
-// template void UpdaterGPUScBFM_AB_Type< uint16_t  >:: template runSimulationOnGPU<ZOrderCurve>(uint32_t);
-// template void UpdaterGPUScBFM_AB_Type< uint16_t  >:: template runSimulationOnGPU<LinearCurve>(uint32_t);
-// template void UpdaterGPUScBFM_AB_Type< uint16_t  >:: template runSimulationOnGPU<LinearCurvePowOfTwo>(uint32_t);
 template class UpdaterGPUScBFM_AB_Type< uint32_t >;
-// template void UpdaterGPUScBFM_AB_Type< uint32_t  >:: template runSimulationOnGPU<ZOrderCurve>(uint32_t);
-// template void UpdaterGPUScBFM_AB_Type< uint32_t  >:: template runSimulationOnGPU<LinearCurve>(uint32_t);
-// template void UpdaterGPUScBFM_AB_Type< uint32_t  >:: template runSimulationOnGPU<LinearCurvePowOfTwo>(uint32_t);
 template class UpdaterGPUScBFM_AB_Type<  int16_t >;
-// template void UpdaterGPUScBFM_AB_Type< int16_t  >:: template runSimulationOnGPU<ZOrderCurve>(uint32_t);
-// template void UpdaterGPUScBFM_AB_Type< int16_t  >:: template runSimulationOnGPU<LinearCurve>(uint32_t);
-// template void UpdaterGPUScBFM_AB_Type< int16_t  >:: template runSimulationOnGPU<LinearCurvePowOfTwo>(uint32_t);
 template class UpdaterGPUScBFM_AB_Type<  int32_t >;
-// template void UpdaterGPUScBFM_AB_Type< int32_t  >:: template runSimulationOnGPU<ZOrderCurve>(uint32_t);
-// template void UpdaterGPUScBFM_AB_Type< int32_t  >:: template runSimulationOnGPU<LinearCurve>(uint32_t);
-// template void UpdaterGPUScBFM_AB_Type< int32_t  >:: template runSimulationOnGPU<LinearCurvePowOfTwo>(uint32_t);

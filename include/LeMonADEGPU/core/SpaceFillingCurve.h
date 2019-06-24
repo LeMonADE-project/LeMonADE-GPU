@@ -47,7 +47,21 @@ public:
 
 template< typename T >
 __host__ __device__ inline T_Id linearizeBoxVectorIndex
-( T const & ix, T const & iy, T const & iz) const { return static_cast<specializedCurve*>(this)->linearizeBoxVectorIndex(ix,iy,iz);}
+( T const & ix, T const & iy, T const & iz) const { 
+  return static_cast<specializedCurve*>(this)->linearizeBoxVectorIndex(ix,iy,iz);
+}
+
+template< typename T >
+__host__ __device__ inline T_Id linearizeBoxVectorIndexX
+( T const & ix ) const { return static_cast<specializedCurve*>(this)->linearizeBoxVectorIndexX(ix);}
+
+template< typename T >
+__host__ __device__ inline T_Id linearizeBoxVectorIndexY
+( T const & iy ) const { return static_cast<specializedCurve*>(this)->linearizeBoxVectorIndexY(iy);}
+
+template< typename T >
+__host__ __device__ inline T_Id linearizeBoxVectorIndexZ
+( T const & iz ) const { return static_cast<specializedCurve*>(this)->linearizeBoxVectorIndexZ(iz);}
 
 template < class IngredientsType >
 void initialize(const IngredientsType& ing){ static_cast<specializedCurve*>(this)->initialize(ing);}
@@ -83,20 +97,41 @@ public:
     mBoxYM1 = mBoxY_-1;
     mBoxZM1 = mBoxZ_-1;
   }
-
-      
-  template <typename T >  
-  __host__ __device__ inline T_Id linearizeBoxVectorIndex
-  ( T const & ix, T const & iy, T const & iz ) const { 
+  
+  template< typename T >
+  __host__ __device__ inline T_Id linearizeBoxVectorIndexX
+  ( T const & ix ) const {
+    #ifdef __CUDA_ARCH__
+	    return diluteBits< T_Id, 2 >( ix & dcBoxXM1 ) ;
+    #else 
+	    return diluteBits< T_Id, 2 >( T_Id( ix ) & mBoxXM1 ) ;
+    #endif
+  }
+  template< typename T >
+  __host__ __device__ inline T_Id linearizeBoxVectorIndexY
+  ( T const & iy ) const {
   #ifdef __CUDA_ARCH__
-	  return  diluteBits< T_Id, 2 >( ix & dcBoxXM1 )        +
-		( diluteBits< T_Id, 2 >( iy & dcBoxYM1 ) << 1 ) +
-		( diluteBits< T_Id, 2 >( iz & dcBoxZM1 ) << 2 );
+	  return diluteBits< T_Id, 2 >( iy & dcBoxYM1 ) << 1 ;
   #else 
-	  return diluteBits< T_Id, 2 >( T_Id( ix ) & mBoxXM1 )        +
-	       ( diluteBits< T_Id, 2 >( T_Id( iy ) & mBoxYM1 ) << 1 ) +
-	       ( diluteBits< T_Id, 2 >( T_Id( iz ) & mBoxZM1 ) << 2 );
+	  return diluteBits< T_Id, 2 >( T_Id( iy ) & mBoxYM1 ) << 1 ;
   #endif
+  }
+
+  template< typename T >
+  __host__ __device__ inline T_Id linearizeBoxVectorIndexZ
+  ( T const & iz ) const {
+  #ifdef __CUDA_ARCH__
+	  return diluteBits< T_Id, 2 >( iz & dcBoxZM1 ) << 2 ;
+  #else 
+	  return diluteBits< T_Id, 2 >( T_Id( iz ) & mBoxZM1 ) << 2 ;
+  #endif
+  }
+  template< typename T >
+  __host__ __device__ inline T_Id linearizeBoxVectorIndex
+  ( T const & ix, T const & iy, T const & iz) const { 
+    return linearizeBoxVectorIndexX(ix) +
+	   linearizeBoxVectorIndexY(iy) +
+	   linearizeBoxVectorIndexZ(iz);
   }
 private: 
   uint32_t mBoxXM1, mBoxYM1, mBoxZM1; 
@@ -157,21 +192,41 @@ public:
 	throw std::runtime_error( msg.str() );
     }
   }
-  
-  template <typename T>  
-  __host__ __device__ inline T_Id linearizeBoxVectorIndex
-  ( T const & ix, T const & iy, T const & iz ) const { 
+  template< typename T >
+  __host__ __device__ inline T_Id linearizeBoxVectorIndexX
+  ( T const & ix ) const {
   #ifdef __CUDA_ARCH__
-	  return    ( ix & dcBoxXM1 ) +
-		  ( ( iy & dcBoxYM1 ) << dcBoxXLog2  ) +
-		  ( ( iz & dcBoxZM1 ) << dcBoxXYLog2 );
+	  return    ( ix & dcBoxXM1 ) ;
   #else 
-	  return    ( T_Id( ix ) & mBoxXM1 ) +
-		  ( ( T_Id( iy ) & mBoxYM1 ) << mBoxXLog2  ) +
-		  ( ( T_Id( iz ) & mBoxZM1 ) << mBoxXYLog2 );	  
+	  return    ( T_Id( ix ) & mBoxXM1 ) ;
+  #endif
+  }
+  template< typename T >
+  __host__ __device__ inline T_Id linearizeBoxVectorIndexY
+  ( T const & iy ) const {
+  #ifdef __CUDA_ARCH__
+	  return  ( iy & dcBoxYM1 ) << dcBoxXLog2 ;
+  #else 
+	  return  ( T_Id( iy ) & mBoxYM1 ) << mBoxXLog2 ;
   #endif
   }
 
+  template< typename T >
+  __host__ __device__ inline T_Id linearizeBoxVectorIndexZ
+  ( T const & iz ) const { 
+  #ifdef __CUDA_ARCH__
+	  return  ( ( iz & dcBoxZM1 ) << dcBoxXYLog2 );
+  #else 
+	  return  ( ( T_Id( iz ) & mBoxZM1 ) << mBoxXYLog2 );	  
+  #endif
+  }
+  template< typename T >
+  __host__ __device__ inline T_Id linearizeBoxVectorIndex
+  ( T const & ix, T const & iy, T const & iz) const { 
+    return linearizeBoxVectorIndexX(ix) +
+	   linearizeBoxVectorIndexY(iy) +
+	   linearizeBoxVectorIndexZ(iz);
+  }
 private:
   uint32_t mBoxXM1, mBoxYM1, mBoxZM1; 
   uint32_t mBoxXLog2, mBoxXYLog2;
@@ -200,18 +255,40 @@ public:
     mBoxZ = mBoxZ_;
   }
   
-  template <typename T >  
+  template< typename T >
+  __host__ __device__ inline T_Id linearizeBoxVectorIndexX
+  ( T const & ix ) const {
+    #ifdef __CUDA_ARCH__
+	  return ( ix % dcBoxX );
+    #else 
+	  return ( ix % mBoxX ) ;
+    #endif
+  }
+  template< typename T >
+  __host__ __device__ inline T_Id linearizeBoxVectorIndexY
+  ( T const & iy ) const { 
+    #ifdef __CUDA_ARCH__
+	    return ( iy % dcBoxY ) * dcBoxX;
+    #else 
+	    return ( iy % mBoxY ) * mBoxX;
+    #endif
+  }
+
+  template< typename T >
+  __host__ __device__ inline T_Id linearizeBoxVectorIndexZ
+  ( T const & iz ) const {
+    #ifdef __CUDA_ARCH__
+	    return ( iz % dcBoxZ ) * dcBoxX * dcBoxY;
+    #else 
+	    return ( iz % mBoxZ ) * mBoxX * mBoxY;
+    #endif
+  }
+    template< typename T >
   __host__ __device__ inline T_Id linearizeBoxVectorIndex
-  ( T const & ix, T const & iy, T const & iz ) const { 
-  #ifdef __CUDA_ARCH__
-	  return ( ix % dcBoxX ) +
-		 ( iy % dcBoxY ) * dcBoxX +
-		 ( iz % dcBoxZ ) * dcBoxX * dcBoxY;
-  #else 
-	  return ( ix % mBoxX ) +
-		 ( iy % mBoxY ) * mBoxX +
-		 ( iz % mBoxZ ) * mBoxX * mBoxY;
-  #endif
+  ( T const & ix, T const & iy, T const & iz) const { 
+    return linearizeBoxVectorIndexX(ix) +
+	   linearizeBoxVectorIndexY(iy) +
+	   linearizeBoxVectorIndexZ(iz);
   }
 private:
   uint32_t mBoxX, mBoxY, mBoxZ; 
@@ -259,7 +336,7 @@ public:
   
 template< typename T >
 __host__ __device__ inline T_Id linearizeBoxVectorIndex
-( T const & ix, T const & iy, T const & iz) const {
+( T const & ix, T const & iy, T const & iz ) const {
   switch(mode){
     case ZOrderCurveMode    : return zCurve.linearizeBoxVectorIndex(ix,iy,iz);
     case LinearMode         : return lCurve.linearizeBoxVectorIndex(ix,iy,iz);
@@ -267,6 +344,40 @@ __host__ __device__ inline T_Id linearizeBoxVectorIndex
   };
   return T_Id(); // to supress warnings 
 }
+
+template< typename T >
+__host__ __device__ inline T_Id linearizeBoxVectorIndexX
+( T const & ix ) const {
+  switch(mode){
+    case ZOrderCurveMode    : return zCurve.linearizeBoxVectorIndexX(ix);
+    case LinearMode         : return lCurve.linearizeBoxVectorIndexX(ix);
+    case LinearPowOfTwoMode : return lP2Curve.linearizeBoxVectorIndexX(ix);
+  };
+  return T_Id(); // to supress warnings 
+}
+
+template< typename T >
+__host__ __device__ inline T_Id linearizeBoxVectorIndexY
+( T const & iy ) const {
+  switch(mode){
+    case ZOrderCurveMode    : return zCurve.linearizeBoxVectorIndexY(iy);
+    case LinearMode         : return lCurve.linearizeBoxVectorIndexY(iy);
+    case LinearPowOfTwoMode : return lP2Curve.linearizeBoxVectorIndexY(iy);
+  };
+  return T_Id(); // to supress warnings 
+}
+
+template< typename T >
+__host__ __device__ inline T_Id linearizeBoxVectorIndexZ
+( T const & iz ) const {
+  switch(mode){
+    case ZOrderCurveMode    : return zCurve.linearizeBoxVectorIndexZ(iz);
+    case LinearMode         : return lCurve.linearizeBoxVectorIndexZ(iz);
+    case LinearPowOfTwoMode : return lP2Curve.linearizeBoxVectorIndexZ(iz);
+  };
+  return T_Id(); // to supress warnings 
+}
+
 };
 
 #endif 
