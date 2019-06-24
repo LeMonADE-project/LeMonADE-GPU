@@ -294,7 +294,9 @@ private:
   uint32_t mBoxX, mBoxY, mBoxZ; 
 };
 
-
+/**
+ * @todo We maybe could optimize this approach by using operators and 
+ */
 class SpaceFillingCurve {
 
 public:
