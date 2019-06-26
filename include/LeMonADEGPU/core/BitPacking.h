@@ -18,7 +18,7 @@ public:
   template< typename T, typename T_Id > __device__ __host__ inline
   T bitPackedGet( T const * const & p, T_Id const & i );
   
-  template< typename T > __device__  
+  template< typename T > __device__  inline 
   T bitPackedTextureGet( cudaTextureObject_t p, int i ) const ;
   
   template< typename T > __device__  inline 
@@ -68,21 +68,21 @@ T BitPacking::bitPackedGet( T const * const & p, T_Id const & i )
     };
 }
 
-template< typename T > __device__  
+template< typename T > __device__  inline
 T BitPacking::bitPackedTextureGet( cudaTextureObject_t p, int i )  const 
 {
   //I just dont know why I have to use this macro in the following, 
   //but without a get a declaration error which says that the compiler find no for tex1Dfetch
 #ifdef __CUDA_ARCH__ 
   switch (bitPackingOn) {
-    case 0 : return tex1Dfetch<T>(p,i); 
+    case 0 : return bitPackedTextureGetStandard<T>(p,i); 
     case 1 : return ( tex1Dfetch<T>( p, i >> 3 ) >> ( i & 7 ) ) & T(1);
   };
 #endif
   return T();
 }
 
-template  __device__   uint8_t BitPacking::bitPackedTextureGet ( cudaTextureObject_t, int ) const  ;
+// template  __device__   uint8_t BitPacking::bitPackedTextureGet ( cudaTextureObject_t, int ) const  ;
 
 
 /**

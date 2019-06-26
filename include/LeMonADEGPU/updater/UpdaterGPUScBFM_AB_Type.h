@@ -102,6 +102,8 @@ public:
     using T_Id      = uint32_t; // should be unsigned!
     //lattice entry 
     using T_Lattice = uint8_t ; // untested for something else than uint8_t!
+    
+    typedef  T_Lattice (BitPacking::*getBitPackedTextureFunction)(cudaTextureObject_t tex, int i) const ; 
 
     /** @brief tracks the output for certain streams, like: 'stat', 'check', ...
      */
@@ -308,6 +310,9 @@ public:
 private:
     int            miGpuToUse;
     cudaDeviceProp mCudaProps;
+ 
+    //the host-side function pointer to your __device__ function
+    getBitPackedTextureFunction h_pointFunction;
 
 
 private:
@@ -317,7 +322,7 @@ private:
      * Checks for excluded volume condition and for correctness of all monomer bonds
      */
     void checkSystem() const;
-
+ 
 public:
     UpdaterGPUScBFM_AB_Type();
     virtual ~UpdaterGPUScBFM_AB_Type();
