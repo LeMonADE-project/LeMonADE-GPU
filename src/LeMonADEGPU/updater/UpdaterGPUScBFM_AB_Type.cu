@@ -195,16 +195,6 @@ __device__ inline bool checkFront
      *  +---+---+.'
      * @endverbatim
      */
-//     return (*fetch)( texLattice, is[ 0 ] ) +
-//            (*fetch)( texLattice, is[ 1 ] ) +
-//            (*fetch)( texLattice, is[ 2 ] ) +
-//            (*fetch)( texLattice, is[ 3 ] ) +
-//            (*fetch)( texLattice, is[ 4 ] ) +
-//            (*fetch)( texLattice, is[ 5 ] ) +
-//            (*fetch)( texLattice, is[ 6 ] ) +
-//            (*fetch)( texLattice, is[ 7 ] ) +
-//            (*fetch)( texLattice, is[ 8 ] );
-	   
     return  CALL_MEMBER_FN(met.modifyPacking(), func)( texLattice, is[ 0 ] ) +
 	    CALL_MEMBER_FN(met.modifyPacking(), func)( texLattice, is[ 1 ] ) +
 	    CALL_MEMBER_FN(met.modifyPacking(), func)( texLattice, is[ 2 ] ) +
@@ -214,25 +204,7 @@ __device__ inline bool checkFront
 	    CALL_MEMBER_FN(met.modifyPacking(), func)( texLattice, is[ 6 ] ) +
 	    CALL_MEMBER_FN(met.modifyPacking(), func)( texLattice, is[ 7 ] ) +
 	    CALL_MEMBER_FN(met.modifyPacking(), func)( texLattice, is[ 8 ] ) ;
-//     return met.modifyPacking().bitPackedTextureGet<uint8_t>(texLattice, is[0]) + 
-// 	   met.modifyPacking().bitPackedTextureGet<uint8_t>(texLattice, is[1]) + 
-// 	   met.modifyPacking().bitPackedTextureGet<uint8_t>(texLattice, is[2]) + 
-// 	   met.modifyPacking().bitPackedTextureGet<uint8_t>(texLattice, is[3]) + 
-// 	   met.modifyPacking().bitPackedTextureGet<uint8_t>(texLattice, is[4]) + 
-// 	   met.modifyPacking().bitPackedTextureGet<uint8_t>(texLattice, is[5]) + 
-// 	   met.modifyPacking().bitPackedTextureGet<uint8_t>(texLattice, is[6]) + 
-// 	   met.modifyPacking().bitPackedTextureGet<uint8_t>(texLattice, is[7]) + 
-// 	   met.modifyPacking().bitPackedTextureGet<uint8_t>(texLattice, is[8]);
-    
-/*    return bitPackedTextureGet<uint8_t>(texLattice, is[0]) + 
-	   bitPackedTextureGet<uint8_t>(texLattice, is[1]) + 
-	   bitPackedTextureGet<uint8_t>(texLattice, is[2]) + 
-	   bitPackedTextureGet<uint8_t>(texLattice, is[3]) + 
-	   bitPackedTextureGet<uint8_t>(texLattice, is[4]) + 
-	   bitPackedTextureGet<uint8_t>(texLattice, is[5]) + 
-	   bitPackedTextureGet<uint8_t>(texLattice, is[6]) + 
-	   bitPackedTextureGet<uint8_t>(texLattice, is[7]) + 
-	   bitPackedTextureGet<uint8_t>(texLattice, is[8]);	*/   
+
 }
 
 __device__ __host__ inline int16_t linearizeBondVectorIndex
@@ -791,10 +763,7 @@ void UpdaterGPUScBFM_AB_Type< T_UCoordinateCuda >::destruct()
 }
 
 template< typename T_UCoordinateCuda >
-UpdaterGPUScBFM_AB_Type< T_UCoordinateCuda >::~UpdaterGPUScBFM_AB_Type()
-{
-    this->destruct();
-}
+UpdaterGPUScBFM_AB_Type< T_UCoordinateCuda >::~UpdaterGPUScBFM_AB_Type(){ this->destruct(); }
 
 template< typename T_UCoordinateCuda >
 void UpdaterGPUScBFM_AB_Type< T_UCoordinateCuda >::setGpu( int iGpuToUse )
@@ -2734,11 +2703,9 @@ template< typename T_UCoordinateCuda >
 void UpdaterGPUScBFM_AB_Type< T_UCoordinateCuda >::cleanup()
 {
     this->destruct();
-
     cudaDeviceSynchronize();
     cudaProfilerStop();
 }
-
 
 template class UpdaterGPUScBFM_AB_Type< uint8_t  >;
 template class UpdaterGPUScBFM_AB_Type< uint16_t >;
