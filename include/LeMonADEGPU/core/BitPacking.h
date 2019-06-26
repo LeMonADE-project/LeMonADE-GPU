@@ -1,6 +1,6 @@
 #ifndef LEMONADEGPU_CORE_BITPACKING_H
 #define  LEMONADEGPU_CORE_BITPACKING_H
-
+#include <stdio.h>
 class BitPacking {
 
 public:
@@ -18,8 +18,18 @@ public:
   template< typename T, typename T_Id > __device__ __host__ inline
   T bitPackedGet( T const * const & p, T_Id const & i );
   
-  template< typename T > __device__ 
+  template< typename T > __device__  
   T bitPackedTextureGet( cudaTextureObject_t p, int i ) ;
+  
+  template< typename T > __device__  inline 
+  T bitPackedTextureGetUnpacked( cudaTextureObject_t p, int i )  
+  {
+    //I just dont know why I have to use this macro in the following, 
+    //but without a get a declaration error which says that the compiler find no for tex1Dfetch
+  #ifdef __CUDA_ARCH__ 
+    return tex1Dfetch<T>(p,i); 
+  #endif
+  }
 
   /**
     * Because the smalles atomic is for int (4x uint8_t) we need to
@@ -58,7 +68,7 @@ T BitPacking::bitPackedGet( T const * const & p, T_Id const & i )
     };
 }
 
-template< typename T > __device__ 
+template< typename T > __device__  
 T BitPacking::bitPackedTextureGet( cudaTextureObject_t p, int i )  
 {
   //I just dont know why I have to use this macro in the following, 
@@ -72,7 +82,7 @@ T BitPacking::bitPackedTextureGet( cudaTextureObject_t p, int i )
   return T();
 }
 
-template  __device__   uint8_t BitPacking::bitPackedTextureGet(cudaTextureObject_t, int )  ;
+template  __device__   uint8_t BitPacking::bitPackedTextureGet( cudaTextureObject_t, int )  ;
 
 
 /**

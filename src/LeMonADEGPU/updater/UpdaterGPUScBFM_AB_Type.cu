@@ -62,69 +62,6 @@ using T_Id               = UpdaterGPUScBFM_AB_Type< uint8_t >::T_Id         ;
  * => they only exist for kepler -.- ...
  */
 
-#ifdef USE_BIT_PACKING_TMP_LATTICE
-    template< typename T, typename T_Id > __device__ __host__ inline
-    T bitPackedGet( T const * const & p, T_Id const & i )
-    {
-        /**
-         * >> 3, because 3 bits = 2^3=8 numbers are used for sub-byte indexing,
-         * i.e. we divide the index i by 8 which is equal to the space we save
-         * by bitpacking.
-         * & 7, because 7 = 0b111, i.e. we are only interested in the last 3
-         * bits specifying which subbyte element we want
-         */
-        return ( p[ i >> 3 ] >> ( i & T_Id(7) ) ) & T(1);
-    }
-
-    template< typename T > __device__ inline
-    T bitPackedTextureGet( cudaTextureObject_t p, int i )
-    {
-        return ( tex1Dfetch<T>( p, i >> 3 ) >> ( i & 7 ) ) & T(1);
-    }
-
-    /**
-     * Because the smalles atomic is for int (4x uint8_t) we need to
-     * cast the array to that and then do a bitpacking for the whole 32 bits
-     * instead of 8 bits
-     * I.e. we need to address 32 subbits, i.e. >>3 becomes >>5
-     * and &7 becomes &31 = 0b11111 = 0x1F
-     * __host__ __device__ function with differing code
-     * @see https://codeyarns.com/2011/03/14/cuda-common-function-for-both-host-and-device-code/
-     */
-    template< typename T, typename T_Id > __device__ __host__ inline
-    void bitPackedSet( T * const __restrict__ p, T_Id const & i )
-    {
-        static_assert( sizeof(int) == 4, "" );
-        #ifdef __CUDA_ARCH__
-            atomicOr ( (int*) p + ( i >> 5 ),    T(1) << ( i & T_Id( 0x1F ) )   );
-        #else
-            p[ i >> 3 ] |= T(1) << ( i & T_Id(7) );
-        #endif
-    }
-
-    template< typename T, typename T_Id > __device__ __host__ inline
-    void bitPackedUnset( T * const __restrict__ p, T_Id const & i )
-    {
-        #ifdef __CUDA_ARCH__
-            atomicAnd( (uint32_t*) p + ( i >> 5 ), ~( uint32_t(1) << ( i & T_Id( 0x1F ) ) ) );
-        #else
-            p[ i >> 3 ] &= ~( T(1) << ( i & T_Id(7) ) );
-        #endif
-    }
-#else
-    template< typename T, typename T_Id > __device__ __host__ inline
-    T bitPackedGet( T const * const & p, T_Id const & i ){ return p[i]; }
-    
-    template< typename T > __device__ inline
-    T bitPackedTextureGet( cudaTextureObject_t p, int i ) { return tex1Dfetch<T>(p,i); }
-    
-    template< typename T, typename T_Id > __device__ __host__ inline
-    void bitPackedSet  ( T * const __restrict__ p, T_Id const & i ){ p[i] = 1; }
-    
-    template< typename T, typename T_Id > __device__ __host__ inline
-    void bitPackedUnset( T * const __restrict__ p, T_Id const & i ){ p[i] = 0; }
-#endif
-
 /**
  * Checks the 3x3 grid one in front of the new position in the direction of the
  * move given by axis.
@@ -151,6 +88,8 @@ using T_Id               = UpdaterGPUScBFM_AB_Type< uint8_t >::T_Id         ;
  * @return Returns true if any of that is occupied, i.e. if there
  *         would be a problem with the excluded volume condition.
  */
+typedef  T_Lattice (BitPacking::*getBitPackedTextureFunction)(cudaTextureObject_t tex, int i); 
+#define CALL_MEMBER_FN(object,ptrToMember)  ((object).*(ptrToMember))
 __device__ inline bool checkFront
 (
     cudaTextureObject_t const & texLattice,
@@ -158,8 +97,8 @@ __device__ inline bool checkFront
     uint32_t            const & y0        ,
     uint32_t            const & z0        ,
     T_Flags             const & axis      ,
-    Method		const & met       ,
-    T_Lattice (*fetch)( cudaTextureObject_t, int ) = &tex1Dfetch< T_Lattice >,
+    Method		 & met       ,
+    getBitPackedTextureFunction func, 
     T_Id              * const   iOldPos = NULL
 )
 {
@@ -256,15 +195,44 @@ __device__ inline bool checkFront
      *  +---+---+.'
      * @endverbatim
      */
-    return (*fetch)( texLattice, is[ 0 ] ) +
-           (*fetch)( texLattice, is[ 1 ] ) +
-           (*fetch)( texLattice, is[ 2 ] ) +
-           (*fetch)( texLattice, is[ 3 ] ) +
-           (*fetch)( texLattice, is[ 4 ] ) +
-           (*fetch)( texLattice, is[ 5 ] ) +
-           (*fetch)( texLattice, is[ 6 ] ) +
-           (*fetch)( texLattice, is[ 7 ] ) +
-           (*fetch)( texLattice, is[ 8 ] );
+//     return (*fetch)( texLattice, is[ 0 ] ) +
+//            (*fetch)( texLattice, is[ 1 ] ) +
+//            (*fetch)( texLattice, is[ 2 ] ) +
+//            (*fetch)( texLattice, is[ 3 ] ) +
+//            (*fetch)( texLattice, is[ 4 ] ) +
+//            (*fetch)( texLattice, is[ 5 ] ) +
+//            (*fetch)( texLattice, is[ 6 ] ) +
+//            (*fetch)( texLattice, is[ 7 ] ) +
+//            (*fetch)( texLattice, is[ 8 ] );
+	   
+    return  CALL_MEMBER_FN(met.modifyPacking(), func)( texLattice, is[ 0 ] ) +
+	    CALL_MEMBER_FN(met.modifyPacking(), func)( texLattice, is[ 1 ] ) +
+	    CALL_MEMBER_FN(met.modifyPacking(), func)( texLattice, is[ 2 ] ) +
+	    CALL_MEMBER_FN(met.modifyPacking(), func)( texLattice, is[ 3 ] ) +
+	    CALL_MEMBER_FN(met.modifyPacking(), func)( texLattice, is[ 4 ] ) +
+	    CALL_MEMBER_FN(met.modifyPacking(), func)( texLattice, is[ 5 ] ) +
+	    CALL_MEMBER_FN(met.modifyPacking(), func)( texLattice, is[ 6 ] ) +
+	    CALL_MEMBER_FN(met.modifyPacking(), func)( texLattice, is[ 7 ] ) +
+	    CALL_MEMBER_FN(met.modifyPacking(), func)( texLattice, is[ 8 ] ) ;
+//     return met.modifyPacking().bitPackedTextureGet<uint8_t>(texLattice, is[0]) + 
+// 	   met.modifyPacking().bitPackedTextureGet<uint8_t>(texLattice, is[1]) + 
+// 	   met.modifyPacking().bitPackedTextureGet<uint8_t>(texLattice, is[2]) + 
+// 	   met.modifyPacking().bitPackedTextureGet<uint8_t>(texLattice, is[3]) + 
+// 	   met.modifyPacking().bitPackedTextureGet<uint8_t>(texLattice, is[4]) + 
+// 	   met.modifyPacking().bitPackedTextureGet<uint8_t>(texLattice, is[5]) + 
+// 	   met.modifyPacking().bitPackedTextureGet<uint8_t>(texLattice, is[6]) + 
+// 	   met.modifyPacking().bitPackedTextureGet<uint8_t>(texLattice, is[7]) + 
+// 	   met.modifyPacking().bitPackedTextureGet<uint8_t>(texLattice, is[8]);
+    
+/*    return bitPackedTextureGet<uint8_t>(texLattice, is[0]) + 
+	   bitPackedTextureGet<uint8_t>(texLattice, is[1]) + 
+	   bitPackedTextureGet<uint8_t>(texLattice, is[2]) + 
+	   bitPackedTextureGet<uint8_t>(texLattice, is[3]) + 
+	   bitPackedTextureGet<uint8_t>(texLattice, is[4]) + 
+	   bitPackedTextureGet<uint8_t>(texLattice, is[5]) + 
+	   bitPackedTextureGet<uint8_t>(texLattice, is[6]) + 
+	   bitPackedTextureGet<uint8_t>(texLattice, is[7]) + 
+	   bitPackedTextureGet<uint8_t>(texLattice, is[8]);	*/   
 }
 
 __device__ __host__ inline int16_t linearizeBondVectorIndex
@@ -396,18 +364,15 @@ __global__ void kernelSimulationScBFMCheckSpecies
                     break;
                 }
             }
-            if ( ! forbiddenBond && ! checkFront( texLatticeRefOut, r0.x, r0.y, r0.z, direction, met ) )
+            getBitPackedTextureFunction functor = &BitPacking::bitPackedTextureGetUnpacked;
+            if ( ! forbiddenBond && ! checkFront( texLatticeRefOut, r0.x, r0.y, r0.z, direction, met, functor ) )
             {
                 /* everything fits so perform move on temporary lattice */
                 /* can I do this ??? dpPolymerSystem is the device pointer to the read-only
                  * texture used above. Won't this result in read-after-write race-conditions?
                  * Then again the written / changed bits are never used in the above code ... */
                 direction += T_Flags(8) /* can-move-flag */;
-            #ifdef USE_BIT_PACKING_TMP_LATTICE
-                bitPackedSet( dpLatticeTmp, met.getCurve().linearizeBoxVectorIndex( r1.x, r1.y, r1.z ) );
-            #else
-                dpLatticeTmp[ met.getCurve().linearizeBoxVectorIndex( r1.x, r1.y, r1.z ) ] = 1;
-            #endif
+		met.modifyPacking().bitPackedSet(dpLatticeTmp, met.getCurve().linearizeBoxVectorIndex( r1.x, r1.y, r1.z ));
             }
         }
         dpPolymerFlags[ iMonomer ] = direction;
@@ -463,7 +428,8 @@ __global__ void kernelCountFilteredCheck
                     break;
                 }
             }
-            if ( checkFront( texLatticeRefOut, r0.x, r0.y, r0.z, direction, met ) )
+	    getBitPackedTextureFunction functor = &BitPacking::bitPackedTextureGetUnpacked;
+            if ( checkFront( texLatticeRefOut, r0.x, r0.y, r0.z, direction, met, functor  ) )
             {
                 atomicAdd( dpFiltered+2, 1ull );
                 if ( ! forbiddenBond ) /* this is the more real relative use-case where invalid bonds are already filtered out */
@@ -502,12 +468,9 @@ __global__ void kernelSimulationScBFMPerformSpecies
         //uint3 const r0 = { r0Raw.x, r0Raw.y, r0Raw.z }; // slower
         auto const direction = properties & T_Flags(7); // 7=0b111
         uint32_t iOldPos;
-    #ifdef USE_BIT_PACKING_TMP_LATTICE
-        if ( checkFront( texLatticeTmp, r0.x, r0.y, r0.z, direction, met, &bitPackedTextureGet< T_Lattice >, &iOldPos ) )
-    #else
-        if ( checkFront( texLatticeTmp, r0.x, r0.y, r0.z, direction, met, &tex1Dfetch< T_Lattice >, &iOldPos ) )
-    #endif
-            continue;
+	getBitPackedTextureFunction functor = &BitPacking::bitPackedTextureGet;
+        if ( checkFront( texLatticeTmp, r0.x, r0.y, r0.z, direction, met, functor, &iOldPos ) )
+	  continue;
 
         /* If possible, perform move now on normal lattice */
         dpPolymerFlags[ iMonomer ] = properties | T_Flags(16); // indicating allowed move
@@ -545,11 +508,8 @@ __global__ void kernelSimulationScBFMPerformSpeciesAndApply
         auto const r0 = dpPolymerSystem[ iMonomer ];
         auto const direction = properties & T_Flags(7); // 7=0b111
         uint32_t iOldPos;
-    #ifdef USE_BIT_PACKING_TMP_LATTICE
-        if ( checkFront( texLatticeTmp, r0.x, r0.y, r0.z, direction, met, &bitPackedTextureGet< T_Lattice >, &iOldPos ) )
-    #else
-        if ( checkFront( texLatticeTmp, r0.x, r0.y, r0.z, direction, met, &tex1Dfetch< T_Lattice >, &iOldPos ) )
-    #endif
+	getBitPackedTextureFunction functor = &BitPacking::bitPackedTextureGet;
+        if ( checkFront( texLatticeTmp, r0.x, r0.y, r0.z, direction, met, functor, &iOldPos ) )
             continue;
 
         /* @todo this is slower on Kepler when using DXTableUintCuda_d
@@ -590,11 +550,8 @@ __global__ void kernelCountFilteredPerform
 
         auto const r0 = dpPolymerSystem[ iMonomer ];
         auto const direction = properties & T_Flags(7); // 7=0b111
-    #ifdef USE_BIT_PACKING_TMP_LATTICE
-        if ( checkFront( texLatticeTmp, r0.x, r0.y, r0.z, direction, met, &bitPackedTextureGet< T_Lattice >, NULL ) )
-    #else
-        if ( checkFront( texLatticeTmp, r0.x, r0.y, r0.z, direction, met, &tex1Dfetch< T_Lattice >, NULL ) )
-    #endif
+	getBitPackedTextureFunction functor = &BitPacking::bitPackedTextureGet;
+        if ( checkFront( texLatticeTmp, r0.x, r0.y, r0.z, direction, met, functor, NULL ) )
             atomicAdd( dpFiltered+4, size_t(1) );
     }
 }
@@ -638,12 +595,7 @@ __global__ void kernelSimulationScBFMZeroArraySpecies
         r0.x += DXTable_d[ direction ];
         r0.y += DYTable_d[ direction ];
         r0.z += DZTable_d[ direction ];
-    #ifdef USE_BIT_PACKING_TMP_LATTICE
-        //bitPackedUnset( dpLatticeTmp, linearizeBoxVectorIndex( r0.x, r0.y, r0.z ) );
-        dpLatticeTmp[ met.getCurve().linearizeBoxVectorIndex( r0.x, r0.y, r0.z ) >> 3 ] = 0;
-    #else
-        dpLatticeTmp[ met.getCurve().linearizeBoxVectorIndex( r0.x, r0.y, r0.z ) ] = 0;
-    #endif
+	met.modifyPacking().bitPackedUnset( dpLatticeTmp, met.getCurve().linearizeBoxVectorIndex( r0.x, r0.y, r0.z ) );
         if ( properties & T_Flags(16))
             dpPolymerSystem[ iMonomer ] = r0;
     }
@@ -1112,9 +1064,7 @@ void UpdaterGPUScBFM_AB_Type< T_UCoordinateCuda >::initializeSpeciesSorting( voi
         mLog( "Info" ) << "}\n";
     }
 
-#if ! defined( USE_GPU_FOR_OVERHEAD )
-    if ( mUsePeriodicMonomerSorting )
-#endif
+    if ( met.isONGPUForOverhead() &&  mUsePeriodicMonomerSorting )
     {
         miNewToi->pushAsync();
         miToiNew->pushAsync();
@@ -1421,49 +1371,48 @@ void UpdaterGPUScBFM_AB_Type< T_UCoordinateCuda >::initializeSortedNeighbors( vo
         mLog( "Info" ) << "[UpdaterGPUScBFM_AB_Type::initializeSortedNeighbors] map neighborIds to sorted array ... ";
     }
 
+    if (met.isONGPUForOverhead()){
+      auto const nThreads = 128;
+      auto const nBlocksP = ceilDiv( mnMonomersPadded, nThreads );
+      for ( auto iSpecies = 0u; iSpecies < mnElementsInGroup.size(); ++iSpecies )
+      {
+	  kernelApplyMappingToNeighbors<<< nBlocksP, nThreads, 0, mStream >>>(
+	      mNeighbors           ->gpu,
+	      miNewToi             ->gpu + mviSubGroupOffsets[ iSpecies ],
+	      miToiNew             ->gpu,
+	      mNeighborsSorted     ->gpu + mNeighborsSortedInfo.getMatrixOffsetElements( iSpecies ),
+	      mNeighborsSortedInfo.getMatrixPitchElements( iSpecies ),
+	      mNeighborsSortedSizes->gpu + mviSubGroupOffsets[ iSpecies ],
+	      mnElementsInGroup[ iSpecies ]
+	  );
+      }
+    }else{
+      for ( auto iSpecies = 0u; iSpecies < mnElementsInGroup.size(); ++iSpecies )
+      {
+	  for ( size_t iMonomer = 0u; iMonomer < mnElementsInGroup[ iSpecies ]; ++iMonomer )
+	  {
+	      auto const i = mviSubGroupOffsets[ iSpecies ] + iMonomer;
+	      auto const iOld = miNewToi->host[i];
 
-#if defined( USE_GPU_FOR_OVERHEAD )
-    auto const nThreads = 128;
-    auto const nBlocksP = ceilDiv( mnMonomersPadded, nThreads );
-    for ( auto iSpecies = 0u; iSpecies < mnElementsInGroup.size(); ++iSpecies )
-    {
-        kernelApplyMappingToNeighbors<<< nBlocksP, nThreads, 0, mStream >>>(
-            mNeighbors           ->gpu,
-            miNewToi             ->gpu + mviSubGroupOffsets[ iSpecies ],
-            miToiNew             ->gpu,
-            mNeighborsSorted     ->gpu + mNeighborsSortedInfo.getMatrixOffsetElements( iSpecies ),
-            mNeighborsSortedInfo.getMatrixPitchElements( iSpecies ),
-            mNeighborsSortedSizes->gpu + mviSubGroupOffsets[ iSpecies ],
-            mnElementsInGroup[ iSpecies ]
-        );
+	      mNeighborsSortedSizes->host[i] = mNeighbors->host[ iOld ].size;
+	      auto const pitch = mNeighborsSortedInfo.getMatrixPitchElements( iSpecies );
+	      for ( size_t j = 0u; j < mNeighbors->host[ iOld ].size; ++j )
+	      {
+		  if ( i < 5 || std::abs( (long long int) i - mviSubGroupOffsets[ mviSubGroupOffsets.size()-1 ] ) < 5 )
+		  {
+		      mLog( "Info" ) << "Currently at index " << i << ": Writing into mNeighborsSorted->host[ " << mNeighborsSortedInfo.getMatrixOffsetElements( iSpecies ) << " + " << j << " * " << pitch << " + " << i << "-" << mviSubGroupOffsets[ iSpecies ] << "] the value of old neighbor located at miToiNew->host[ mNeighbors[ miNewToi->host[i]=" << miNewToi->host[i] << " ] = miToiNew->host[ " << mNeighbors->host[ miNewToi->host[i] ].neighborIds[j] << " ] = " << miToiNew->host[ mNeighbors->host[ miNewToi->host[i] ].neighborIds[j] ] << " \n";
+		  }
+		  auto const iNeighborSorted = mNeighborsSortedInfo.getMatrixOffsetElements( iSpecies )
+					    + j * pitch + iMonomer;
+		  mNeighborsSorted->host[ iNeighborSorted ] = miToiNew->host[ mNeighbors->host[ iOld ].neighborIds[ j ] ];
+	      }
+	  }
+      }
+
+      mNeighborsSorted     ->pushAsync();
+      mNeighborsSortedSizes->pushAsync();
+      mLog( "Info" ) << "Done\n";
     }
-#else
-    for ( auto iSpecies = 0u; iSpecies < mnElementsInGroup.size(); ++iSpecies )
-    {
-        for ( size_t iMonomer = 0u; iMonomer < mnElementsInGroup[ iSpecies ]; ++iMonomer )
-        {
-            auto const i = mviSubGroupOffsets[ iSpecies ] + iMonomer;
-            auto const iOld = miNewToi->host[i];
-
-            mNeighborsSortedSizes->host[i] = mNeighbors->host[ iOld ].size;
-            auto const pitch = mNeighborsSortedInfo.getMatrixPitchElements( iSpecies );
-            for ( size_t j = 0u; j < mNeighbors->host[ iOld ].size; ++j )
-            {
-                if ( i < 5 || std::abs( (long long int) i - mviSubGroupOffsets[ mviSubGroupOffsets.size()-1 ] ) < 5 )
-                {
-                    mLog( "Info" ) << "Currently at index " << i << ": Writing into mNeighborsSorted->host[ " << mNeighborsSortedInfo.getMatrixOffsetElements( iSpecies ) << " + " << j << " * " << pitch << " + " << i << "-" << mviSubGroupOffsets[ iSpecies ] << "] the value of old neighbor located at miToiNew->host[ mNeighbors[ miNewToi->host[i]=" << miNewToi->host[i] << " ] = miToiNew->host[ " << mNeighbors->host[ miNewToi->host[i] ].neighborIds[j] << " ] = " << miToiNew->host[ mNeighbors->host[ miNewToi->host[i] ].neighborIds[j] ] << " \n";
-                }
-                auto const iNeighborSorted = mNeighborsSortedInfo.getMatrixOffsetElements( iSpecies )
-                                           + j * pitch + iMonomer;
-                mNeighborsSorted->host[ iNeighborSorted ] = miToiNew->host[ mNeighbors->host[ iOld ].neighborIds[ j ] ];
-            }
-        }
-    }
-
-    mNeighborsSorted     ->pushAsync();
-    mNeighborsSortedSizes->pushAsync();
-    mLog( "Info" ) << "Done\n";
-#endif
 
     /* some checks for correctness of new adjusted neighbor global IDs */
     if ( mLog.isActive( "Check" ) )
@@ -1517,63 +1466,63 @@ void UpdaterGPUScBFM_AB_Type< T_UCoordinateCuda >::initializeSortedMonomerPositi
         mviPolymerSystemSortedVirtualBox->memset( 0 );
     #endif
 
-#if defined( USE_GPU_FOR_OVERHEAD )
-    auto const nThreads = 128;
-    auto const nBlocksP = ceilDiv( mnMonomersPadded, nThreads );
-    kernelSplitMonomerPositions< T_UCoordinateCuda >
-    <<< nBlocksP, nThreads, 0, mStream >>>(
-        mPolymerSystem                  ->gpu,
-        miNewToi                        ->gpu,
-        mviPolymerSystemSortedVirtualBox->gpu,
-        mPolymerSystemSorted            ->gpu,
-        mnMonomersPadded
-    );
-#else
-    mLog( "Info" ) << "[" << __FILENAME__ << "::initializeSortedMonomerPositions] sort mPolymerSystem -> mPolymerSystemSorted ...\n";
-    for ( T_Id i = 0u; i < mnAllMonomers; ++i )
-    {
-        if ( i < 20 )
-            mLog( "Info" ) << "Write " << i << " to " << this->miToiNew->host[i] << "\n";
+    if(met.isONGPUForOverhead()){
+      auto const nThreads = 128;
+      auto const nBlocksP = ceilDiv( mnMonomersPadded, nThreads );
+      kernelSplitMonomerPositions< T_UCoordinateCuda >
+      <<< nBlocksP, nThreads, 0, mStream >>>(
+	  mPolymerSystem                  ->gpu,
+	  miNewToi                        ->gpu,
+	  mviPolymerSystemSortedVirtualBox->gpu,
+	  mPolymerSystemSorted            ->gpu,
+	  mnMonomersPadded
+      );
+    }else{
+      mLog( "Info" ) << "[" << __FILENAME__ << "::initializeSortedMonomerPositions] sort mPolymerSystem -> mPolymerSystemSorted ...\n";
+      for ( T_Id i = 0u; i < mnAllMonomers; ++i )
+      {
+	  if ( i < 20 )
+	      mLog( "Info" ) << "Write " << i << " to " << this->miToiNew->host[i] << "\n";
 
-        auto const x = mPolymerSystem->host[i].x;
-        auto const y = mPolymerSystem->host[i].y;
-        auto const z = mPolymerSystem->host[i].z;
+	  auto const x = mPolymerSystem->host[i].x;
+	  auto const y = mPolymerSystem->host[i].y;
+	  auto const z = mPolymerSystem->host[i].z;
 
-        mPolymerSystemSorted->host[ miToiNew->host[i] ].x = x & mBoxXM1;
-        mPolymerSystemSorted->host[ miToiNew->host[i] ].y = y & mBoxYM1;
-        mPolymerSystemSorted->host[ miToiNew->host[i] ].z = z & mBoxZM1;
-        mPolymerSystemSorted->host[ miToiNew->host[i] ].w = mNeighbors->host[i].size;
+	  mPolymerSystemSorted->host[ miToiNew->host[i] ].x = x & mBoxXM1;
+	  mPolymerSystemSorted->host[ miToiNew->host[i] ].y = y & mBoxYM1;
+	  mPolymerSystemSorted->host[ miToiNew->host[i] ].z = z & mBoxZM1;
+	  mPolymerSystemSorted->host[ miToiNew->host[i] ].w = mNeighbors->host[i].size;
 
-        mviPolymerSystemSortedVirtualBox->host[ miToiNew->host[i] ].x = ( x - ( x & mBoxXM1 ) ) / mBoxX;
-        mviPolymerSystemSortedVirtualBox->host[ miToiNew->host[i] ].y = ( y - ( y & mBoxYM1 ) ) / mBoxY;
-        mviPolymerSystemSortedVirtualBox->host[ miToiNew->host[i] ].z = ( z - ( z & mBoxZM1 ) ) / mBoxZ;
+	  mviPolymerSystemSortedVirtualBox->host[ miToiNew->host[i] ].x = ( x - ( x & mBoxXM1 ) ) / mBoxX;
+	  mviPolymerSystemSortedVirtualBox->host[ miToiNew->host[i] ].y = ( y - ( y & mBoxYM1 ) ) / mBoxY;
+	  mviPolymerSystemSortedVirtualBox->host[ miToiNew->host[i] ].z = ( z - ( z & mBoxZM1 ) ) / mBoxZ;
 
-        auto const pTarget  = &mPolymerSystemSorted            ->host[ miToiNew->host[i] ];
-        auto const pTarget2 = &mviPolymerSystemSortedVirtualBox->host[ miToiNew->host[i] ];
-        if ( ! ( ( (T_Coordinate) pTarget->x + (T_Coordinate) pTarget2->x * (T_Coordinate) mBoxX == x ) &&
-                 ( (T_Coordinate) pTarget->y + (T_Coordinate) pTarget2->y * (T_Coordinate) mBoxY == y ) &&
-                 ( (T_Coordinate) pTarget->z + (T_Coordinate) pTarget2->z * (T_Coordinate) mBoxZ == z )
-        ) )
-        {
-            std::stringstream msg;
-            msg << "[" << __FILENAME__ << "::initializeSortedMonomerPositions] "
-                << "Error while trying to compress the globale positions into box size modulo and number of virtual box the monomer resides in. Virtual box number "
-                << "(" << pTarget2->x << "," << pTarget2->y << "," << pTarget2->z << ")"
-                << ", wrapped position: "
-                << "(" << pTarget->x << "," << pTarget->y << "," << pTarget->z << ")"
-                << " => reconstructed global position ("
-                << pTarget->x + pTarget2->x * mBoxX << ","
-                << pTarget->y + pTarget2->y * mBoxY << ","
-                << pTarget->z + pTarget2->z * mBoxZ << ")"
-                << " should be equal to the input position: "
-                << "(" << x << "," << y << "," << z << ")"
-                << std::endl;
-            throw std::runtime_error( msg.str() );
-        }
+	  auto const pTarget  = &mPolymerSystemSorted            ->host[ miToiNew->host[i] ];
+	  auto const pTarget2 = &mviPolymerSystemSortedVirtualBox->host[ miToiNew->host[i] ];
+	  if ( ! ( ( (T_Coordinate) pTarget->x + (T_Coordinate) pTarget2->x * (T_Coordinate) mBoxX == x ) &&
+		  ( (T_Coordinate) pTarget->y + (T_Coordinate) pTarget2->y * (T_Coordinate) mBoxY == y ) &&
+		  ( (T_Coordinate) pTarget->z + (T_Coordinate) pTarget2->z * (T_Coordinate) mBoxZ == z )
+	  ) )
+	  {
+	      std::stringstream msg;
+	      msg << "[" << __FILENAME__ << "::initializeSortedMonomerPositions] "
+		  << "Error while trying to compress the globale positions into box size modulo and number of virtual box the monomer resides in. Virtual box number "
+		  << "(" << pTarget2->x << "," << pTarget2->y << "," << pTarget2->z << ")"
+		  << ", wrapped position: "
+		  << "(" << pTarget->x << "," << pTarget->y << "," << pTarget->z << ")"
+		  << " => reconstructed global position ("
+		  << pTarget->x + pTarget2->x * mBoxX << ","
+		  << pTarget->y + pTarget2->y * mBoxY << ","
+		  << pTarget->z + pTarget2->z * mBoxZ << ")"
+		  << " should be equal to the input position: "
+		  << "(" << x << "," << y << "," << z << ")"
+		  << std::endl;
+	      throw std::runtime_error( msg.str() );
+	  }
+      }
+      mPolymerSystemSorted            ->pushAsync();
+      mviPolymerSystemSortedVirtualBox->pushAsync();
     }
-    mPolymerSystemSorted            ->pushAsync();
-    mviPolymerSystemSortedVirtualBox->pushAsync();
-#endif
 }
 
 template< typename T_UCoordinateCuda >
@@ -1590,9 +1539,9 @@ void UpdaterGPUScBFM_AB_Type< T_UCoordinateCuda >::initializeLattices( void )
     }
 
     size_t nBytesLatticeTmp = mBoxX * mBoxY * mBoxZ / sizeof( T_Lattice );
-    #if defined( USE_BIT_PACKING_TMP_LATTICE )
+    
+    if (met.getPacking().getBitPackingOn())
         nBytesLatticeTmp /= CHAR_BIT;
-    #endif
     
     if( met.getPacking().getNBufferedTmpLatticeOn())
         nBytesLatticeTmp *= mnLatticeTmpBuffers;
@@ -1661,9 +1610,8 @@ void UpdaterGPUScBFM_AB_Type< T_UCoordinateCuda >::initializeLattices( void )
         for ( auto i = 0u; i < mnLatticeTmpBuffers; ++i )
         {
             mResDesc.res.linear.sizeInBytes = mBoxX * mBoxY * mBoxZ * sizeof( mLatticeTmp->gpu[0] );
-            #if defined( USE_BIT_PACKING_TMP_LATTICE )
+	    if (met.getPacking().getBitPackingOn())
                 mResDesc.res.linear.sizeInBytes /= CHAR_BIT;
-            #endif
             mResDesc.res.linear.devPtr = (uint8_t*) mLatticeTmp->gpu + i * mResDesc.res.linear.sizeInBytes;
             mLog( "Info" )
                 << "Bind texture for " << i << "-th temporary lattice buffer "
@@ -1860,15 +1808,10 @@ void UpdaterGPUScBFM_AB_Type< T_UCoordinateCuda >::initialize( void )
 
     /* write out macro definition configuration */
     mLog( "Info" ) << "[" << __FILENAME__ << "::initialize] Macro configurations:\n"
-    #if defined( USE_BIT_PACKING_TMP_LATTICE )
-        << " - working with bit-packed temporary lattice\n"
-    #endif
-    
+    << " - working with bit-packed temporary lattice is : " << met.getPacking().getBitPackingOn() << "\n"
     << " - using " << met.getPacking().getNBufferedTmpLatticeOn() << " with "  << mnLatticeTmpBuffers << " temporary lattices to calculate on a fresh one while the rest is still cleaning in another stream\n"
+    << " - using GPU for initializations: " << met.isONGPUForOverhead()<< "\n"
     
-    #if defined( USE_GPU_FOR_OVERHEAD )
-        << " - using GPU for initializations\n"
-    #endif
     #if defined( MAX_CONNECTIVITY )
         << " - maximum connectivity is " << MAX_CONNECTIVITY << "\n"
     #endif	
@@ -1909,10 +1852,11 @@ void UpdaterGPUScBFM_AB_Type< T_UCoordinateCuda >::initialize( void )
     { decltype( dcBoxXLog2  ) x = mBoxXLog2 ; CUDA_ERROR( cudaMemcpyToSymbol( dcBoxXLog2 , &x, sizeof(x) ) ); }
     { decltype( dcBoxXYLog2 ) x = mBoxXYLog2; CUDA_ERROR( cudaMemcpyToSymbol( dcBoxXYLog2, &x, sizeof(x) ) ); }
 
-    #if defined( USE_GPU_FOR_OVERHEAD )
+
+    if (met.isONGPUForOverhead()){
         mPolymerSystem->pushAsync();
         mNeighbors    ->pushAsync();
-    #endif
+    }
 
     initializeBondTable();
     initializeSpeciesSorting(); /* using miNewToi and miToiNew the monomers are mapped to be sorted by species */
@@ -2091,70 +2035,70 @@ void UpdaterGPUScBFM_AB_Type< T_UCoordinateCuda >::findAndRemoveOverflows( bool 
      * the only way for jumps to happen is because of type overflows.
      */
 
-#if defined( USE_GPU_FOR_OVERHEAD )
-    auto const nThreads = 128;
-    auto const nBlocks  = ceilDiv( mnMonomersPadded, nThreads );
-    /* the padding values do not change, so we can simply let the threads
-     * calculate them without worries and save the loop over the species */
-    kernelTreatOverflows< T_UCoordinateCuda >
-    <<< nBlocks, nThreads, 0, mStream >>>(
-        mPolymerSystemSortedOld         ->gpu,
-        mPolymerSystemSorted            ->gpu,
-        mviPolymerSystemSortedVirtualBox->gpu,
-        mnMonomersPadded
-    );
-    if ( copyToHost )
-    {
-        mPolymerSystemSorted            ->pop();
-        mviPolymerSystemSortedVirtualBox->pop();
-    }
-#else
-    mPolymerSystemSorted            ->popAsync();
-    mviPolymerSystemSortedVirtualBox->popAsync();
-    CUDA_ERROR( cudaStreamSynchronize( mStream ) );
+    if (met.isONGPUForOverhead() ){
+      auto const nThreads = 128;
+      auto const nBlocks  = ceilDiv( mnMonomersPadded, nThreads );
+      /* the padding values do not change, so we can simply let the threads
+      * calculate them without worries and save the loop over the species */
+      kernelTreatOverflows< T_UCoordinateCuda >
+      <<< nBlocks, nThreads, 0, mStream >>>(
+	  mPolymerSystemSortedOld         ->gpu,
+	  mPolymerSystemSorted            ->gpu,
+	  mviPolymerSystemSortedVirtualBox->gpu,
+	  mnMonomersPadded
+      );
+      if ( copyToHost )
+      {
+	  mPolymerSystemSorted            ->pop();
+	  mviPolymerSystemSortedVirtualBox->pop();
+      }
+    }else{
+      mPolymerSystemSorted            ->popAsync();
+      mviPolymerSystemSortedVirtualBox->popAsync();
+      CUDA_ERROR( cudaStreamSynchronize( mStream ) );
 
-    size_t nPrintInfo = 10;
-    for ( T_Id i = 0u; i < mnAllMonomers; ++i )
-    {
-        auto const r0tmp = mPolymerSystemSortedOld         ->host[ miToiNew->host[i] ];
-        auto const r1tmp = mPolymerSystemSorted            ->host[ miToiNew->host[i] ];
-        auto const ivtmp = mviPolymerSystemSortedVirtualBox->host[ miToiNew->host[i] ];
-        T_UCoordinateCuda r0[3] = { r0tmp.x, r0tmp.y, r0tmp.z };
-        T_UCoordinateCuda r1[3] = { r1tmp.x, r1tmp.y, r1tmp.z };
-        T_Coordinate      iv[3] = { ivtmp.x, ivtmp.y, ivtmp.z };
+      size_t nPrintInfo = 10;
+      for ( T_Id i = 0u; i < mnAllMonomers; ++i )
+      {
+	  auto const r0tmp = mPolymerSystemSortedOld         ->host[ miToiNew->host[i] ];
+	  auto const r1tmp = mPolymerSystemSorted            ->host[ miToiNew->host[i] ];
+	  auto const ivtmp = mviPolymerSystemSortedVirtualBox->host[ miToiNew->host[i] ];
+	  T_UCoordinateCuda r0[3] = { r0tmp.x, r0tmp.y, r0tmp.z };
+	  T_UCoordinateCuda r1[3] = { r1tmp.x, r1tmp.y, r1tmp.z };
+	  T_Coordinate      iv[3] = { ivtmp.x, ivtmp.y, ivtmp.z };
 
-        std::vector< T_BoxSize > const boxSizes = { mBoxX, mBoxY, mBoxZ };
-        auto constexpr boxSizeCudaType = 1ll << ( sizeof( T_UCoordinateCuda ) * CHAR_BIT );
-        for ( auto iCoord = 0u; iCoord < 3u; ++iCoord )
-        {
-            assert( boxSizeCudaType >= boxSizes[ iCoord ] );
-            //assert( nMonteCarloSteps <= boxSizeCudaType / 2 );
-            //assert( nMonteCarloSteps <= std::min( std::min( mBoxX, mBoxY ), mBoxZ ) / 2 );
-            auto const deltaMove = r1[ iCoord ] - r0[ iCoord ];
-            if ( std::abs( deltaMove ) > boxSizeCudaType / 2 )
-            {
-                if ( nPrintInfo > 0 )
-                {
-                    --nPrintInfo;
-                    mLog( "Info" )
-                        << i << " " << char( 'x' + iCoord ) << ": "
-                        << (int) r0[ iCoord ] << " -> " << (int) r1[ iCoord ] << " -> "
-                        << T_Coordinate( r1[ iCoord ] - ( boxSizeCudaType - boxSizes[ iCoord ] ) )
-                        << "\n";
-                }
-                r1[ iCoord ] -= boxSizeCudaType - boxSizes[ iCoord ];
-                iv[ iCoord ] -= deltaMove > decltype(deltaMove)(0) ? 1 : -1;
-            }
-        }
-        mPolymerSystemSorted->host[ miToiNew->host[i] ].x = r1[0];
-        mPolymerSystemSorted->host[ miToiNew->host[i] ].y = r1[1];
-        mPolymerSystemSorted->host[ miToiNew->host[i] ].z = r1[2];
-        mviPolymerSystemSortedVirtualBox->host[ miToiNew->host[i] ].x = iv[0];
-        mviPolymerSystemSortedVirtualBox->host[ miToiNew->host[i] ].y = iv[1];
-        mviPolymerSystemSortedVirtualBox->host[ miToiNew->host[i] ].z = iv[2];
+	  std::vector< T_BoxSize > const boxSizes = { mBoxX, mBoxY, mBoxZ };
+	  auto constexpr boxSizeCudaType = 1ll << ( sizeof( T_UCoordinateCuda ) * CHAR_BIT );
+	  for ( auto iCoord = 0u; iCoord < 3u; ++iCoord )
+	  {
+	      assert( boxSizeCudaType >= boxSizes[ iCoord ] );
+	      //assert( nMonteCarloSteps <= boxSizeCudaType / 2 );
+	      //assert( nMonteCarloSteps <= std::min( std::min( mBoxX, mBoxY ), mBoxZ ) / 2 );
+	      auto const deltaMove = r1[ iCoord ] - r0[ iCoord ];
+	      if ( std::abs( deltaMove ) > boxSizeCudaType / 2 )
+	      {
+		  if ( nPrintInfo > 0 )
+		  {
+		      --nPrintInfo;
+		      mLog( "Info" )
+			  << i << " " << char( 'x' + iCoord ) << ": "
+			  << (int) r0[ iCoord ] << " -> " << (int) r1[ iCoord ] << " -> "
+			  << T_Coordinate( r1[ iCoord ] - ( boxSizeCudaType - boxSizes[ iCoord ] ) )
+			  << "\n";
+		  }
+		  r1[ iCoord ] -= boxSizeCudaType - boxSizes[ iCoord ];
+		  iv[ iCoord ] -= deltaMove > decltype(deltaMove)(0) ? 1 : -1;
+	      }
+	  }
+	  mPolymerSystemSorted->host[ miToiNew->host[i] ].x = r1[0];
+	  mPolymerSystemSorted->host[ miToiNew->host[i] ].y = r1[1];
+	  mPolymerSystemSorted->host[ miToiNew->host[i] ].z = r1[2];
+	  mviPolymerSystemSortedVirtualBox->host[ miToiNew->host[i] ].x = iv[0];
+	  mviPolymerSystemSortedVirtualBox->host[ miToiNew->host[i] ].y = iv[1];
+	  mviPolymerSystemSortedVirtualBox->host[ miToiNew->host[i] ].z = iv[2];
+      }
+      mviPolymerSystemSortedVirtualBox->pushAsync();
     }
-    mviPolymerSystemSortedVirtualBox->pushAsync();
-#endif
 }
 
 /**
@@ -2392,17 +2336,15 @@ void UpdaterGPUScBFM_AB_Type< T_UCoordinateCuda >::runSimulationOnGPU
 
 	  
 	    auto const iStepTotal = iStep * nSpecies + iSubStep;
-	    auto const iOffsetLatticeTmp = ( iStepTotal % mnLatticeTmpBuffers )
-		* ( mBoxX * mBoxY * mBoxZ * sizeof( mLatticeTmp->gpu[0] )
-		#if defined( USE_BIT_PACKING_TMP_LATTICE )
-		    / CHAR_BIT
-		#endif
-	    );
-	    auto const texLatticeTmp = mvtLatticeTmp[ iStepTotal % mnLatticeTmpBuffers ];
+	    auto  iOffsetLatticeTmp = ( iStepTotal % mnLatticeTmpBuffers )
+		* ( mBoxX * mBoxY * mBoxZ * sizeof( mLatticeTmp->gpu[0] ));
+	    if (met.getPacking().getBitPackingOn()) 
+	      iOffsetLatticeTmp /= CHAR_BIT;
+	    auto texLatticeTmp = mvtLatticeTmp[ iStepTotal % mnLatticeTmpBuffers ];
 
 	    if (met.getPacking().getNBufferedTmpLatticeOn()) {
-                auto const iOffsetLatticeTmp = 0u;
-                auto const texLatticeTmp = mLatticeTmp->texture;
+                iOffsetLatticeTmp = 0u;
+                texLatticeTmp = mLatticeTmp->texture;
 	    }
 
 
@@ -2734,49 +2676,49 @@ void UpdaterGPUScBFM_AB_Type< T_UCoordinateCuda >::doCopyBack()
         }
     }
 
-    #if ! defined( USE_GPU_FOR_OVERHEAD )
-    if ( mUsePeriodicMonomerSorting )
-    {
-        miNewToi->popAsync();
-        miToiNew->popAsync(); /* needed for findAndRemoveOverflows, but only if USE_GPU_FOR_OVERHEAD not set */
-        CUDA_ERROR( cudaStreamSynchronize( mStream ) );
-        checkMonomerReorderMapping();
+    if ( ! met.isONGPUForOverhead()){
+      if ( mUsePeriodicMonomerSorting )
+      {
+	  miNewToi->popAsync();
+	  miToiNew->popAsync(); /* needed for findAndRemoveOverflows, but only if met.isONGPUForOverhead() not set */
+	  CUDA_ERROR( cudaStreamSynchronize( mStream ) );
+	  checkMonomerReorderMapping();
+      }
     }
-    #endif
 
     if ( useOverflowChecks )
     {
         findAndRemoveOverflows( false );
     }
 
-#if defined( USE_GPU_FOR_OVERHEAD )
-    auto const nThreads = 128;
-    auto const nBlocksP = ceilDiv( mnMonomersPadded, nThreads );
-    kernelUndoPolymerSystemSorting< T_UCoordinateCuda >
-    <<< nBlocksP, nThreads, 0, mStream >>>
-    (
-        mPolymerSystemSorted            ->gpu,
-        mviPolymerSystemSortedVirtualBox->gpu,
-        miNewToi                        ->gpu,
-        mPolymerSystem                  ->gpu,
-        mnMonomersPadded
-    );
-    mPolymerSystem->pop();
-#else
-    mPolymerSystemSorted->pop();
-    mviPolymerSystemSortedVirtualBox->pop();
-    /* untangle reordered array so that LeMonADE can use it again */
-    for ( T_Id i = 0u; i < mnAllMonomers; ++i )
-    {
-        auto const pTarget = mPolymerSystemSorted->host + miToiNew->host[i];
-        if ( i < 10 )
-            mLog( "Info" ) << "Copying back " << i << " from " << miToiNew->host[i] << "\n";
-        mPolymerSystem->host[i].x = pTarget->x + mviPolymerSystemSortedVirtualBox->host[ miToiNew->host[i] ].x * mBoxX;
-        mPolymerSystem->host[i].y = pTarget->y + mviPolymerSystemSortedVirtualBox->host[ miToiNew->host[i] ].y * mBoxY;
-        mPolymerSystem->host[i].z = pTarget->z + mviPolymerSystemSortedVirtualBox->host[ miToiNew->host[i] ].z * mBoxZ;
-        mPolymerSystem->host[i].w = pTarget->w;
+    if(met.isONGPUForOverhead()){
+      auto const nThreads = 128;
+      auto const nBlocksP = ceilDiv( mnMonomersPadded, nThreads );
+      kernelUndoPolymerSystemSorting< T_UCoordinateCuda >
+      <<< nBlocksP, nThreads, 0, mStream >>>
+      (
+	  mPolymerSystemSorted            ->gpu,
+	  mviPolymerSystemSortedVirtualBox->gpu,
+	  miNewToi                        ->gpu,
+	  mPolymerSystem                  ->gpu,
+	  mnMonomersPadded
+      );
+      mPolymerSystem->pop();
+    }else{
+      mPolymerSystemSorted->pop();
+      mviPolymerSystemSortedVirtualBox->pop();
+      /* untangle reordered array so that LeMonADE can use it again */
+      for ( T_Id i = 0u; i < mnAllMonomers; ++i )
+      {
+	  auto const pTarget = mPolymerSystemSorted->host + miToiNew->host[i];
+	  if ( i < 10 )
+	      mLog( "Info" ) << "Copying back " << i << " from " << miToiNew->host[i] << "\n";
+	  mPolymerSystem->host[i].x = pTarget->x + mviPolymerSystemSortedVirtualBox->host[ miToiNew->host[i] ].x * mBoxX;
+	  mPolymerSystem->host[i].y = pTarget->y + mviPolymerSystemSortedVirtualBox->host[ miToiNew->host[i] ].y * mBoxY;
+	  mPolymerSystem->host[i].z = pTarget->z + mviPolymerSystemSortedVirtualBox->host[ miToiNew->host[i] ].z * mBoxZ;
+	  mPolymerSystem->host[i].w = pTarget->w;
+      }
     }
-#endif
 
     checkSystem(); // no-op if "Check"-level deactivated
 }

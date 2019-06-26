@@ -24,12 +24,12 @@
 #include <LeMonADEGPU/core/rngs/Saru.h>
 
 //keep this 
-#define USE_BIT_PACKING_TMP_LATTICE
+// #define USE_BIT_PACKING_TMP_LATTICE
 // #define USE_ZCURVE_FOR_LATTICE
-#if defined( USE_BIT_PACKING_TMP_LATTICE )
-#   define USE_NBUFFERED_TMP_LATTICE
-#endif
-#define USE_GPU_FOR_OVERHEAD
+// #if defined( USE_BIT_PACKING_TMP_LATTICE )
+// #   define USE_NBUFFERED_TMP_LATTICE
+// #endif
+// #define USE_GPU_FOR_OVERHEAD
 
 //erase that
 // #define USE_BIT_PACKING_LATTICE
