@@ -41,11 +41,8 @@
 #include <LeMonADEGPU/core/rngs/Saru.h>
 #include <LeMonADEGPU/core/MonomerEdges.h>
 #include <LeMonADEGPU/core/constants.cuh>
-#include <LeMonADEGPU/core/SpaceFillingCurve.h>
-
-#if defined( USE_BIT_PACKING_TMP_LATTICE )
-#   define USE_BIT_PACKING
-#endif
+#include <LeMonADEGPU/feature/BoxCheck.h>
+#include <LeMonADEGPU/core/Method.h>
 
 /* shorten full type names for kernels (assuming these are independent of the template parameter) */
 using T_Flags            = UpdaterGPUScBFM_AB_Type< uint8_t >::T_Flags      ;
@@ -53,8 +50,6 @@ using T_Lattice          = UpdaterGPUScBFM_AB_Type< uint8_t >::T_Lattice    ;
 using T_Coordinate       = UpdaterGPUScBFM_AB_Type< uint8_t >::T_Coordinate ;
 using T_Coordinates      = UpdaterGPUScBFM_AB_Type< uint8_t >::T_Coordinates;
 using T_Id               = UpdaterGPUScBFM_AB_Type< uint8_t >::T_Id         ;
-
-#include <LeMonADEGPU/feature/BoxCheck.h>
 
 /* Since CUDA 5.5 (~2014) there do exist texture objects which are much
  * easier and can actually be used as kernel arguments!
@@ -67,7 +62,7 @@ using T_Id               = UpdaterGPUScBFM_AB_Type< uint8_t >::T_Id         ;
  * => they only exist for kepler -.- ...
  */
 
-#ifdef USE_BIT_PACKING
+#ifdef USE_BIT_PACKING_TMP_LATTICE
     template< typename T, typename T_Id > __device__ __host__ inline
     T bitPackedGet( T const * const & p, T_Id const & i )
     {
@@ -1598,9 +1593,10 @@ void UpdaterGPUScBFM_AB_Type< T_UCoordinateCuda >::initializeLattices( void )
     #if defined( USE_BIT_PACKING_TMP_LATTICE )
         nBytesLatticeTmp /= CHAR_BIT;
     #endif
-    #if defined( USE_NBUFFERED_TMP_LATTICE )
+    
+    if( met.getPacking().getNBufferedTmpLatticeOn())
         nBytesLatticeTmp *= mnLatticeTmpBuffers;
-    #endif
+    
     mLatticeOut  = new MirroredTexture< T_Lattice >( mBoxX * mBoxY * mBoxZ, mStream );
     mLatticeTmp  = new MirroredTexture< T_Lattice >( nBytesLatticeTmp     , mStream );
     mLatticeTmp2 = new MirroredTexture< T_Lattice >( mBoxX * mBoxY * mBoxZ, mStream );
@@ -1625,7 +1621,8 @@ void UpdaterGPUScBFM_AB_Type< T_UCoordinateCuda >::initializeLattices( void )
         << "=> " << 100. * mnAllMonomers / ( mBoxX * mBoxY * mBoxZ ) << "%\n"
         << "Note: densest packing is: 25% -> in this case it might be more reasonable to actually iterate over the spaces where particles can move to, keeping track of them instead of iterating over the particles\n";
 
-    #if defined( USE_NBUFFERED_TMP_LATTICE )
+    
+    if( met.getPacking().getNBufferedTmpLatticeOn()){
         /**
          * Addresses must be aligned to 32=2*4*4 byte boundaries
          * @see https://devtalk.nvidia.com/default/topic/975906/cuda-runtime-api-error-74-misaligned-address/?offset=5
@@ -1637,7 +1634,7 @@ void UpdaterGPUScBFM_AB_Type< T_UCoordinateCuda >::initializeLattices( void )
         if ( mBoxX * mBoxY * mBoxZ < 32 )
         {
             std::stringstream msg;
-            msg << "[" << __FILENAME__ << "::initializeLattices] [Error] The total cells in the box " << mBoxX * mBoxY * mBoxZ << " is smaller than 32. This is not allowed (yet) with USE_NBUFFERED_TMP_LATTICE turned as it would neccessitate additional padding between the buffers. Please undefine USE_NBUFFERED_TMP_LATTICE in the source code or increase the box size!\n";
+            msg << "[" << __FILENAME__ << "::initializeLattices] [Error] The total cells in the box " << mBoxX * mBoxY * mBoxZ << " is smaller than 32. This is not allowed (yet) with met.getPacking().getNBufferedTmpLatticeOn() turned as it would neccessitate additional padding between the buffers. Please undefine met.getPacking().getNBufferedTmpLatticeOn() in the source code or increase the box size!\n";
             mLog( "Error" ) << msg.str();
             throw std::runtime_error( msg.str() );
         }
@@ -1648,7 +1645,7 @@ void UpdaterGPUScBFM_AB_Type< T_UCoordinateCuda >::initializeLattices( void )
         else if ( mBoxX * mBoxY * mBoxZ < 256 )
         {
             std::stringstream msg;
-            msg << "[" << __FILENAME__ << "::initializeLattices] [Warning] The total cells in the box " << mBoxX * mBoxY * mBoxZ << " is smaller than 256. This might lead to performance loss. Try undefining USE_NBUFFERED_TMP_LATTICE in the source code or increase the box size.\n";
+            msg << "[" << __FILENAME__ << "::initializeLattices] [Warning] The total cells in the box " << mBoxX * mBoxY * mBoxZ << " is smaller than 256. This might lead to performance loss. Try undefining met.getPacking().getNBufferedTmpLatticeOn() in the source code or increase the box size.\n";
             mLog( "Warning" ) << msg.str();
         }
 
@@ -1675,7 +1672,7 @@ void UpdaterGPUScBFM_AB_Type< T_UCoordinateCuda >::initializeLattices( void )
             /* the last three arguments are pointers to constants! */
             cudaCreateTextureObject( &mvtLatticeTmp.at(i), &mResDesc, &mTexDesc, NULL );
         }
-    #endif
+    }
 }
 
 template< typename T_UCoordinateCuda >
@@ -1866,9 +1863,9 @@ void UpdaterGPUScBFM_AB_Type< T_UCoordinateCuda >::initialize( void )
     #if defined( USE_BIT_PACKING_TMP_LATTICE )
         << " - working with bit-packed temporary lattice\n"
     #endif
-    #if defined( USE_NBUFFERED_TMP_LATTICE )
-        << " - using " << mnLatticeTmpBuffers << " temporary lattices to calculate on a fresh one while the rest is still cleaning in another stream\n"
-    #endif
+    
+    << " - using " << met.getPacking().getNBufferedTmpLatticeOn() << " with "  << mnLatticeTmpBuffers << " temporary lattices to calculate on a fresh one while the rest is still cleaning in another stream\n"
+    
     #if defined( USE_GPU_FOR_OVERHEAD )
         << " - using GPU for initializations\n"
     #endif
@@ -2392,19 +2389,22 @@ void UpdaterGPUScBFM_AB_Type< T_UCoordinateCuda >::runSimulationOnGPU
          *  - each particle could be touched, not just one group */
         for ( uint32_t iSubStep = 0; iSubStep < nSpecies; ++iSubStep )
         {
-            #if defined( USE_NBUFFERED_TMP_LATTICE )
-                auto const iStepTotal = iStep * nSpecies + iSubStep;
-                auto const iOffsetLatticeTmp = ( iStepTotal % mnLatticeTmpBuffers )
-                    * ( mBoxX * mBoxY * mBoxZ * sizeof( mLatticeTmp->gpu[0] )
-                    #if defined( USE_BIT_PACKING_TMP_LATTICE )
-                        / CHAR_BIT
-                    #endif
-                );
-                auto const texLatticeTmp = mvtLatticeTmp[ iStepTotal % mnLatticeTmpBuffers ];
-            #else
+
+	  
+	    auto const iStepTotal = iStep * nSpecies + iSubStep;
+	    auto const iOffsetLatticeTmp = ( iStepTotal % mnLatticeTmpBuffers )
+		* ( mBoxX * mBoxY * mBoxZ * sizeof( mLatticeTmp->gpu[0] )
+		#if defined( USE_BIT_PACKING_TMP_LATTICE )
+		    / CHAR_BIT
+		#endif
+	    );
+	    auto const texLatticeTmp = mvtLatticeTmp[ iStepTotal % mnLatticeTmpBuffers ];
+
+	    if (met.getPacking().getNBufferedTmpLatticeOn()) {
                 auto const iOffsetLatticeTmp = 0u;
                 auto const texLatticeTmp = mLatticeTmp->texture;
-            #endif
+	    }
+
 
             /* randomly choose which monomer group to advance */
             auto const iSpecies = randomNumbers.r250_rand32() % nSpecies;
@@ -2505,23 +2505,18 @@ void UpdaterGPUScBFM_AB_Type< T_UCoordinateCuda >::runSimulationOnGPU
 
             if ( useCudaMemset )
             {
-                #if defined( USE_NBUFFERED_TMP_LATTICE ) 
-                    /* we only need to delete when buffers will wrap around and
-                     * on the last loop, so that on next runSimulationOnGPU
-                     * call mLatticeTmp is clean */
-                    if ( ( iStepTotal % mnLatticeTmpBuffers == 0 ) ||
-                         ( iStep == nMonteCarloSteps-1 && iSubStep == nSpecies-1 ) )
-                    {
-                        cudaMemsetAsync( (void*) mLatticeTmp->gpu, 0, mLatticeTmp->nBytes, mStream );
-                    }
-                #else
-                    auto const nBytesToDelete = mBoxX * mBoxY * mBoxZ * sizeof( mLatticeTmp->gpu[0] )
-                    #if defined( USE_BIT_PACKING_TMP_LATTICE )
-                        / CHAR_BIT
-                    #endif
-                        ;
-                        mLatticeTmp->memsetAsync(0);
-                #endif
+ 		if(met.getPacking().getNBufferedTmpLatticeOn()){
+		  /* we only need to delete when buffers will wrap around and
+		    * on the last loop, so that on next runSimulationOnGPU
+		    * call mLatticeTmp is clean */
+		  if ( ( iStepTotal % mnLatticeTmpBuffers == 0 ) ||
+			( iStep == nMonteCarloSteps-1 && iSubStep == nSpecies-1 ) )
+		  {
+		      cudaMemsetAsync( (void*) mLatticeTmp->gpu, 0, mLatticeTmp->nBytes, mStream );
+		  }
+		}else{
+		  mLatticeTmp->memsetAsync(0);
+                }
             }
             else
             {

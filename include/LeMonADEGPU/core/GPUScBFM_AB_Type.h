@@ -188,9 +188,12 @@ public:
         }
 	
 	Method met;
-	met.modifyCurve().setMode(0);
-	met.modifyCurve().setBox(mIngredients.getBoxX(),mIngredients.getBoxY(),mIngredients.getBoxZ());
-	mUpdaterGpu.setMethod(met);
+ 	met.modifyCurve().setMode(0);
+ 	met.modifyCurve().setBox(mIngredients.getBoxX(),mIngredients.getBoxY(),mIngredients.getBoxZ());
+	met.modifyPacking().setBitPackingOn(true);
+	met.modifyPacking().setNBufferedTmpLatticeOn(true);
+	met.setOnGPUForOverhead(true);
+ 	mUpdaterGpu.setMethod(met);
 	
         mLog( "Info" ) << "[" << __FILENAME__ << "::initialize] initialize GPU updater\n";
         mUpdaterGpu.initialize();

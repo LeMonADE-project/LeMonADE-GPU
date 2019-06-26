@@ -21,10 +21,7 @@
 #include <LeMonADE/utility/RandomNumberGenerators.h>
 #include <LeMonADEGPU/utility/cudacommon.hpp>
 #include <LeMonADEGPU/utility/SelectiveLogger.hpp>
-// #include <LeMonADEGPU/core/rngs/RNGload.h>
-// #include <LeMonADEGPU/core/rngs/PCG.h>
 #include <LeMonADEGPU/core/rngs/Saru.h>
-// #include <LeMonADEGPU/core/SpaceFillingCurve.h>
 
 //keep this 
 #define USE_BIT_PACKING_TMP_LATTICE
@@ -51,16 +48,8 @@
 
 #include <LeMonADEGPU/utility/alignedMatrizes.h>
 #include <LeMonADEGPU/core/MonomerEdges.h>
-#include <LeMonADEGPU/core/SpaceFillingCurve.h>
-class Method {
 
-private:    
-    SpaceFillingCurve curve; 
-  
-public:
-   __device__ __host__ const SpaceFillingCurve&   getCurve() const {return curve; }
-   SpaceFillingCurve&   modifyCurve() {return curve; }
-};
+#include <LeMonADEGPU/core/Method.h>
 
 template< typename T_UCoordinateCuda > 
 class UpdaterGPUScBFM_AB_Type
