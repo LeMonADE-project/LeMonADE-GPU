@@ -19,10 +19,10 @@ public:
   T bitPackedGet( T const * const & p, T_Id const & i );
   
   template< typename T > __device__  
-  T bitPackedTextureGet( cudaTextureObject_t p, int i ) ;
+  T bitPackedTextureGet( cudaTextureObject_t p, int i ) const ;
   
   template< typename T > __device__  inline 
-  T bitPackedTextureGetUnpacked( cudaTextureObject_t p, int i )  
+  T bitPackedTextureGetStandard( cudaTextureObject_t p, int i ) const  
   {
     //I just dont know why I have to use this macro in the following, 
     //but without a get a declaration error which says that the compiler find no for tex1Dfetch
@@ -40,8 +40,8 @@ public:
     * __host__ __device__ function with differing code
     * @see https://codeyarns.com/2011/03/14/cuda-common-function-for-both-host-and-device-code/
     */
-  template< typename T, typename T_Id > __device__ __host__ 
-  void bitPackedSet( T * const __restrict__ p, T_Id const & i );
+  template< typename T, typename T_Id > __device__ __host__ inline
+  void bitPackedSet( T * const __restrict__ p, T_Id const & i ) const ;
   template< typename T, typename T_Id > __device__ __host__ inline
   void bitPackedUnset( T * const __restrict__ p, T_Id const & i );
   
@@ -69,7 +69,7 @@ T BitPacking::bitPackedGet( T const * const & p, T_Id const & i )
 }
 
 template< typename T > __device__  
-T BitPacking::bitPackedTextureGet( cudaTextureObject_t p, int i )  
+T BitPacking::bitPackedTextureGet( cudaTextureObject_t p, int i )  const 
 {
   //I just dont know why I have to use this macro in the following, 
   //but without a get a declaration error which says that the compiler find no for tex1Dfetch
@@ -82,7 +82,7 @@ T BitPacking::bitPackedTextureGet( cudaTextureObject_t p, int i )
   return T();
 }
 
-template  __device__   uint8_t BitPacking::bitPackedTextureGet( cudaTextureObject_t, int )  ;
+template  __device__   uint8_t BitPacking::bitPackedTextureGet ( cudaTextureObject_t, int ) const  ;
 
 
 /**
@@ -94,8 +94,8 @@ template  __device__   uint8_t BitPacking::bitPackedTextureGet( cudaTextureObjec
   * __host__ __device__ function with differing code
   * @see https://codeyarns.com/2011/03/14/cuda-common-function-for-both-host-and-device-code/
   */
-template< typename T, typename T_Id > __device__ __host__ 
-void BitPacking::bitPackedSet( T * const __restrict__ p, T_Id const & i )
+template< typename T, typename T_Id > __device__ __host__ inline 
+void BitPacking::bitPackedSet( T * const __restrict__ p, T_Id const & i ) const 
 {
   switch (bitPackingOn) {
     case 0 :  p[i] = 1;

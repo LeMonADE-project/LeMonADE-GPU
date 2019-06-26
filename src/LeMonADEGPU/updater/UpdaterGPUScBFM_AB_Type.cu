@@ -88,7 +88,7 @@ using T_Id               = UpdaterGPUScBFM_AB_Type< uint8_t >::T_Id         ;
  * @return Returns true if any of that is occupied, i.e. if there
  *         would be a problem with the excluded volume condition.
  */
-typedef  T_Lattice (BitPacking::*getBitPackedTextureFunction)(cudaTextureObject_t tex, int i); 
+typedef  T_Lattice (BitPacking::*getBitPackedTextureFunction)(cudaTextureObject_t tex, int i) const ; 
 #define CALL_MEMBER_FN(object,ptrToMember)  ((object).*(ptrToMember))
 __device__ inline bool checkFront
 (
@@ -97,8 +97,8 @@ __device__ inline bool checkFront
     uint32_t            const & y0        ,
     uint32_t            const & z0        ,
     T_Flags             const & axis      ,
-    Method		 & met       ,
-    getBitPackedTextureFunction func, 
+    Method		const & met       ,
+    getBitPackedTextureFunction func = &BitPacking::bitPackedTextureGetStandard, 
     T_Id              * const   iOldPos = NULL
 )
 {
@@ -195,15 +195,15 @@ __device__ inline bool checkFront
      *  +---+---+.'
      * @endverbatim
      */
-    return  CALL_MEMBER_FN(met.modifyPacking(), func)( texLattice, is[ 0 ] ) +
-	    CALL_MEMBER_FN(met.modifyPacking(), func)( texLattice, is[ 1 ] ) +
-	    CALL_MEMBER_FN(met.modifyPacking(), func)( texLattice, is[ 2 ] ) +
-	    CALL_MEMBER_FN(met.modifyPacking(), func)( texLattice, is[ 3 ] ) +
-	    CALL_MEMBER_FN(met.modifyPacking(), func)( texLattice, is[ 4 ] ) +
-	    CALL_MEMBER_FN(met.modifyPacking(), func)( texLattice, is[ 5 ] ) +
-	    CALL_MEMBER_FN(met.modifyPacking(), func)( texLattice, is[ 6 ] ) +
-	    CALL_MEMBER_FN(met.modifyPacking(), func)( texLattice, is[ 7 ] ) +
-	    CALL_MEMBER_FN(met.modifyPacking(), func)( texLattice, is[ 8 ] ) ;
+    return  CALL_MEMBER_FN(met.getPacking(), func)( texLattice, is[ 0 ] ) +
+	    CALL_MEMBER_FN(met.getPacking(), func)( texLattice, is[ 1 ] ) +
+	    CALL_MEMBER_FN(met.getPacking(), func)( texLattice, is[ 2 ] ) +
+	    CALL_MEMBER_FN(met.getPacking(), func)( texLattice, is[ 3 ] ) +
+	    CALL_MEMBER_FN(met.getPacking(), func)( texLattice, is[ 4 ] ) +
+	    CALL_MEMBER_FN(met.getPacking(), func)( texLattice, is[ 5 ] ) +
+	    CALL_MEMBER_FN(met.getPacking(), func)( texLattice, is[ 6 ] ) +
+	    CALL_MEMBER_FN(met.getPacking(), func)( texLattice, is[ 7 ] ) +
+	    CALL_MEMBER_FN(met.getPacking(), func)( texLattice, is[ 8 ] ) ;
 
 }
 
@@ -282,7 +282,7 @@ __global__ void kernelSimulationScBFMCheckSpecies
     uint64_t            const              rGlobalIteration        ,
     cudaTextureObject_t const              texLatticeRefOut        ,
     BoxCheck                               bCheck, 
-    Method met 
+    Method              const              met
 )
 {
     uint32_t rn;
@@ -336,7 +336,7 @@ __global__ void kernelSimulationScBFMCheckSpecies
                     break;
                 }
             }
-            getBitPackedTextureFunction functor = &BitPacking::bitPackedTextureGetUnpacked;
+            	    getBitPackedTextureFunction functor = &BitPacking::bitPackedTextureGetStandard;
             if ( ! forbiddenBond && ! checkFront( texLatticeRefOut, r0.x, r0.y, r0.z, direction, met, functor ) )
             {
                 /* everything fits so perform move on temporary lattice */
@@ -344,7 +344,7 @@ __global__ void kernelSimulationScBFMCheckSpecies
                  * texture used above. Won't this result in read-after-write race-conditions?
                  * Then again the written / changed bits are never used in the above code ... */
                 direction += T_Flags(8) /* can-move-flag */;
-		met.modifyPacking().bitPackedSet(dpLatticeTmp, met.getCurve().linearizeBoxVectorIndex( r1.x, r1.y, r1.z ));
+		met.getPacking().bitPackedSet(dpLatticeTmp, met.getCurve().linearizeBoxVectorIndex( r1.x, r1.y, r1.z ));
             }
         }
         dpPolymerFlags[ iMonomer ] = direction;
@@ -400,7 +400,7 @@ __global__ void kernelCountFilteredCheck
                     break;
                 }
             }
-	    getBitPackedTextureFunction functor = &BitPacking::bitPackedTextureGetUnpacked;
+	    getBitPackedTextureFunction functor = &BitPacking::bitPackedTextureGetStandard;
             if ( checkFront( texLatticeRefOut, r0.x, r0.y, r0.z, direction, met, functor  ) )
             {
                 atomicAdd( dpFiltered+2, 1ull );
@@ -2338,6 +2338,7 @@ void UpdaterGPUScBFM_AB_Type< T_UCoordinateCuda >::runSimulationOnGPU
 
 	    BoxCheck boxCheck( mIsPeriodicX, mIsPeriodicY, mIsPeriodicZ );
 // 	    SpaceFillingCurve curve(met.getCurve());
+	    getBitPackedTextureFunction functor = &BitPacking::bitPackedTextureGetStandard;
 	      kernelSimulationScBFMCheckSpecies< T_UCoordinateCuda > 
 	      <<< nBlocks, nThreads, 0, mStream >>>(                
 		  mPolymerSystemSorted->gpu,                                     
@@ -2351,7 +2352,8 @@ void UpdaterGPUScBFM_AB_Type< T_UCoordinateCuda >::runSimulationOnGPU
 		  seed, 
 		  mGlobalIterator,                                         
 		  mLatticeOut->texture,
-		  boxCheck, met 
+		  boxCheck, 
+		  met
 	      );
 
 	    /** The counting kernel can come after the Check-kernel, because the
