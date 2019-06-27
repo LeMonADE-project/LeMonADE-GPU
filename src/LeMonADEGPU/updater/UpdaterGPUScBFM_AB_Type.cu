@@ -175,29 +175,6 @@ __device__ inline bool checkFront
 		* @endverbatim
 		*/
     }
-    /**
-     * The z curve in 3D is:
-     * @verbatim
-     *   i -> bin  -> (z,y,x)
-     *   0 -> 000b -> (0,0,0)
-     *   1 -> 001b -> (0,0,1)
-     *   2 -> 010b -> (0,1,0)
-     *   3 -> 011b -> (0,1,1)
-     *   4 -> 100b -> (1,0,0)
-     *   5 -> 101b -> (1,0,1)
-     *   6 -> 110b -> (1,1,0)
-     *   7 -> 111b -> (1,1,1)
-     *
-     *       .'+---+---+
-     *     .'  | 0 | 1 |       y
-     *   .'    +---+---+       ^
-     *  +---+---+2 | 3 |       |
-     *  | 4 | 5 |--+---+       +--> x
-     *  +---+---+    .'      .'
-     *  | 6 | 7 |  .'       L z
-     *  +---+---+.'
-     * @endverbatim
-     */
     return  CALL_MEMBER_FN(met.getPacking(), func)( texLattice, is[ 0 ] ) +
 	    CALL_MEMBER_FN(met.getPacking(), func)( texLattice, is[ 1 ] ) +
 	    CALL_MEMBER_FN(met.getPacking(), func)( texLattice, is[ 2 ] ) +
@@ -296,51 +273,27 @@ __global__ void kernelCheckSpeciesConnection
           iMonomer < nMonomers; iMonomer += gridDim.x * blockDim.x, ++iGrid )
     {
         auto const r0 = dpPolymerSystem[ iOffset + iMonomer ];
-        /* upcast int3 to int4 in preparation to use PTX SIMD instructions */
-        //int4 const r0 = { r0Raw.x, r0Raw.y, r0Raw.z, 0 }; // not faster nor slower
-        //select random direction. Own implementation of an rng :S? But I think it at least# was initialized using the LeMonADE RNG ...
-        if ( iGrid % 1 == 0 ) // 12 = floor( log(2^32) / log(6) )
+        if ( iGrid % 1 == 0 ) //for what is this  
         {
 	  Saru rng(rGlobalIteration,iMonomer,rSeed);
 	  rn =rng.rng32();
         }
-
         int direction = rn % 6;
-
          /* select random direction. Do this with bitmasking instead of lookup ??? */
         typename CudaVec4< T_UCoordinateCuda >::value_type const r1 = {
             T_UCoordinateCuda( r0.x + DXTable_d[ direction ] ),
             T_UCoordinateCuda( r0.y + DYTable_d[ direction ] ),
             T_UCoordinateCuda( r0.z + DZTable_d[ direction ] )
         };
-
-        /* check whether the new location of the particle would be inside the box
-         * if the box is not periodic, if not, then don't move the particle
-         * r1 is unsigned so we don't have to check whether it's < 0 as that
-         * would mean it -1 wraps around to UINTN_MAX
-         * But in order for this to work with 256-sized boxes on uint8_t with
-         * non-periodic boundary conditions, we have to check for wrap arounds
-         * wrap arounds can only happen if the monomer was at 0 or dcBoxXM1
-         * and moved outside
-         *   0 <= x1 <= dcBoxX is useless, we need to replace, not add to it!
-         *   0 < x0 <= dxBoxXM1 || ( x0 == 0 && x1 <= 1 ) || ( x0 == 255 && x1 >= 254 )
-         */
-
 	if (    bCheck(r1.x,r1.y,r1.z) && 
 	      ! checkBonds<T_UCoordinateCuda>(dpNeighborsSizes, iMonomer, dpNeighbors, rNeighborsPitchElements, dpPolymerSystem, r1 ) && 
 	      ! checkFront( texLatticeRefOut, r0.x, r0.y, r0.z, direction, met, &BitPacking::bitPackedTextureGetStandard ) )
 	{
-	    /* everything fits so perform move on temporary lattice */
-	    /* can I do this ??? dpPolymerSystem is the device pointer to the read-only
-	      * texture used above. Won't this result in read-after-write race-conditions?
-	      * Then again the written / changed bits are never used in the above code ... */
-	    direction += T_Flags(8) /* can-move-flag */;
+	    direction += T_Flags(8);
 	    met.getPacking().bitPackedSet(dpLatticeTmp, met.getCurve().linearizeBoxVectorIndex( r1.x, r1.y, r1.z ));
 	}
-
         dpPolymerFlags[ iMonomer ] = direction;
     }
-  
 }
   
   
