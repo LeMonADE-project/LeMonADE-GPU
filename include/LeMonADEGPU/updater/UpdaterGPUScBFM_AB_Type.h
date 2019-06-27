@@ -21,41 +21,19 @@
 #include <LeMonADE/utility/RandomNumberGenerators.h>
 #include <LeMonADEGPU/utility/cudacommon.hpp>
 #include <LeMonADEGPU/utility/SelectiveLogger.hpp>
-#include <LeMonADEGPU/core/rngs/RNGload.h>
-#include <LeMonADEGPU/core/rngs/PCG.h>
 #include <LeMonADEGPU/core/rngs/Saru.h>
 
+//keep this 
+// #define USE_BIT_PACKING_TMP_LATTICE
+// #define USE_ZCURVE_FOR_LATTICE
+// #if defined( USE_BIT_PACKING_TMP_LATTICE )
+// #   define USE_NBUFFERED_TMP_LATTICE
+// #endif
+// #define USE_GPU_FOR_OVERHEAD
 
-//#define USE_THRUST_FILL
-#define USE_BIT_PACKING_TMP_LATTICE
-// #define USE_BIT_PACKING_LATTsICE
-//#define AUTO_CONFIGURE_BEST_SETTINGS_FOR_PSCBFM_ALGORITHM
-#define USE_ZCURVE_FOR_LATTICE
-//#define USE_MOORE_CURVE_FOR_LATTICE
-//#define USE_DOUBLE_BUFFERED_TMP_LATTICE
-#if defined( USE_BIT_PACKING_TMP_LATTICE )
-#   define USE_NBUFFERED_TMP_LATTICE
-#endif
-#define USE_GPU_FOR_OVERHEAD
-//#define CHECK_FRONT_BIT_PACKED_INDEX_CALC_VERSION 0 // choose between 0 and 6, Incidentally 0 and 6 seem to be the best two
+//erase that
+// #define USE_BIT_PACKING_LATTICE
 
-
-/**
- * for some reason version 6 has a 5% improvement over version 0 with
- * USE_PERIODIC_MONOMER_SORTING turned on, but is 5% slower over version 0
- * with USE_PERIODIC_MONOMER_SORTING being turned of ...
- * Only tested on GTX 650 Ti with 512 chains of length 1024, it might
- * be vastly different on other systems
- * Let the user benchmark manually or add it to autoconfig loop as a
- * template parameter for the kernels calling checkFront ...?
- */
-#if ! defined( CHECK_FRONT_BIT_PACKED_INDEX_CALC_VERSION )
-//#   if ! defined( USE_PERIODIC_MONOMER_SORTING )
-//#       define CHECK_FRONT_BIT_PACKED_INDEX_CALC_VERSION 0
-//#   else
-#       define CHECK_FRONT_BIT_PACKED_INDEX_CALC_VERSION 0
-//#   endif
-#endif
 
 /**
  * working combinations:
@@ -64,21 +42,21 @@
  *   - USE_BIT_PACKING_TMP_LATTICE + USE_ZCURVE_FOR_LATTICE (1.56671s)
  * not working:
  *   - USE_BIT_PACKING_TMP_LATTICE
- *   - USE_MOORE_CURVE_FOR_LATTICE
  * @todo using USE_BIT_PACKING_TMP_LATTICE without USE_ZCURVE_FOR_LATTICE
  *       does not work! The error must be in checkFront ... ?
- * @todo USE_MOORE_CURVE_FOR_LATTICE does not work, neither with nor without
- *       USE_BIT_PACKING_TMP_LATTICE
  */
 
 #include <LeMonADEGPU/utility/alignedMatrizes.h>
 #include <LeMonADEGPU/core/MonomerEdges.h>
 
-template< typename T_UCoordinateCuda >
+#include <LeMonADEGPU/core/Method.h>
+
+template< typename T_UCoordinateCuda > 
 class UpdaterGPUScBFM_AB_Type
 {
-private:
+
 public:
+
     /**
      * This is still used, at least the 32 bit version!
      * These are the types for the monomer positions.
@@ -98,20 +76,38 @@ public:
      * do as written above and possibly make the algorithm EVEN FASTER as the
      * memory bandwidth could be reduced even more!
      */
+    //type for size of the simulation box
     using T_BoxSize          = uint64_t; // uint32_t // should be unsigned!
+    //type for coordinate for the host 
     using T_Coordinate       = int32_t; // int64_t // should be signed!
-    using T_CoordinateCuda   = typename std::make_signed< int8_t >::type; // int16_t, but only if box size <= 256 :S @todo choose automatically depending on box size -> template parameter -> need to template all kernels and then basically make a large if for int8 vs. int16 limiting box size to 65536 which is more than enough at least for 3D ...
+    /**
+     * @brief type for the coordinate for the device 
+     * @todo choose automatically depending on box size -> template parameter -> need to template all kernels and then basically make a large if for int8 vs. int16 limiting box size to 65536 which is more than enough at least for 3D ...
+     */
+    using T_CoordinateCuda   = typename std::make_signed< int8_t >::type; // int16_t, but only if box size <= 256 :S 
+    //type for vector of coordinates on host 
     using T_Coordinates      = typename CudaVec4< T_Coordinate      >::value_type;
+    //type for vector of coordinates on device 
     using T_CoordinatesCuda  = typename CudaVec4< T_CoordinateCuda  >::value_type;
+    //type for unsigned coordinates on the device 
     using T_UCoordinatesCuda = typename CudaVec4< T_UCoordinateCuda >::value_type;
 
     /* could also be uint8_t if you know you only have 256 different
      * species at maximum. For the autocoloring this is implicitly true,
      * but not so if the user manually specifies colors! */
     using T_Color   = uint32_t;
+    //flag to store the result of an attempted move 
     using T_Flags   = uint8_t ; // uint16_t, uint32_t
+    //mostly used for the monomer Ids 
     using T_Id      = uint32_t; // should be unsigned!
+    //lattice entry 
     using T_Lattice = uint8_t ; // untested for something else than uint8_t!
+    
+    typedef  T_Lattice (BitPacking::*getBitPackedTextureFunction)(cudaTextureObject_t tex, int i) const ; 
+
+    /** @brief tracks the output for certain streams, like: 'stat', 'check', ...
+     */
+    SelectedLogger mLog;
 
 private:
     /* only do checks for uint8_t and uint16_t, for all signed data types
@@ -121,11 +117,10 @@ private:
     static bool constexpr useOverflowChecks =
         sizeof( T_UCoordinateCuda ) <= 2 &&
         ! std::is_signed< T_UCoordinateCuda >::value;
-
-public:
-    SelectedLogger mLog;
-
-private:
+    /**
+     * @brief up to now there is only the default stream used
+     * @details this could be extended to more streams for concurrency running kernels 
+     */
     cudaStream_t mStream;
     /**
      * Vector of length boxX * boxY * boxZ. Actually only contains 0 if
@@ -133,6 +128,7 @@ private:
      * Suggestion: bitpack it to save 8 times memory and possibly make the
      *             the reading faster if it is memory bound ???
      */
+
     MirroredTexture< T_Lattice > * mLatticeOut, * mLatticeTmp, * mLatticeTmp2;
     /**
      * when using bit packing only 1/8 of mLatticeTmp is used. In order to
@@ -142,11 +138,8 @@ private:
      * Then after 8 usages we can call one cudaMemset for all, possibly making
      * 8 times better use of parallelism on the GPU!
      */
-#if defined( USE_DOUBLE_BUFFERED_TMP_LATTICE )
     static auto constexpr mnLatticeTmpBuffers = 2u;
-#else
-    static auto constexpr mnLatticeTmpBuffers = 8u;
-#endif
+
     std::vector< cudaTextureObject_t > mvtLatticeTmp;
 
     /* copy into mPolymerSystem and drop the property tag while doing so.
@@ -229,7 +222,6 @@ private:
      * info directly instead of needing to desort after each execute run */
     bool bPolymersSorted;
 
-private:
     MirroredVector< MonomerEdges > * mNeighbors;
     /**
      * stores the IDs of all neighbors as is needed to check for the bond
@@ -290,72 +282,47 @@ private:
     MirroredVector < T_Id   > * mNeighborsUnsorted;
 
     RandomNumberGenerators randomNumbers;
-    
-    int64_t mAge;
+
     bool    mUsePeriodicMonomerSorting;
     int64_t mnStepsBetweenSortings;
+    bool mForbiddenBonds[512];
+    
+    int64_t mAge;
     bool mIsPeriodicX;
     bool mIsPeriodicY;
     bool mIsPeriodicZ;
-
-    bool mForbiddenBonds[512];
-
     T_BoxSize mBoxX     ;
     T_BoxSize mBoxY     ;
     T_BoxSize mBoxZ     ;
+    
     T_BoxSize mBoxXM1   ;
     T_BoxSize mBoxYM1   ;
     T_BoxSize mBoxZM1   ;
     T_BoxSize mBoxXLog2 ;
     T_BoxSize mBoxXYLog2;
     uint32_t mGlobalIterator; // used for the RNG, equal to mAge + iStep * nSpecies + iSubstep
-
+    
+    //holds some methods which can be set before usage of the GPU..
+    Method met;
+public: 
+  void setMethod(Method& met_){met=met_;}
+  Method getMethod(){ return met;}
+private:
     int            miGpuToUse;
     cudaDeviceProp mCudaProps;
+ 
+    //the host-side function pointer to your __device__ function
+    getBitPackedTextureFunction h_pointFunction;
 
-    /* data needed for alternative RNGs */
-public:
-    enum class Rng
-    {
-        IntHash = 1,
-        Saru    = 2,
-        Philox  = 3,
-        Pcg     = 4,
-        Xorwow  = 5
-    };
 
 private:
-    Rng miRngToUse;
-
-    uint32_t mSeedXorwow;
-    MirroredVector< typename Rngs::RNGload::GlobalState > * mRngVectorXorwow;
-    curandGenerator_t mGenXorwow;
-    cudaStream_t mStreamXorwow;
-
-    uint32_t mSeedPcg;
-    MirroredVector< Rngs::PCG::State > * mStateVectorPcg;
-
     uint8_t mnSplitColors;
-
-private:
-    /**
-     * If we constrict each index to 1024=2^10 which already is quite large,
-     * 256=2^8 being normally large, then this means that the linearzed index
-     * should have a range of 2^30, meaning uint32_t as output is pretty
-     * fixed with uint16_t being way too few bits
-     */
-    T_Id linearizeBoxVectorIndex
-    (
-        T_Coordinate const & ix,
-        T_Coordinate const & iy,
-        T_Coordinate const & iz
-    ) const;
 
     /**
      * Checks for excluded volume condition and for correctness of all monomer bonds
      */
     void checkSystem() const;
-
+ 
 public:
     UpdaterGPUScBFM_AB_Type();
     virtual ~UpdaterGPUScBFM_AB_Type();
@@ -403,8 +370,8 @@ public:
     void setLatticeSize       ( T_BoxSize boxX, T_BoxSize boxY, T_BoxSize boxZ );
     /* how often to double the initial number of colors */
     inline void setSplitColors( uint8_t const rnSplitColors ){ mnSplitColors = rnSplitColors; };
-
-    void runSimulationOnGPU( uint32_t nrMCS_per_Call );
+    
+    void runSimulationOnGPU  ( uint32_t nrMCS_per_Call );
 
     /* using T_Coordinate with int64_t throws error as LeMonADE itself is limited to 32 bit positions! */
     int32_t getMonomerPositionInX( T_Id i );
@@ -414,8 +381,7 @@ public:
     void setPeriodicity( bool isPeriodicX, bool isPeriodicY, bool isPeriodicZ );
     inline void    setAge( int64_t rAge ){ mAge = rAge; }
     inline int64_t getAge( void ) const{ return mAge; }
-    inline void    setRng( Rng x ){ miRngToUse = x; }
-    inline Rng     getRng( void ) const{ return miRngToUse; }
+
     /* this is a performance feature, but one which also changes the order
      * in which random numbers are generated making binary comparisons of
      * the results moot */

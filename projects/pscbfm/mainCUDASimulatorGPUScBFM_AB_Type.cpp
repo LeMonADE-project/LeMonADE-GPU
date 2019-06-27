@@ -41,13 +41,6 @@ void printHelp( void )
         << "        (required) specify a BFM file to load the configuration to simulate from\n"
         << "    -m, --max-mcs <integer>\n"
         << "        (required) specifies the total Monte-Carlo steps to simulate.\n"
-        << "    -r, --rng <integer>\n"
-        << "        The random number generator to use: "
-            << (int) UpdaterGPUScBFM_AB_Type< uint8_t >::Rng::IntHash << ": IntHash, "
-            << (int) UpdaterGPUScBFM_AB_Type< uint8_t >::Rng::Saru    << ": Saru, "
-            << (int) UpdaterGPUScBFM_AB_Type< uint8_t >::Rng::Philox  << ": Philox , "
-            << (int) UpdaterGPUScBFM_AB_Type< uint8_t >::Rng::Pcg     << ": Pcg, "
-            << (int) UpdaterGPUScBFM_AB_Type< uint8_t >::Rng::Xorwow  << ": Xorwow\n"
         << "    -s, --save-interval <integer>\n"
         << "        Save after every <integer> Monte-Carlo steps to the output file.\n"
         << "    -o, --output <file path>\n"
@@ -157,8 +150,6 @@ int main( int argc, char ** argv )
          */
         auto const pUpdaterGpu = new GPUScBFM_AB_Type<Ing>( myIngredients, save_interval );
         pUpdaterGpu->setGpu( iGpuToUse );
-        if ( iRngToUse != -1 )
-            pUpdaterGpu->setRng( iRngToUse );
         pUpdaterGpu->activateLogging( "Error"     );
         //pUpdaterGpu->activateLogging( "Stats"      );
         pUpdaterGpu->activateLogging( "Info"      );

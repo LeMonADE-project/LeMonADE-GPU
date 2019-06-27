@@ -1,22 +1,42 @@
+#include <iostream>
+#include <LeMonADEGPU/updater/UpdaterGPUScBFM_AB_Type.h>
 
-/*
- *default check is for periodicity in all directions. 
+/**
+ * @brief class for checking the coordinates for periodic boundary conditions
+ * @todo hand over a pointer to the box sizes on the device with cudaGetSymbolAdress(void** devPtr, const void**  symbol)
  */
 struct BoxCheck
 {
+private:
+  /**
+   * @brief convinience enum for the periodicity
+   */
   enum mode {  periodic111, periodic000, 
 	       periodic100, periodic010, periodic001, 
 	       periodic110, periodic011, periodic101, 
 	       periodic=0, nonperiodic=1 };
 	       
   int myperiodicmode;
-  bool pX;
-  bool pY;
-  bool pZ;
-
+  bool pX, pY, pZ;
+  
+public:
+  /*standard constructor*/
   BoxCheck():myperiodicmode(0) {}
-  BoxCheck(int myperiodicmode_):myperiodicmode(myperiodicmode_) {}
-  BoxCheck( bool pX_,  bool pY_,  bool pZ_ ):pX(pX_),pY(pY_),pZ(pZ_)
+  /**
+   * @brief constructor 
+   * @param myperiodicmode_ periodicityas enum 
+   * 
+   */
+  BoxCheck(int myperiodicmode_ ):myperiodicmode(myperiodicmode_)
+  {  }
+  
+  /**
+   * @brief constructor 
+   * @param pX_ periodicity in x-direction
+   * @param pY_ periodicity in y-direction
+   * @param pZ_ periodicity in z-direction
+   */
+  BoxCheck( bool pX_,  bool pY_,  bool pZ_):pX(pX_),pY(pY_),pZ(pZ_)
   {
     if      (   pX &&   pY &&   pZ )  //111 periodic 
 	myperiodicmode=0;
@@ -35,25 +55,48 @@ struct BoxCheck
     else if (   pX && ! pY &&   pZ )  //101
 	myperiodicmode=7;
   }
-  
-  __device__ bool operator()(const int32_t x,const int32_t y, const int32_t z)
+//   template <class T >
+// __device__ bool operator()(const T & x, const T &  y, const T & z) //throws a lot of warnings....because uint compares with 0 
+  __device__ bool operator()(const int & x, const int &  y, const int & z)
   {
     switch(myperiodicmode)
     { 
-	case periodic111: return  true                                ;
-	case periodic000: return (uint32_t(0) <= x && x < dcBoxXM1 &&
-				  uint32_t(0) <= y && y < dcBoxYM1 &&
-				  uint32_t(0) <= z && z < dcBoxZM1 )  ;  
-	case periodic100: return (uint32_t(0) <= y && y < dcBoxYM1 &&
-				  uint32_t(0) <= z && z < dcBoxZM1 )  ;
-	case periodic010: return (uint32_t(0) <= x && x < dcBoxXM1 &&
-				  uint32_t(0) <= z && z < dcBoxZM1 )  ;
-	case periodic001: return (uint32_t(0) <= x && x < dcBoxXM1 &&
-				  uint32_t(0) <= y && y < dcBoxYM1 )  ;
-	case periodic110: return (uint32_t(0) <= z && z < dcBoxZM1 )  ;
-	case periodic011: return (uint32_t(0) <= x && x < dcBoxXM1 )  ;
-	case periodic101: return (uint32_t(0) <= y && y < dcBoxYM1 )  ;
+	case periodic111: return  true                         ;
+	case periodic000: return ((0) <= x && x <  dcBoxXM1 &&
+				  (0) <= y && y <  dcBoxYM1 &&
+				  (0) <= z && z <  dcBoxZM1 )  ;  
+	case periodic100: return ((0) <= y && y <  dcBoxYM1 &&
+				  (0) <= z && z <  dcBoxZM1 )  ;
+	case periodic010: return ((0) <= x && x <  dcBoxXM1 &&
+				  (0) <= z && z <  dcBoxZM1 )  ;
+	case periodic001: return ((0) <= x && x <  dcBoxXM1 &&
+				  (0) <= y && y <  dcBoxYM1 )  ;
+	case periodic110: return ((0) <= z && z <  dcBoxZM1 )  ;
+	case periodic011: return ((0) <= x && x <  dcBoxXM1 )  ;
+	case periodic101: return ((0) <= y && y <  dcBoxYM1 )  ;
 	default         : return false                                ; //maybe throw an error?! 
     };
   }
+  
+  __device__ bool operator()(const uint & x, const uint &  y, const uint & z)
+  {
+    switch(myperiodicmode)
+    { 
+	case periodic111: return  true                         ;
+	case periodic000: return ( x <  dcBoxXM1 &&
+				   y <  dcBoxYM1 &&
+				   z <  dcBoxZM1 )  ;  
+	case periodic100: return ( y <  dcBoxYM1 &&
+				   z <  dcBoxZM1 )  ;
+	case periodic010: return ( x <  dcBoxXM1 &&
+				   z <  dcBoxZM1 )  ;
+	case periodic001: return ( x <  dcBoxXM1 &&
+				   y <  dcBoxYM1 )  ;
+	case periodic110: return ( z <  dcBoxZM1 )  ;
+	case periodic011: return ( x <  dcBoxXM1 )  ;
+	case periodic101: return ( y <  dcBoxYM1 )  ;
+	default         : return false                                ; //maybe throw an error?! 
+    };
+  }
+
 };

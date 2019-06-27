@@ -1,220 +1,385 @@
+/*--------------------------------------------------------------------------------
+    ooo      L   attice-based  |
+  o\.|./o    e   xtensible     | LeMonADE: An Open Source Implementation of the
+ o\.\|/./o   Mon te-Carlo      |           Bond-Fluctuation-Model for Polymers
+oo---0---oo  A   lgorithm and  |
+ o/./|\.\o   D   evelopment    | Copyright (C) 2013-2015 by
+  o/.|.\o    E   nvironment    | LeMonADE Principal Developers (see AUTHORS)
+    ooo                        |
+----------------------------------------------------------------------------------
+
+This file is part of LeMonADE.
+
+LeMonADE is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+LeMonADE is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with LeMonADE.  If not, see <http://www.gnu.org/licenses/>.
+
+--------------------------------------------------------------------------------*/
+#ifndef LEMONADE_CORE_SPACE_FILLING_CURVE
+#define LEMONADE_CORE_SPACE_FILLING_CURVE
+#include <LeMonADEGPU/updater/UpdaterGPUScBFM_AB_Type.h>
+
 #include <extern/Fundamental/BitsCompileTime.hpp>
+#include <LeMonADEGPU/core/constants.cuh>
+
+/*****************************************************************************/
 /**
- * @brief abstract class which needs to be specialized 
+ *@brief abstract template function for the space filling curve 
  */
-template < class SpecializedClass >
-class SpaceFillingCurve{
+/*****************************************************************************/
+
+typedef uint32_t T_Id  ;  
   
+template <class specializedCurve>
+class AbstractSpaceFillingCurve
+{
+
 public:
-template <class T >  
-__device__ inline  T getNodeXdir( T const & coord, T const & shift ){return static_cast<SpecializedClass*>(this)->getNodeXDir(coord,shift);}
 
-template <class T >  
-__device__ inline  T getNodeYdir( T const & coord, T const & shift ){return static_cast<SpecializedClass*>(this)->getNodeYDir(coord,shift);}
+template< typename T >
+__host__ __device__ inline T_Id linearizeBoxVectorIndex
+( T const & ix, T const & iy, T const & iz) const { 
+  return static_cast<specializedCurve*>(this)->linearizeBoxVectorIndex(ix,iy,iz);
+}
 
-template <class T >  
-__device__ inline  T getNodeZdir( T const & coord, T const & shift ){return static_cast<SpecializedClass*>(this)->getNodeZDir(coord,shift);}
+template< typename T >
+__host__ __device__ inline T_Id linearizeBoxVectorIndexX
+( T const & ix ) const { return static_cast<specializedCurve*>(this)->linearizeBoxVectorIndexX(ix);}
 
-template< typename T_Id >
-__host__ __device__  inline T_Id  linearizeBoxVectorIndex(
-				    uint32_t const & ix,
-				    uint32_t const & iy,
-				    uint32_t const & iz) const
-{ return static_cast<SpecializedClass*>(this)->linearizeBoxVectorIndex( ix, iy, iz); };
+template< typename T >
+__host__ __device__ inline T_Id linearizeBoxVectorIndexY
+( T const & iy ) const { return static_cast<specializedCurve*>(this)->linearizeBoxVectorIndexY(iy);}
 
-template <class T , class T2 >
-__device__ inline T const calcX0MDX( T2 x ){ return static_cast<SpecializedClass*>(this)->calcX0MDX(  x ); }
-template <class T , class T2 >
-__device__ inline T const calcX0Abs( T2 x ){ return static_cast<SpecializedClass*>(this)->calcX0Abs(  x ); }
-template <class T , class T2 >
-__device__ inline T const calcX0PDX( T2 x ){ return static_cast<SpecializedClass*>(this)->calcX0PDX(  x ); }
+template< typename T >
+__host__ __device__ inline T_Id linearizeBoxVectorIndexZ
+( T const & iz ) const { return static_cast<specializedCurve*>(this)->linearizeBoxVectorIndexZ(iz);}
 
-template <class T , class T2 >
-__device__ inline T const calcY0MDY( T2 y ){ return static_cast<SpecializedClass*>(this)->calcY0MDY(  x ); }
-template <class T , class T2 >
-__device__ inline T const calcY0Abs( T2 y ){ return static_cast<SpecializedClass*>(this)->calcY0Abs(  x ); }
-template <class T , class T2 >
-__device__ inline T const calcY0PDZ( T2 y ){ return static_cast<SpecializedClass*>(this)->calcY0PDZ(  x ); }
+template < class IngredientsType >
+void initialize(const IngredientsType& ing){ static_cast<specializedCurve*>(this)->initialize(ing);}
 
-template <class T , class T2 >
-__device__ inline T const calcZ0MDZ( T2 z ){ return static_cast<SpecializedClass*>(this)->calcZ0MDZ(  x ); }
-template <class T , class T2 >
-__device__ inline T const calcZ0Abs( T2 z ){ return static_cast<SpecializedClass*>(this)->calcZ0Abs(  x ); }
-template <class T , class T2 >
-__device__ inline T const calcZ0PDZ( T2 z ){ return static_cast<SpecializedClass*>(this)->calcZ0PDZ(  x ); }
-  
-  
-  
+template < typename T >
+void initialize(T mBoxX_, T mBoxY_, T mBoxZ_){ static_cast<specializedCurve*>(this)->initialize(mBoxX_,mBoxY_,mBoxZ_);}
+
 private:
-  bool inline isPowerOfTwo( uint32_t n ){return (n & (n - 1)) == 0;}
-  
-  const uint32_t mBoxX, mBoxZ, mBoxXLog2, mBoxXYLog2, mBoxXM1, mBoxYM1, mBoxZM1;
+
   
 };
 
+
+/*****************************************************************************/
 /**
- * @details use bit shifts and thus works only for power of two lattices 
- * 	      is only applicable for cubic lattices 
- * @todo  at an implementation for non-cubic lattices
+ * @brief
  */
-class ZOrderCurve:public SpaceFillingCurve< ZOrderCurve >{
+class ZOrderCurve:public AbstractSpaceFillingCurve<ZOrderCurve>
+{
   
 public:
-//   ZOrderCurve(paramTATAT):SpaceFillingCurve(paramTATAT){};
-template< typename T_Id >
-__host__ __device__  inline T_Id  linearizeBoxVectorIndex(
-			    uint32_t const & ix,
-			    uint32_t const & iy,
-			    uint32_t const & iz) const {
-  #ifdef __CUDA_ARCH__
-       return diluteBits< T_Id, 2 >( ix & dcBoxXM1 )        +
-	    ( diluteBits< T_Id, 2 >( iy & dcBoxYM1 ) << 1 ) +
-	    ( diluteBits< T_Id, 2 >( iz & dcBoxZM1 ) << 2 );
-  #else
-       return diluteBits< T_Id, 2 >( T_Id( ix ) & mBoxXM1 )        +
-	    ( diluteBits< T_Id, 2 >( T_Id( iy ) & mBoxYM1 ) << 1 ) +
-	    ( diluteBits< T_Id, 2 >( T_Id( iz ) & mBoxZM1 ) << 2 );
-  #endif
+  ZOrderCurve():mBoxXM1(0),mBoxYM1(0),mBoxZM1(0){};
+  template <class IngredientsType >
+  void initialize(const IngredientsType& ing)
+  {
+    mBoxXM1 = ing.getBoxX()-1;
+    mBoxYM1 = ing.getBoxY()-1;
+    mBoxZM1 = ing.getBoxZ()-1;
+  }
+  template < typename T >
+  void initialize(T mBoxX_, T mBoxY_, T mBoxZ_){
+    mBoxXM1 = mBoxX_-1;
+    mBoxYM1 = mBoxY_-1;
+    mBoxZM1 = mBoxZ_-1;
   }
   
-template <class T , class T2 >
-__device__ inline T const calcX0MDX( T2 x ){ return diluteBits< uint32_t, 2 >( ( x0 - uint32_t(1) ) & dcBoxXM1 ); }
-template <class T , class T2 >
-__device__ inline T const calcX0Abs( T2 x ){ return diluteBits< uint32_t, 2 >( ( x0               ) & dcBoxXM1 ) }
-template <class T , class T2 >
-__device__ inline T const calcX0PDX( T2 x ){ return diluteBits< uint32_t, 2 >( ( x0 + uint32_t(1) ) & dcBoxXM1 ); }
+  template< typename T >
+  __host__ __device__ inline T_Id linearizeBoxVectorIndexX
+  ( T const & ix ) const {
+    #ifdef __CUDA_ARCH__
+	    return diluteBits< T_Id, 2 >( ix & dcBoxXM1 ) ;
+    #else 
+	    return diluteBits< T_Id, 2 >( T_Id( ix ) & mBoxXM1 ) ;
+    #endif
+  }
+  template< typename T >
+  __host__ __device__ inline T_Id linearizeBoxVectorIndexY
+  ( T const & iy ) const {
+  #ifdef __CUDA_ARCH__
+	  return diluteBits< T_Id, 2 >( iy & dcBoxYM1 ) << 1 ;
+  #else 
+	  return diluteBits< T_Id, 2 >( T_Id( iy ) & mBoxYM1 ) << 1 ;
+  #endif
+  }
 
-template <class T , class T2 >
-__device__ inline T const calcY0MDY( T2 y ){ return diluteBits< uint32_t, 2 >( ( y0 - uint32_t(1) ) & dcBoxYM1 ) << 1; }
-template <class T , class T2 >
-__device__ inline T const calcY0Abs( T2 y ){ return diluteBits< uint32_t, 2 >( ( y0               ) & dcBoxYM1 ) << 1; }
-template <class T , class T2 >
-__device__ inline T const calcY0PDZ( T2 y ){ return diluteBits< uint32_t, 2 >( ( y0 + uint32_t(1) ) & dcBoxYM1 ) << 1; }
-
-template <class T , class T2 >
-__device__ inline T const calcZ0MDZ( T2 z ){ return diluteBits< uint32_t, 2 >( ( z0 - uint32_t(1) ) & dcBoxZM1 ) << 2; }
-template <class T , class T2 >
-__device__ inline T const calcZ0Abs( T2 z ){ return diluteBits< uint32_t, 2 >( ( z0               ) & dcBoxZM1 ) << 2; }
-template <class T , class T2 >
-__device__ inline T const calcZ0PDZ( T2 z ){ return diluteBits< uint32_t, 2 >( ( z0 + uint32_t(1) ) & dcBoxZM1 ) << 2; }
-  
-  
-template <class T >  
-__device__ inline  T getNodeXdir( T const & coord, T const & shift ){return diluteBits< T, 2 >( ( coord + shift + shift ) & dcBoxXM1 )      ;}
-template <class T >  
-__device__ inline  T getNodeYdir( T const & coord, T const & shift ){return diluteBits< T, 2 >( ( coord + shift + shift ) & dcBoxXM1 ) << 1 ;}
-template <class T >  
-__device__ inline  T getNodeZdir( T const & coord, T const & shift ){return diluteBits< T, 2 >( ( coord + shift + shift ) & dcBoxXM1 ) << 1 ;}
-
-};
-
-/**
- * @brief use linearized coordinates 
- * @details use bit shifts and thus works only for power of two lattices 
- */
-
-class LinearCurve:public SpaceFillingCurve<LinearCurve>{
-public: 
-template< typename T_Id >
-__host__ __device__ inline T_Id  linearizeBoxVectorIndex(
-			    uint32_t const & ix,
-			    uint32_t const & iy,
-			    uint32_t const & iz) const 
-  {
-#ifdef __CUDA_ARCH__
-    return    ( ix & dcBoxXM1 )                  +
-	    ( ( iy & dcBoxYM1 ) << dcBoxXLog2  ) +
-            ( ( iz & dcBoxZM1 ) << dcBoxXYLog2 );
-#else
-    return    ( T_Id( ix ) & mBoxXM1 ) +
-	    ( ( T_Id( iy ) & mBoxYM1 ) << mBoxXLog2  ) +
-	    ( ( T_Id( iz ) & mBoxZM1 ) << mBoxXYLog2 );
-#endif
-  };
-
-template <class T , class T2 >
-__device__ inline T const calcX0MDX( T2 x ){ return ( x0 - uint32_t(1) ) & dcBoxXM1;                  }
-template <class T , class T2 >
-__device__ inline T const calcX0Abs( T2 x ){ return ( x0               ) & dcBoxXM1;                  }
-template <class T , class T2 >
-__device__ inline T const calcX0PDX( T2 x ){ return ( x0 + uint32_t(1) ) & dcBoxXM1;                  }
-
-template <class T , class T2 >
-__device__ inline T const calcY0MDY( T2 y ){ return ( ( y0 - uint32_t(1) ) & dcBoxYM1 ) << dcBoxXLog2;}
-template <class T , class T2 >
-__device__ inline T const calcY0Abs( T2 y ){ return ( ( y0               ) & dcBoxYM1 ) << dcBoxXLog2;}
-template <class T , class T2 >
-__device__ inline T const calcY0PDZ( T2 y ){ return ( ( y0 + uint32_t(1) ) & dcBoxYM1 ) << dcBoxXLog2;}
-
-template <class T , class T2 >
-__device__ inline T const calcZ0MDZ( T2 z ){ return ( ( z0 - uint32_t(1) ) & dcBoxZM1 ) << dcBoxXYLog2;}
-template <class T , class T2 >
-__device__ inline T const calcZ0Abs( T2 z ){ return ( ( z0               ) & dcBoxZM1 ) << dcBoxXYLog2;}
-template <class T , class T2 >
-__device__ inline T const calcZ0PDZ( T2 z ){ return ( ( z0 + uint32_t(1) ) & dcBoxZM1 ) << dcBoxXYLog2;}
-  
-template <class T >  
-__device__ inline  T getNodeXdir( T const & coord, T const & shift ){return ( ( coord + 2*shift ) & dcBoxXM1 )                ;}
-template <class T >  
-__device__ inline  T getNodeYdir( T const & coord, T const & shift ){return ( ( coord + 2*shift ) & dcBoxXM1 ) << dcBoxXLog2  ;}
-template <class T >  
-__device__ inline  T getNodeZdir( T const & coord, T const & shift ){return ( ( coord + 2*shift ) & dcBoxXM1 ) << dcBoxXYLog2 ;}
-
-};
-
-
-/**
- * @brief use linearized coordinates 
- * @details can be used also for box sizes not power of two!  
- */
-
-class LinearCurveNoMagic:public SpaceFillingCurve<LinearCurveNoMagic>{
-public: 
-template< typename T_Id >
-__host__ __device__ inline T_Id  linearizeBoxVectorIndex(
-			    uint32_t const & ix,
-			    uint32_t const & iy,
-			    uint32_t const & iz) const 
-  {
-#ifdef __CUDA_ARCH__
-	return  ( ix % dcBoxXM1 )           +
-		( iy % dcBoxYM1 ) * dcBoxX  +
-		( iz % dcBoxZM1 ) * dcBoxX * dcBoxY;
-#else
-        return ( ix % mBoxX ) +
-               ( iy % mBoxY ) * mBoxX +
-               ( iz % mBoxZ ) * mBoxX * mBoxY;
-#endif
-  };
-
-template <class T , class T2 >
-__device__ inline T const calcX0MDX( T2 x ){ return ( x0 - uint32_t(1) ) % dcBoxXM1;                  }
-template <class T , class T2 >
-__device__ inline T const calcX0Abs( T2 x ){ return ( x0               ) % dcBoxXM1;                  }
-template <class T , class T2 >
-__device__ inline T const calcX0PDX( T2 x ){ return ( x0 + uint32_t(1) ) % dcBoxXM1;                  }
-
-template <class T , class T2 >
-__device__ inline T const calcY0MDY( T2 y ){ return ( ( y0 - uint32_t(1) ) % dcBoxYM1 ) * dcBoxX;}
-template <class T , class T2 >
-__device__ inline T const calcY0Abs( T2 y ){ return ( ( y0               ) % dcBoxYM1 ) * dcBoxX;}
-template <class T , class T2 >
-__device__ inline T const calcY0PDZ( T2 y ){ return ( ( y0 + uint32_t(1) ) % dcBoxYM1 ) * dcBoxX;}
-
-template <class T , class T2 >
-__device__ inline T const calcZ0MDZ( T2 z ){ return ( ( z0 - uint32_t(1) ) & dcBoxZM1 ) * dcBoxX * dcBoxY;}
-template <class T , class T2 >
-__device__ inline T const calcZ0Abs( T2 z ){ return ( ( z0               ) & dcBoxZM1 ) * dcBoxX * dcBoxY;}
-template <class T , class T2 >
-__device__ inline T const calcZ0PDZ( T2 z ){ return ( ( z0 + uint32_t(1) ) & dcBoxZM1 ) * dcBoxX * dcBoxY;}
-  
-template <class T >  
-__device__ inline  T getNodeXdir( T const & coord, T const & shift ){return ( ( coord + 2*shift ) & dcBoxXM1 )                   ;}
-template <class T >  
-__device__ inline  T getNodeYdir( T const & coord, T const & shift ){return ( ( coord + 2*shift ) & dcBoxXM1 ) * dcBoxX          ;}
-template <class T >  
-__device__ inline  T getNodeZdir( T const & coord, T const & shift ){return ( ( coord + 2*shift ) & dcBoxXM1 ) * dcBoxX * dcBoxY ;}
-
+  template< typename T >
+  __host__ __device__ inline T_Id linearizeBoxVectorIndexZ
+  ( T const & iz ) const {
+  #ifdef __CUDA_ARCH__
+	  return diluteBits< T_Id, 2 >( iz & dcBoxZM1 ) << 2 ;
+  #else 
+	  return diluteBits< T_Id, 2 >( T_Id( iz ) & mBoxZM1 ) << 2 ;
+  #endif
+  }
+  template< typename T >
+  __host__ __device__ inline T_Id linearizeBoxVectorIndex
+  ( T const & ix, T const & iy, T const & iz) const { 
+    return linearizeBoxVectorIndexX(ix) +
+	   linearizeBoxVectorIndexY(iy) +
+	   linearizeBoxVectorIndexZ(iz);
+  }
 private: 
+  uint32_t mBoxXM1, mBoxYM1, mBoxZM1; 
 
 };
+/*****************************************************************************/
+/**
+ * @brief
+ */
+class LinearCurvePowOfTwo:public AbstractSpaceFillingCurve<LinearCurvePowOfTwo>{
+
+public:
+  LinearCurvePowOfTwo():mBoxXM1(0),mBoxYM1(0),mBoxZM1(0),mBoxXLog2(0),mBoxXYLog2(0){};
+  template <class IngredientsType >
+  void initialize(const IngredientsType& ing){
+    auto mBoxX =  ing.getBoxX();
+    auto mBoxY =  ing.getBoxY();
+    auto mBoxZ =  ing.getBoxZ();
+    mBoxXM1 = mBoxX-1;
+    mBoxYM1 = mBoxY-1;
+    mBoxZM1 = mBoxZ-1;
+    /* determine log2 for mBoxX and mBoxX * mBoxY to be used for bitshifting
+    * the indice instead of multiplying ... WHY??? I don't think it is faster,
+    * but much less readable */
+    mBoxXLog2  = 0; auto dummy = mBoxX ; while ( dummy >>= 1 ) ++mBoxXLog2;
+    mBoxXYLog2 = 0; dummy = mBoxX*mBoxY; while ( dummy >>= 1 ) ++mBoxXYLog2;
+    if ( mBoxX != ( 1u << mBoxXLog2 ) || mBoxX * mBoxY != ( 1u << mBoxXYLog2 ) )
+    {
+	std::stringstream msg;
+	msg << "[" << __FILENAME__ << "::initialize" << "] "
+	    << "Could not determine value for bit shift. "
+	    << "Check whether the box size is a power of 2! ( "
+	    << "boxX=" << mBoxX << " =? 2^" << mBoxXLog2 << " = " << ( 1 << mBoxXLog2 )
+	    << ", boxX*boY=" << mBoxX * mBoxY << " =? 2^" << mBoxXYLog2
+	    << " = " << ( 1 << mBoxXYLog2 ) << " )\n";
+	throw std::runtime_error( msg.str() );
+    }
+  }
+  template < typename T >
+  void initialize(T mBoxX_, T mBoxY_, T mBoxZ_){
+    mBoxXM1 = mBoxX_-1;
+    mBoxYM1 = mBoxY_-1;
+    mBoxZM1 = mBoxZ_-1;
+    /* determine log2 for mBoxX and mBoxX * mBoxY to be used for bitshifting
+    * the indice instead of multiplying ... WHY??? I don't think it is faster,
+    * but much less readable */
+    mBoxXLog2  = 0; auto dummy = mBoxX_ ; while ( dummy >>= 1 ) ++mBoxXLog2;
+    mBoxXYLog2 = 0; dummy = mBoxX_*mBoxY_; while ( dummy >>= 1 ) ++mBoxXYLog2;
+    if ( mBoxX_ != ( 1u << mBoxXLog2 ) || mBoxX_ * mBoxY_ != ( 1u << mBoxXYLog2 ) )
+    {
+	std::stringstream msg;
+	msg << "[" << __FILENAME__ << "::initialize" << "] "
+	    << "Could not determine value for bit shift. "
+	    << "Check whether the box size is a power of 2! ( "
+	    << "boxX=" << mBoxX_ << " =? 2^" << mBoxXLog2 << " = " << ( 1 << mBoxXLog2 )
+	    << ", boxX*boY=" << mBoxX_ * mBoxY_ << " =? 2^" << mBoxXYLog2
+	    << " = " << ( 1 << mBoxXYLog2 ) << " )\n";
+	throw std::runtime_error( msg.str() );
+    }
+  }
+  template< typename T >
+  __host__ __device__ inline T_Id linearizeBoxVectorIndexX
+  ( T const & ix ) const {
+  #ifdef __CUDA_ARCH__
+	  return    ( ix & dcBoxXM1 ) ;
+  #else 
+	  return    ( T_Id( ix ) & mBoxXM1 ) ;
+  #endif
+  }
+  template< typename T >
+  __host__ __device__ inline T_Id linearizeBoxVectorIndexY
+  ( T const & iy ) const {
+  #ifdef __CUDA_ARCH__
+	  return  ( iy & dcBoxYM1 ) << dcBoxXLog2 ;
+  #else 
+	  return  ( T_Id( iy ) & mBoxYM1 ) << mBoxXLog2 ;
+  #endif
+  }
+
+  template< typename T >
+  __host__ __device__ inline T_Id linearizeBoxVectorIndexZ
+  ( T const & iz ) const { 
+  #ifdef __CUDA_ARCH__
+	  return  ( ( iz & dcBoxZM1 ) << dcBoxXYLog2 );
+  #else 
+	  return  ( ( T_Id( iz ) & mBoxZM1 ) << mBoxXYLog2 );	  
+  #endif
+  }
+  template< typename T >
+  __host__ __device__ inline T_Id linearizeBoxVectorIndex
+  ( T const & ix, T const & iy, T const & iz) const { 
+    return linearizeBoxVectorIndexX(ix) +
+	   linearizeBoxVectorIndexY(iy) +
+	   linearizeBoxVectorIndexZ(iz);
+  }
+private:
+  uint32_t mBoxXM1, mBoxYM1, mBoxZM1; 
+  uint32_t mBoxXLog2, mBoxXYLog2;
+};
+/*****************************************************************************/
+/**
+ * @brief sometimes referred as NoMagic
+ * @todo write a test and check functions
+ */
+class LinearCurve:public AbstractSpaceFillingCurve<LinearCurve>{
+
+public:
+  
+  LinearCurve():mBoxX(0),mBoxY(0),mBoxZ(0){};
+  
+  template <class IngredientsType >
+  void initialize(const IngredientsType& ing){
+    mBoxX =  ing.getBoxX();
+    mBoxY =  ing.getBoxY();
+    mBoxZ =  ing.getBoxZ();
+  }
+  template < typename T >
+  void initialize(T mBoxX_, T mBoxY_, T mBoxZ_){
+    mBoxX = mBoxX_;
+    mBoxY = mBoxY_;
+    mBoxZ = mBoxZ_;
+  }
+  
+  template< typename T >
+  __host__ __device__ inline T_Id linearizeBoxVectorIndexX
+  ( T const & ix ) const {
+    #ifdef __CUDA_ARCH__
+	  return ( ix % dcBoxX );
+    #else 
+	  return ( ix % mBoxX ) ;
+    #endif
+  }
+  template< typename T >
+  __host__ __device__ inline T_Id linearizeBoxVectorIndexY
+  ( T const & iy ) const { 
+    #ifdef __CUDA_ARCH__
+	    return ( iy % dcBoxY ) * dcBoxX;
+    #else 
+	    return ( iy % mBoxY ) * mBoxX;
+    #endif
+  }
+
+  template< typename T >
+  __host__ __device__ inline T_Id linearizeBoxVectorIndexZ
+  ( T const & iz ) const {
+    #ifdef __CUDA_ARCH__
+	    return ( iz % dcBoxZ ) * dcBoxX * dcBoxY;
+    #else 
+	    return ( iz % mBoxZ ) * mBoxX * mBoxY;
+    #endif
+  }
+    template< typename T >
+  __host__ __device__ inline T_Id linearizeBoxVectorIndex
+  ( T const & ix, T const & iy, T const & iz) const { 
+    return linearizeBoxVectorIndexX(ix) +
+	   linearizeBoxVectorIndexY(iy) +
+	   linearizeBoxVectorIndexZ(iz);
+  }
+private:
+  uint32_t mBoxX, mBoxY, mBoxZ; 
+};
+
+/**
+ * @todo We maybe could optimize this approach by using operators and 
+ */
+class SpaceFillingCurve {
+
+public:
+  enum Curvemode {  ZOrderCurveMode=0,
+	            LinearMode=1,
+	            LinearPowOfTwoMode=2
+  };
+  SpaceFillingCurve(){};
+  template <class IngredientsType >
+  SpaceFillingCurve(IngredientsType& ing)
+  {
+    zCurve.initialize(ing);
+    lCurve.initialize(ing);
+    lP2Curve.initialize(ing);
+  }
+  template <class T >
+  SpaceFillingCurve(T mBoxX_, T mBoxY_, T mBoxZ_)
+  {
+    zCurve.initialize(mBoxX_,mBoxY_,mBoxZ_);
+    lCurve.initialize(mBoxX_,mBoxY_,mBoxZ_);
+    lP2Curve.initialize(mBoxX_,mBoxY_,mBoxZ_);
+  }
+  template <class T >
+  void setBox(T mBoxX_, T mBoxY_, T mBoxZ_)
+  {
+    zCurve.initialize(mBoxX_,mBoxY_,mBoxZ_);
+    lCurve.initialize(mBoxX_,mBoxY_,mBoxZ_);
+    lP2Curve.initialize(mBoxX_,mBoxY_,mBoxZ_);
+  }
+  
+private:
+  int mode;
+  ZOrderCurve zCurve;
+  LinearCurve lCurve;
+  LinearCurvePowOfTwo lP2Curve;
+public:  
+  int getMode() const {return mode;}
+  void setMode( int mode_) { mode=mode_; }
+  
+template< typename T >
+__host__ __device__ inline T_Id linearizeBoxVectorIndex
+( T const & ix, T const & iy, T const & iz ) const {
+  switch(mode){
+    case ZOrderCurveMode    : return zCurve.linearizeBoxVectorIndex(ix,iy,iz);
+    case LinearMode         : return lCurve.linearizeBoxVectorIndex(ix,iy,iz);
+    case LinearPowOfTwoMode : return lP2Curve.linearizeBoxVectorIndex(ix,iy,iz);
+  };
+  return T_Id(); // to supress warnings 
+}
+
+template< typename T >
+__host__ __device__ inline T_Id linearizeBoxVectorIndexX
+( T const & ix ) const {
+  switch(mode){
+    case ZOrderCurveMode    : return zCurve.linearizeBoxVectorIndexX(ix);
+    case LinearMode         : return lCurve.linearizeBoxVectorIndexX(ix);
+    case LinearPowOfTwoMode : return lP2Curve.linearizeBoxVectorIndexX(ix);
+  };
+  return T_Id(); // to supress warnings 
+}
+
+template< typename T >
+__host__ __device__ inline T_Id linearizeBoxVectorIndexY
+( T const & iy ) const {
+  switch(mode){
+    case ZOrderCurveMode    : return zCurve.linearizeBoxVectorIndexY(iy);
+    case LinearMode         : return lCurve.linearizeBoxVectorIndexY(iy);
+    case LinearPowOfTwoMode : return lP2Curve.linearizeBoxVectorIndexY(iy);
+  };
+  return T_Id(); // to supress warnings 
+}
+
+template< typename T >
+__host__ __device__ inline T_Id linearizeBoxVectorIndexZ
+( T const & iz ) const {
+  switch(mode){
+    case ZOrderCurveMode    : return zCurve.linearizeBoxVectorIndexZ(iz);
+    case LinearMode         : return lCurve.linearizeBoxVectorIndexZ(iz);
+    case LinearPowOfTwoMode : return lP2Curve.linearizeBoxVectorIndexZ(iz);
+  };
+  return T_Id(); // to supress warnings 
+}
+
+};
+
+#endif 

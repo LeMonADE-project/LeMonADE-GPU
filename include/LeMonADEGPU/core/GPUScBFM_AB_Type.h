@@ -12,7 +12,7 @@
 #include <LeMonADEGPU/updater/UpdaterGPUScBFM_AB_Type.h>
 // #include "../updater/UpdaterGPUScBFM_AB_Type.h"
 #include <LeMonADEGPU/utility/SelectiveLogger.hpp>
-
+#include <LeMonADEGPU/core/SpaceFillingCurve.h>
 
 #define USE_UINT8_POSITIONS
 
@@ -142,8 +142,6 @@ public:
 
         mLog( "Info" ) << "[" << __FILENAME__ << "::initialize] Forwarding relevant paramters to GPU updater\n";
         mUpdaterGpu.setGpu( miGpuToUse );
-        if ( miRngToUse != -1 )
-            mUpdaterGpu.setRng( ( typename UpdaterGPUScBFM_AB_Type< T_UCoordinateCuda >::Rng )( miRngToUse ) );
         if ( mSetStepsBetweenSortings )
             mUpdaterGpu.setStepsBetweenSortings( mnStepsBetweenSortings );
         mLog( "Info" ) << "[" << __FILENAME__ << "::initialize] mUpdaterGpu.setPeriodicity\n";
@@ -188,7 +186,15 @@ public:
             /* !!! The negation is confusing, again there should be a better way to copy the bond set */
             mUpdaterGpu.copyBondSet( dx, dy, dz, ! mIngredients.getBondset().isValid( VectorInt3( dx, dy, dz ) ) );
         }
-
+	
+	Method met;
+ 	met.modifyCurve().setMode(0);
+ 	met.modifyCurve().setBox(mIngredients.getBoxX(),mIngredients.getBoxY(),mIngredients.getBoxZ());
+	met.modifyPacking().setBitPackingOn(true);
+	met.modifyPacking().setNBufferedTmpLatticeOn(true);
+	met.setOnGPUForOverhead(true);
+ 	mUpdaterGpu.setMethod(met);
+	
         mLog( "Info" ) << "[" << __FILENAME__ << "::initialize] initialize GPU updater\n";
         mUpdaterGpu.initialize();
 
@@ -213,7 +219,7 @@ public:
         mLog( "Info" ) << "[" << __FILENAME__ << "] start simulation on GPU\n";
 
         mUpdaterGpu.setAge( mIngredients.modifyMolecules().getAge() );
-        mUpdaterGpu.runSimulationOnGPU( mnSteps ); 
+	mUpdaterGpu.runSimulationOnGPU( mnSteps ); 
 
         // copy back positions of all monomers
         mLog( "Info" ) << "[" << __FILENAME__ << "] copy back monomers from GPU updater to CPU 'molecules' to be used with analyzers\n";
@@ -259,9 +265,10 @@ public:
 #if defined( USE_UINT8_POSITIONS )
     inline void initialize()
     {
-        auto const maxBoxSize = std::max( mIngredients.getBoxX(),
-            std::max( mIngredients.getBoxY(), mIngredients.getBoxZ() ) );
-        assert( maxBoxSize >= 0 );
+        auto const maxBoxSize = std::max( mIngredients.getBoxX(), std::max( mIngredients.getBoxY(), mIngredients.getBoxZ() ) );
+	if ( maxBoxSize < 0 )
+	  std::runtime_error("The maximum box size detected is smaller than 0! There could be something wront with the input file or the given bix sizes. ");
+	
         mCanUseUint8Positions = (unsigned long long) maxBoxSize <= ( 1llu << ( CHAR_BIT * sizeof( uint8_t ) ) );
         if ( mCanUseUint8Positions )
             initializeUpdater< uint8_t >();
