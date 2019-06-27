@@ -61,6 +61,7 @@ __global__ void kernelCheckSpeciesConnection
         dpPolymerFlags[ iMonomer ] = direction;
     }
 }
+
 template< typename T_UCoordinateCuda > 
 UpdaterGPUScBFM_Connection<T_UCoordinateCuda>::UpdaterGPUScBFM_Connection():
 BaseClass(){
@@ -78,5 +79,18 @@ BaseClass(){
     mLog.deactivate( "Warning"   );
 };
 
+
+template <typename T_UCoordinateCuda>
+void UpdaterGPUScBFM_Connection<T_UCoordinateCuda>::initialize()
+{
+  BaseClass::initialize();
+   
+}
+
+template class UpdaterGPUScBFM_Connection< uint8_t  >;
+template class UpdaterGPUScBFM_Connection< uint16_t >;
+template class UpdaterGPUScBFM_Connection< uint32_t >;
+template class UpdaterGPUScBFM_Connection<  int16_t >;
+template class UpdaterGPUScBFM_Connection<  int32_t >;
 
 
