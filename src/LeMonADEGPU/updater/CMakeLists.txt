@@ -29,10 +29,12 @@ INCLUDE_DIRECTORIES(BEFORE ${CMAKE_CURRENT_BINARY_DIR})
 
 SET(_src
     UpdaterGPUScBFM_AB_Type.cu
-    UpdaterGPUScBFMGPR_AB_Type.cu
+    UpdaterGPUScBFM_Connection.cu
+#     UpdaterGPUScBFMGPR_AB_Type.cu
    )
 FILE(_header
      ${CMAKE_SOURCE_DIR}/include/LeMonADEGPU/updater/UpdaterGPUScBFM_AB_Type.h
+     ${CMAKE_SOURCE_DIR}/include/LeMonADEGPU/updater/UpdaterGPUScBFM_Connection.h
 #      ${CMAKE_SOURCE_DIR}/include/LeMonADEGPU/updater/UpdaterGPUScBFMGPR_AB_Type.h
     )
 set_target_properties(obj_updater PROPERTIES CUDA_SEPARABLE_COMPILATION ON)

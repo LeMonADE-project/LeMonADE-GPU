@@ -311,10 +311,6 @@ private:
     int            miGpuToUse;
     cudaDeviceProp mCudaProps;
  
-    //the host-side function pointer to your __device__ function
-    getBitPackedTextureFunction h_pointFunction;
-
-
 private:
     uint8_t mnSplitColors;
 

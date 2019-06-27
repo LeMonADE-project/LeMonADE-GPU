@@ -245,56 +245,7 @@ MAKEINSTANCE(int32_t);
 #undef MAKEINSTANCE
 
 namespace {
-  
-/**
- * We want to introduce connections during the simulation. 
- */
-template< typename T_UCoordinateCuda >
-__global__ void kernelCheckSpeciesConnection
-(
-    typename CudaVec4< T_UCoordinateCuda >::value_type
-                const * const __restrict__ dpPolymerSystem         ,
-    T_Flags           * const              dpPolymerFlags          ,
-    uint32_t            const              iOffset                 ,
-    T_Lattice         * const __restrict__ dpLatticeTmp            ,
-    T_Id        const * const              dpNeighbors             ,
-    uint32_t            const              rNeighborsPitchElements ,
-    uint8_t     const * const              dpNeighborsSizes        ,
-    T_Id                const              nMonomers               ,
-    uint64_t            const              rSeed                   ,
-    uint64_t            const              rGlobalIteration        ,
-    cudaTextureObject_t const              texLatticeRefOut        ,
-    BoxCheck                               bCheck, 
-    Method              const              met
-){
-   uint32_t rn;
-    int iGrid = 0;
-    for ( auto iMonomer = blockIdx.x * blockDim.x + threadIdx.x;
-          iMonomer < nMonomers; iMonomer += gridDim.x * blockDim.x, ++iGrid )
-    {
-        auto const r0 = dpPolymerSystem[ iOffset + iMonomer ];
-        if ( iGrid % 1 == 0 ) //for what is this  
-        {
-	  Saru rng(rGlobalIteration,iMonomer,rSeed);
-	  rn =rng.rng32();
-        }
-        int direction = rn % 6;
-         /* select random direction. Do this with bitmasking instead of lookup ??? */
-        typename CudaVec4< T_UCoordinateCuda >::value_type const r1 = {
-            T_UCoordinateCuda( r0.x + DXTable_d[ direction ] ),
-            T_UCoordinateCuda( r0.y + DYTable_d[ direction ] ),
-            T_UCoordinateCuda( r0.z + DZTable_d[ direction ] )
-        };
-	if (    bCheck(r1.x,r1.y,r1.z) && 
-	      ! checkBonds<T_UCoordinateCuda>(dpNeighborsSizes, iMonomer, dpNeighbors, rNeighborsPitchElements, dpPolymerSystem, r1 ) && 
-	      ! checkFront( texLatticeRefOut, r0.x, r0.y, r0.z, direction, met, &BitPacking::bitPackedTextureGetStandard ) )
-	{
-	    direction += T_Flags(8);
-	    met.getPacking().bitPackedSet(dpLatticeTmp, met.getCurve().linearizeBoxVectorIndex( r1.x, r1.y, r1.z ));
-	}
-        dpPolymerFlags[ iMonomer ] = direction;
-    }
-}
+
   
   
 
@@ -1871,9 +1822,6 @@ void UpdaterGPUScBFM_AB_Type< T_UCoordinateCuda >::initialize( void )
     if ( mAge != 0 )
         doSpatialSorting();
 
-    //see: https://stackoverflow.com/questions/15644261/cuda-function-pointers
-    //in host code: copy the function pointers to their host equivalent
-    cudaMemcpyFromSymbol(&h_pointFunction, functor, sizeof(getBitPackedTextureFunction));
     
     /* Saru, IntHash and Philox don't need any particular initialization */
 
