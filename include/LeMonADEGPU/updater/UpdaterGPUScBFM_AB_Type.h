@@ -117,11 +117,13 @@ private:
     static bool constexpr useOverflowChecks =
         sizeof( T_UCoordinateCuda ) <= 2 &&
         ! std::is_signed< T_UCoordinateCuda >::value;
+protected:
     /**
      * @brief up to now there is only the default stream used
      * @details this could be extended to more streams for concurrency running kernels 
      */
     cudaStream_t mStream;
+private:
     /**
      * Vector of length boxX * boxY * boxZ. Actually only contains 0 if
      * the cell / lattice point is empty or 1 if it is occupied by a monomer
@@ -166,8 +168,10 @@ private:
      * The saved location is used as the lower left front corner when
      * populating the lattice with 2x2x2 boxes representing the monomers
      */
+protected:    
     size_t mnAllMonomers;
     MirroredVector< T_Coordinates > * mPolymerSystem;
+private:
     /**
      * This is mPolymerSystem sorted by species and also made struct of array
      * in order to split neighbors size off into extra array, thereby also
@@ -221,8 +225,9 @@ private:
      * getMonomerCoordinates. This way we might just return the monomer
      * info directly instead of needing to desort after each execute run */
     bool bPolymersSorted;
-
+protected:
     MirroredVector< MonomerEdges > * mNeighbors;
+private:
     /**
      * stores the IDs of all neighbors as is needed to check for the bond
      * set / length restrictions.
@@ -280,21 +285,24 @@ private:
      * the monomers!
      */
     MirroredVector < T_Id   > * mNeighborsUnsorted;
-
+protected:
     RandomNumberGenerators randomNumbers;
 
     bool    mUsePeriodicMonomerSorting;
     int64_t mnStepsBetweenSortings;
-    bool mForbiddenBonds[512];
+
     
     int64_t mAge;
     bool mIsPeriodicX;
     bool mIsPeriodicY;
     bool mIsPeriodicZ;
+
+    bool mForbiddenBonds[512];
     T_BoxSize mBoxX     ;
     T_BoxSize mBoxY     ;
     T_BoxSize mBoxZ     ;
-    
+    //holds some methods which can be set before usage of the GPU..
+    Method met;
     T_BoxSize mBoxXM1   ;
     T_BoxSize mBoxYM1   ;
     T_BoxSize mBoxZM1   ;
@@ -302,8 +310,7 @@ private:
     T_BoxSize mBoxXYLog2;
     uint32_t mGlobalIterator; // used for the RNG, equal to mAge + iStep * nSpecies + iSubstep
     
-    //holds some methods which can be set before usage of the GPU..
-    Method met;
+
 public: 
   void setMethod(Method& met_){met=met_;}
   Method getMethod(){ return met;}
@@ -314,6 +321,8 @@ private:
 private:
     uint8_t mnSplitColors;
 
+
+protected:
     /**
      * Checks for excluded volume condition and for correctness of all monomer bonds
      */
@@ -349,6 +358,10 @@ private:
     void initializeLattices();
     void checkMonomerReorderMapping();
     void findAndRemoveOverflows( bool copyToHost = true );
+    
+protected: 
+    void checkLatticeOccupation() const ;
+    void checkBonds() const ;
     void doCopyBack();
 
 public:

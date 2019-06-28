@@ -43,6 +43,7 @@
 #include <LeMonADEGPU/core/constants.cuh>
 #include <LeMonADEGPU/feature/BoxCheck.h>
 #include <LeMonADEGPU/core/Method.h>
+#include <LeMonADEGPU/utility/DeleteMirroredObject.h>
 
 /* shorten full type names for kernels (assuming these are independent of the template parameter) */
 using T_Flags            = UpdaterGPUScBFM_AB_Type< uint8_t >::T_Flags      ;
@@ -245,9 +246,6 @@ MAKEINSTANCE(int32_t);
 #undef MAKEINSTANCE
 
 namespace {
-
-  
-  
 
 /**
  * Goes over all monomers of a species given specified by texSpeciesIndices
@@ -685,43 +683,13 @@ UpdaterGPUScBFM_AB_Type< T_UCoordinateCuda >::UpdaterGPUScBFM_AB_Type()
 }
 
 
-struct DeleteMirroredVector
-{
-    size_t nBytesFreed = 0;
-
-    template< typename S >
-    void operator()( MirroredVector< S > * & p, std::string const & name = "" )
-    {
-        if ( p != NULL )
-        {
-            std::cerr
-                << "Free MirroredVector " << name << " at " << (void*) p
-                << " which holds " << prettyPrintBytes( p->nBytes ) << "\n";
-            nBytesFreed += p->nBytes;
-            delete p;
-            p = NULL;
-        }
-    }
-
-    template< typename S >
-    void operator()( MirroredTexture< S > * & p, std::string const & name = "" )
-    {
-        if ( p != NULL )
-        {
-            nBytesFreed += p->nBytes;
-            delete p;
-            p = NULL;
-        }
-    }
-};
-
 /**
  * Deletes everything which could and is allocated
  */
 template< typename T_UCoordinateCuda >
 void UpdaterGPUScBFM_AB_Type< T_UCoordinateCuda >::destruct()
 {
-    DeleteMirroredVector deletePointer;
+    DeleteMirroredObject deletePointer;
     deletePointer( mLatticeOut                     , "mLatticeOut"                      );
     deletePointer( mLatticeTmp                     , "mLatticeTmp"                      );
     deletePointer( mLatticeTmp2                    , "mLatticeTmp2"                     );
@@ -2055,22 +2023,10 @@ void UpdaterGPUScBFM_AB_Type< T_UCoordinateCuda >::findAndRemoveOverflows( bool 
       mviPolymerSystemSortedVirtualBox->pushAsync();
     }
 }
-
-/**
- * Checks for excluded volume condition and for correctness of all monomer bonds
- * Beware, it useses and thereby thrashes mLattice. Might be cleaner to declare
- * as const and malloc and free some temporary buffer, but the time ...
- * https://randomascii.wordpress.com/2014/12/10/hidden-costs-of-memory-allocation/
- * "In my tests, for sizes ranging from 8 MB to 32 MB, the cost for a new[]/delete[] pair averaged about 7.5 μs (microseconds), split into ~5.0 μs for the allocation and ~2.5 μs for the free."
- *  => ~40k cycles
- */
 template< typename T_UCoordinateCuda >
-void UpdaterGPUScBFM_AB_Type< T_UCoordinateCuda >::checkSystem() const
+void UpdaterGPUScBFM_AB_Type< T_UCoordinateCuda >::checkLatticeOccupation() const
 {
-    if ( ! mLog.isActive( "Check" ) )
-        return;
-
-    /* note that std::vector< bool > already uses bitpacking!
+   /* note that std::vector< bool > already uses bitpacking!
      * We'd have to watch out when erasing that array with memset! */
     std::vector< uint8_t > lattice( mBoxX * mBoxY * mBoxZ, 0 );
 
@@ -2125,7 +2081,11 @@ void UpdaterGPUScBFM_AB_Type< T_UCoordinateCuda >::checkSystem() const
             << 8 * mnAllMonomers << " occupied cells, but got " << nOccupied;
         throw std::runtime_error( msg.str() );
     }
-
+}
+template< typename T_UCoordinateCuda >
+void UpdaterGPUScBFM_AB_Type< T_UCoordinateCuda >::checkBonds() const
+{
+  
     /**
      * Check bonds i.e. that |dx|<=3 and whether it is allowed by the given
      * bond set
@@ -2175,6 +2135,24 @@ void UpdaterGPUScBFM_AB_Type< T_UCoordinateCuda >::checkSystem() const
              throw std::runtime_error( msg.str() );
         }
     }
+  
+}
+
+/**
+ * Checks for excluded volume condition and for correctness of all monomer bonds
+ * Beware, it useses and thereby thrashes mLattice. Might be cleaner to declare
+ * as const and malloc and free some temporary buffer, but the time ...
+ * https://randomascii.wordpress.com/2014/12/10/hidden-costs-of-memory-allocation/
+ * "In my tests, for sizes ranging from 8 MB to 32 MB, the cost for a new[]/delete[] pair averaged about 7.5 μs (microseconds), split into ~5.0 μs for the allocation and ~2.5 μs for the free."
+ *  => ~40k cycles
+ */
+template< typename T_UCoordinateCuda >
+void UpdaterGPUScBFM_AB_Type< T_UCoordinateCuda >::checkSystem() const
+{
+    if ( ! mLog.isActive( "Check" ) )
+        return;
+    checkLatticeOccupation();
+    checkBonds();
 }
 
 
