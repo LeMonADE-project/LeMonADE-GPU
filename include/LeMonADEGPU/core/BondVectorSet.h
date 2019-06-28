@@ -29,6 +29,7 @@ class BondVectorSet
 {
 public:
 
+
   inline void addBondVector( int dx, int dy, int dz, bool bondForbidden ){mForbiddenBonds[ linearizeBondVectorIndex(dx,dy,dz) ] = bondForbidden;};
   
   __device__ __host__ inline   bool operator()(int dx, int dy, int dz) const 
@@ -40,6 +41,7 @@ public:
     #endif
   }
   
+
   void initBondTable();
 private:   
   bool mForbiddenBonds[512];  

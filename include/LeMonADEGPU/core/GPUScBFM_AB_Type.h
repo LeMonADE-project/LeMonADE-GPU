@@ -9,8 +9,8 @@
 #include <LeMonADE/updater/AbstractUpdater.h>
 #include <LeMonADE/utility/Vector3D.h>      // VectorInt3
 
-#include <LeMonADEGPU/updater/UpdaterGPUScBFM_AB_Type.h>
-// #include "../updater/UpdaterGPUScBFM_AB_Type.h"
+// #include <LeMonADEGPU/updater/UpdaterGPUScBFM_AB_Type.h>
+#include <LeMonADEGPU/updater/UpdaterGPUScBFM_Connection.h>
 #include <LeMonADEGPU/utility/SelectiveLogger.hpp>
 #include <LeMonADEGPU/core/SpaceFillingCurve.h>
 
@@ -49,10 +49,10 @@ private:
      * @see https://stackoverflow.com/questions/3422106/how-do-i-select-a-member-variable-with-a-type-parameter
      */
     struct WrappedTemplatedUpdaters :
-        UpdaterGPUScBFM_AB_Type< uint8_t  >,
-        UpdaterGPUScBFM_AB_Type< uint16_t >,
-        UpdaterGPUScBFM_AB_Type< int16_t  >,
-        UpdaterGPUScBFM_AB_Type< int32_t  >
+        UpdaterGPUScBFM_Connection< uint8_t  >,
+        UpdaterGPUScBFM_Connection< uint16_t >,
+        UpdaterGPUScBFM_Connection< int16_t  >,
+        UpdaterGPUScBFM_Connection< int32_t  >
     {};
     WrappedTemplatedUpdaters mUpdatersGpu;
 
@@ -101,9 +101,9 @@ public:
 
     inline void activateLogging( std::string const sLevel )
     {
-        UpdaterGPUScBFM_AB_Type< uint8_t  > & updater1 = mUpdatersGpu;
-        UpdaterGPUScBFM_AB_Type< uint16_t > & updater2 = mUpdatersGpu;
-        UpdaterGPUScBFM_AB_Type< int32_t  > & updater3 = mUpdatersGpu;
+        UpdaterGPUScBFM_Connection< uint8_t  > & updater1 = mUpdatersGpu;
+        UpdaterGPUScBFM_Connection< uint16_t > & updater2 = mUpdatersGpu;
+        UpdaterGPUScBFM_Connection< int32_t  > & updater3 = mUpdatersGpu;
         updater1.mLog.activate( sLevel );
         updater2.mLog.activate( sLevel );
         updater3.mLog.activate( sLevel );
@@ -112,7 +112,7 @@ public:
 
     inline void setGpu( int riGpuToUse ){ miGpuToUse = riGpuToUse; }
     template< typename T >
-    inline void setRng( UpdaterGPUScBFM_AB_Type<T> riRngToUse ){ miRngToUse = riRngToUse; }
+    inline void setRng( UpdaterGPUScBFM_Connection<T> riRngToUse ){ miRngToUse = riRngToUse; }
     inline void setRng( int riRngToUse ){ miRngToUse = riRngToUse; }
     inline void setStepsBetweenSortings( int rnStepsBetweenSortings )
     {
@@ -125,13 +125,13 @@ public:
      * Copies required data and parameters from mIngredients to mUpdaterGpu
      * and calls the mUpdaterGpu initializer
      * mIngredients can't just simply be given, because we want to compile
-     * UpdaterGPUScBFM_AB_Type.cu by itself and explicit template instantitation
+     * UpdaterGPUScBFM_Connection.cu by itself and explicit template instantitation
      * over T_IngredientsType is basically impossible
      */
     template< typename T_UCoordinateCuda >
     inline void initializeUpdater()
     {
-        UpdaterGPUScBFM_AB_Type< T_UCoordinateCuda > & mUpdaterGpu = mUpdatersGpu;
+        UpdaterGPUScBFM_Connection< T_UCoordinateCuda > & mUpdaterGpu = mUpdatersGpu;
 
         mUpdaterGpu.setSplitColors( mnSplitColors );
 
@@ -186,7 +186,9 @@ public:
             /* !!! The negation is confusing, again there should be a better way to copy the bond set */
             mUpdaterGpu.copyBondSet( dx, dy, dz, ! mIngredients.getBondset().isValid( VectorInt3( dx, dy, dz ) ) );
         }
-	
+//         for (size_t i =0 ; i < mIngredients.getMolecules().size(); i++){
+// 	  mUpdaterGpu.setReactiveGroup( i, molecules[i].isReactive(), molecules[i].getNumMaxLinks() );
+// 	}
 	Method met;
  	met.modifyCurve().setMode(0);
  	met.modifyCurve().setBox(mIngredients.getBoxX(),mIngredients.getBoxY(),mIngredients.getBoxZ());
@@ -211,7 +213,7 @@ public:
     template< typename T_UCoordinateCuda >
     inline bool executeUpdater()
     {
-        UpdaterGPUScBFM_AB_Type< T_UCoordinateCuda > & mUpdaterGpu = mUpdatersGpu;
+        UpdaterGPUScBFM_Connection< T_UCoordinateCuda > & mUpdaterGpu = mUpdatersGpu;
 
         std::clock_t const t0 = std::clock();
 
@@ -256,7 +258,7 @@ public:
     template< typename T_UCoordinateCuda >
     inline void cleanupUpdater()
     {
-        UpdaterGPUScBFM_AB_Type< T_UCoordinateCuda > & mUpdaterGpu = mUpdatersGpu;
+        UpdaterGPUScBFM_Connection< T_UCoordinateCuda > & mUpdaterGpu = mUpdatersGpu;
 
         mLog( "Info" ) << "[" << __FILENAME__ << "] cleanup\n";
         mUpdaterGpu.cleanup();

@@ -298,6 +298,7 @@ protected:
     bool mIsPeriodicY;
     bool mIsPeriodicZ;
 
+
     BondVectorSet checkBondVector;
     T_BoxSize mBoxX     ;
     T_BoxSize mBoxY     ;
