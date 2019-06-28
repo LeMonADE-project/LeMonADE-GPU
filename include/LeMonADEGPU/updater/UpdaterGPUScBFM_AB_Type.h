@@ -48,6 +48,7 @@
 
 #include <LeMonADEGPU/utility/alignedMatrizes.h>
 #include <LeMonADEGPU/core/MonomerEdges.h>
+#include <LeMonADEGPU/core/BondVectorSet.h>
 
 #include <LeMonADEGPU/core/Method.h>
 
@@ -297,7 +298,7 @@ protected:
     bool mIsPeriodicY;
     bool mIsPeriodicZ;
 
-    bool mForbiddenBonds[512];
+    BondVectorSet checkBondVector;
     T_BoxSize mBoxX     ;
     T_BoxSize mBoxY     ;
     T_BoxSize mBoxZ     ;

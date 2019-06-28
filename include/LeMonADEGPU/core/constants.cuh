@@ -1,9 +1,5 @@
 #pragma once
 
-
-/* 512=8^3 for a range of bonds per direction of [-4,3] */
-__device__ __constant__ bool dpForbiddenBonds[512]; //false-allowed; true-forbidden
-
 /**
  * These will be initialized to:
  *   DXTable_d = { -1,1,0,0,0,0 }

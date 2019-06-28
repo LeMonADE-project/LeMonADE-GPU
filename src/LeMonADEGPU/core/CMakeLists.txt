@@ -29,13 +29,14 @@ INCLUDE_DIRECTORIES(BEFORE ${CMAKE_CURRENT_BINARY_DIR})
 
 SET(_src
     mainColorBFM.cpp
+    BondVectorSet.cu
   )
   
 FILE(_header
      ${CMAKE_SOURCE_DIR}/include/LeMonADEGPU/core/GPUScBFM_AB_Type.h
-     ${CMAKE_SOURCE_DIR}/include/LeMonADEGPU/utility/graphColoring.h
+     ${CMAKE_SOURCE_DIR}/include/LeMonADEGPU/core/BondVectorSet.h
+     ${CMAKE_SOURCE_DIR}/include/LeMonADEGPU/utility/graphColoring.h     
      ${CMAKE_SOURCE_DIR}/include/LeMonADEGPU/utility/SelectiveLogger.hpp
     )
-
-# CUDA_ADD_LIBRARY(obj_core OBJECT ${_src} ${_header} cuda )
-CUDA_ADD_LIBRARY(obj_core OBJECT ${_src} ${_header} )
+set_target_properties(obj_updater PROPERTIES CUDA_SEPARABLE_COMPILATION ON)
+CUDA_ADD_LIBRARY(obj_core OBJECT ${_src} ${_header} cuda )

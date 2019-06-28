@@ -44,6 +44,7 @@
 #include <LeMonADEGPU/feature/BoxCheck.h>
 #include <LeMonADEGPU/core/Method.h>
 #include <LeMonADEGPU/utility/DeleteMirroredObject.h>
+#include <LeMonADEGPU/core/BondVectorSet.h>
 
 /* shorten full type names for kernels (assuming these are independent of the template parameter) */
 using T_Flags            = UpdaterGPUScBFM_AB_Type< uint8_t >::T_Flags      ;
@@ -188,26 +189,6 @@ __device__ inline bool checkFront
 
 }
 
-__device__ __host__ inline int16_t linearizeBondVectorIndex
-(
-    int16_t const x,
-    int16_t const y,
-    int16_t const z
-)
-{
-    /* Just like for normal integers we clip the range to go more down than up
-     * i.e. [-127 ,128] or in this case [-4,3]
-     * +4 maps to the same location as -4 but is needed or else forbidden
-     * bonds couldn't be detected. Larger bonds are not possible, because
-     * monomers only move by 1 per step */
-    //assert( -4 <= x && x <= 4 );
-    //assert( -4 <= y && y <= 4 );
-    //assert( -4 <= z && z <= 4 );
-    return   ( x & int16_t(7) /* 0b111 */ ) +
-           ( ( y & int16_t(7) /* 0b111 */ ) << 3 ) +
-           ( ( z & int16_t(7) /* 0b111 */ ) << 6 );
-}
-
 /**
  * @brief checks all bonds of the current monomer
  * @return true if bond is forbidden, false if all bonds are allowed
@@ -220,7 +201,8 @@ T_Id        const * const              dpNeighbors             ,
 uint32_t            const              rNeighborsPitchElements ,
 typename CudaVec4< T_UCoordinateCuda >::value_type
 	    const * const __restrict__ dpPolymerSystem         ,
-typename CudaVec4< T_UCoordinateCuda >::value_type const     r1
+typename CudaVec4< T_UCoordinateCuda >::value_type const     r1,
+BondVectorSet       const              checkBondVector
 ){
   /* check whether the new position would result in invalid bonds
   * between this monomer and its neighbors */
@@ -229,15 +211,15 @@ typename CudaVec4< T_UCoordinateCuda >::value_type const     r1
   {
       auto const iGlobalNeighbor = dpNeighbors[ iNeighbor * rNeighborsPitchElements + iMonomer ];
       auto const data2 = dpPolymerSystem[ iGlobalNeighbor ];
-      if ( dpForbiddenBonds[ linearizeBondVectorIndex( data2.x - r1.x, data2.y - r1.y, data2.z - r1.z ) ] )
+      if ( checkBondVector( data2.x - r1.x, data2.y - r1.y, data2.z - r1.z ) )
       {
 	return true; 
       }
   }
-  return false;
+  return false;	
 }
 #define MAKEINSTANCE(TYPE) \
-template __device__  bool checkBonds < TYPE > (uint8_t const * const, T_Id const, T_Id const * const, uint32_t const, typename CudaVec4< TYPE >::value_type const * const __restrict__, typename CudaVec4< TYPE >::value_type const);
+template __device__  bool checkBonds < TYPE > (uint8_t const * const, T_Id const, T_Id const * const, uint32_t const, typename CudaVec4< TYPE >::value_type const * const __restrict__, typename CudaVec4< TYPE >::value_type const, BondVectorSet const);
 MAKEINSTANCE(uint8_t);
 MAKEINSTANCE(uint16_t);
 MAKEINSTANCE(uint32_t);
@@ -298,7 +280,8 @@ __global__ void kernelSimulationScBFMCheckSpecies
     uint64_t            const              rGlobalIteration        ,
     cudaTextureObject_t const              texLatticeRefOut        ,
     BoxCheck                               bCheck, 
-    Method              const              met
+    Method              const              met,
+    BondVectorSet       const              checkBondVector
 )
 {
     uint32_t rn;
@@ -338,7 +321,7 @@ __global__ void kernelSimulationScBFMCheckSpecies
          */
 
 	if (    bCheck(r1.x,r1.y,r1.z) && 
-	      ! checkBonds<T_UCoordinateCuda>(dpNeighborsSizes, iMonomer, dpNeighbors, rNeighborsPitchElements, dpPolymerSystem, r1 ) && 
+	      ! checkBonds<T_UCoordinateCuda>(dpNeighborsSizes, iMonomer, dpNeighbors, rNeighborsPitchElements, dpPolymerSystem, r1, checkBondVector ) && 
 	      ! checkFront( texLatticeRefOut, r0.x, r0.y, r0.z, direction, met, &BitPacking::bitPackedTextureGetStandard ) )
 	{
 	    /* everything fits so perform move on temporary lattice */
@@ -371,7 +354,8 @@ __global__ void kernelCountFilteredCheck
     cudaTextureObject_t      const              texLatticeRefOut       ,
     unsigned long long int * const              dpFiltered             ,
     BoxCheck                                    bCheck		       ,
-    Method                                      met
+    Method                                      met,
+    BondVectorSet            const              checkBondVector
 )
 {
     for ( auto iMonomer = blockIdx.x * blockDim.x + threadIdx.x;
@@ -390,7 +374,7 @@ __global__ void kernelCountFilteredCheck
 	     checkFront( texLatticeRefOut, r0.x, r0.y, r0.z, direction, met, &BitPacking::bitPackedTextureGetStandard  ) )
 	{
 	    atomicAdd( dpFiltered+2, 1ull );
-	    if ( ! checkBonds<T_UCoordinateCuda>(dpNeighborsSizes, iMonomer, dpNeighbors, rNeighborsPitchElements, dpPolymerSystem, r1 ) ) /* this is the more real relative use-case where invalid bonds are already filtered out */
+	    if ( ! checkBonds<T_UCoordinateCuda>(dpNeighborsSizes, iMonomer, dpNeighbors, rNeighborsPitchElements, dpPolymerSystem, r1, checkBondVector ) ) /* this is the more real relative use-case where invalid bonds are already filtered out */
 		atomicAdd( dpFiltered+3, 1ull );
 	}
 
@@ -739,23 +723,7 @@ void UpdaterGPUScBFM_AB_Type< T_UCoordinateCuda >::setGpu( int iGpuToUse )
 template< typename T_UCoordinateCuda >
 void UpdaterGPUScBFM_AB_Type< T_UCoordinateCuda >::initializeBondTable( void )
 {
-    /* create the BondTable and copy it to constant memory */
-    bool * tmpForbiddenBonds = (bool*) malloc( sizeof( bool ) * 512 );
-    unsigned nAllowedBonds = 0;
-    for ( int i = 0; i < 512; ++i )
-        if ( ! ( tmpForbiddenBonds[i] = mForbiddenBonds[i] ) )
-            ++nAllowedBonds;
-    /* Why does it matter? Shouldn't it work with arbitrary bond sets ??? */
-    if ( nAllowedBonds != 108 )
-    {
-        std::stringstream msg;
-        msg << "[" << __FILENAME__ << "::initializeBondTable] "
-            << "Wrong bond-set! Expected 108 allowed bonds, but got " << nAllowedBonds << "\n";
-        mLog( "Error" ) << msg.str();
-        throw std::runtime_error( msg.str() );
-    }
-    CUDA_ERROR( cudaMemcpyToSymbol( dpForbiddenBonds, tmpForbiddenBonds, sizeof(bool)*512 ) );
-    free( tmpForbiddenBonds );
+    checkBondVector.initBondTable();
 
     /* create a table mapping the random int to directions whereto move the
      * monomers. We can use negative numbers, because (0u-1u)+1u still is 0u */
@@ -1802,7 +1770,7 @@ template< typename T_UCoordinateCuda >
 void UpdaterGPUScBFM_AB_Type< T_UCoordinateCuda >::copyBondSet
 ( int dx, int dy, int dz, bool bondForbidden )
 {
-    mForbiddenBonds[ linearizeBondVectorIndex(dx,dy,dz) ] = bondForbidden;
+  checkBondVector.addBondVector(dx,dy,dz,bondForbidden);
 }
 
 template< typename T_UCoordinateCuda >
@@ -2117,13 +2085,13 @@ void UpdaterGPUScBFM_AB_Type< T_UCoordinateCuda >::checkBonds() const
         if ( ! ( -3 <= dx && dx <= 3 ) ) erroneousAxis = 0;
         if ( ! ( -3 <= dy && dy <= 3 ) ) erroneousAxis = 1;
         if ( ! ( -3 <= dz && dz <= 3 ) ) erroneousAxis = 2;
-        if ( erroneousAxis >= 0 || mForbiddenBonds[ linearizeBondVectorIndex( dx, dy, dz ) ] )
+        if ( erroneousAxis >= 0 || checkBondVector( dx, dy, dz ) )
         {
             std::stringstream msg;
             msg << "[" << __FILENAME__ << "::checkSystem] ";
             if ( erroneousAxis > 0 )
                 msg << "Invalid " << char( 'X' + erroneousAxis ) << "-Bond: ";
-            if ( mForbiddenBonds[ linearizeBondVectorIndex( dx, dy, dz ) ] )
+            if ( checkBondVector( dx, dy, dz ) )
                 msg << "This particular bond is forbidden: ";
             msg << "(" << dx << "," << dy<< "," << dz << ") between monomer "
                 << i << " at (" << mPolymerSystem->host[i].x << ","
@@ -2318,7 +2286,8 @@ void UpdaterGPUScBFM_AB_Type< T_UCoordinateCuda >::runSimulationOnGPU
 		mGlobalIterator,                                         
 		mLatticeOut->texture,
 		boxCheck, 
-		met
+		met,
+		checkBondVector
 	    );
 
 	    /** The counting kernel can come after the Check-kernel, because the
@@ -2341,7 +2310,8 @@ void UpdaterGPUScBFM_AB_Type< T_UCoordinateCuda >::runSimulationOnGPU
 		mLatticeOut->texture,                                     
 		dpFiltered,
 		boxCheck,
-		met
+		met,
+		checkBondVector
 	    );*/ 
 
             if ( mLog.isActive( "Stats" ) )
