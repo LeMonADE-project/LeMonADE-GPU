@@ -1,9 +1,23 @@
+#ifndef LEMONADEGPU_FEATURE_BOXCHECK_H_
+#define LEMONADEGPU_FEATURE_BOXCHECK_H_
 #include <iostream>
-#include <LeMonADEGPU/updater/UpdaterGPUScBFM_AB_Type.h>
+#include <LeMonADEGPU/core/constants.cuh>
 
 /**
  * @brief class for checking the coordinates for periodic boundary conditions
  * @todo hand over a pointer to the box sizes on the device with cudaGetSymbolAdress(void** devPtr, const void**  symbol)
+ * @todo think about to define device box constants  for only this file ?!
+ * 
+ * check whether the new location of the particle would be inside the box
+ * if the box is not periodic, if not, then don't move the particle
+ * r1 is unsigned so we don't have to check whether it's < 0 as that
+ * would mean it -1 wraps around to UINTN_MAX
+ * But in order for this to work with 256-sized boxes on uint8_t with
+ * non-periodic boundary conditions, we have to check for wrap arounds
+ * wrap arounds can only happen if the monomer was at 0 or dcBoxXM1
+ * and moved outside
+ *   0 <= x1 <= dcBoxX is useless, we need to replace, not add to it!
+ *   0 < x0 <= dxBoxXM1 || ( x0 == 0 && x1 <= 1 ) || ( x0 == 255 && x1 >= 254 )
  */
 struct BoxCheck
 {
@@ -17,7 +31,6 @@ private:
 	       periodic=0, nonperiodic=1 };
 	       
   int myperiodicmode;
-  bool pX, pY, pZ;
   
 public:
   /*standard constructor*/
@@ -36,7 +49,12 @@ public:
    * @param pY_ periodicity in y-direction
    * @param pZ_ periodicity in z-direction
    */
-  BoxCheck( bool pX_,  bool pY_,  bool pZ_):pX(pX_),pY(pY_),pZ(pZ_)
+  BoxCheck( bool pX,  bool pY,  bool pZ)
+  {
+    initialize( pX,  pY,  pZ);
+  }
+  inline void initialize(int myperiodicmode_){myperiodicmode=myperiodicmode_;}
+  inline void initialize(bool pX,  bool pY,  bool pZ)
   {
     if      (   pX &&   pY &&   pZ )  //111 periodic 
 	myperiodicmode=0;
@@ -46,7 +64,7 @@ public:
 	myperiodicmode=2;
     else if ( ! pX &&   pY && ! pZ )  //010
 	myperiodicmode=3;
-    else if ( ! pX && ! pY &&   pZ )  //001
+    else if ( ! pX && ! pY &&   pZ )  //001 
 	myperiodicmode=4;
     else if (   pX &&   pY && ! pZ )  //110
 	myperiodicmode=5;
@@ -82,7 +100,7 @@ public:
   {
     switch(myperiodicmode)
     { 
-	case periodic111: return  true                         ;
+	case periodic111: return  true              ;
 	case periodic000: return ( x <  dcBoxXM1 &&
 				   y <  dcBoxYM1 &&
 				   z <  dcBoxZM1 )  ;  
@@ -95,8 +113,10 @@ public:
 	case periodic110: return ( z <  dcBoxZM1 )  ;
 	case periodic011: return ( x <  dcBoxXM1 )  ;
 	case periodic101: return ( y <  dcBoxYM1 )  ;
-	default         : return false                                ; //maybe throw an error?! 
+	default         : return false              ; //maybe throw an error?! 
     };
   }
 
 };
+
+#endif /* LEMONADEGPU_FEATURE_BOXCHECK_H_ */ 
