@@ -1,3 +1,4 @@
+#pragma once
 /**
  * @brief convinience class for a fast deletation of objects....
  */
