@@ -22,6 +22,12 @@
 #include <LeMonADEGPU/utility/cudacommon.hpp>
 #include <LeMonADEGPU/utility/SelectiveLogger.hpp>
 #include <LeMonADEGPU/core/rngs/Saru.h>
+#include <LeMonADEGPU/core/constants.cuh>
+#include <LeMonADEGPU/utility/alignedMatrizes.h>
+#include <LeMonADEGPU/core/MonomerEdges.h>
+#include <LeMonADEGPU/core/BondVectorSet.h>
+#include <LeMonADEGPU/core/Method.h>
+#include <LeMonADEGPU/feature/BoxCheck.h>
 
 //keep this 
 // #define USE_BIT_PACKING_TMP_LATTICE
@@ -45,12 +51,6 @@
  * @todo using USE_BIT_PACKING_TMP_LATTICE without USE_ZCURVE_FOR_LATTICE
  *       does not work! The error must be in checkFront ... ?
  */
-
-#include <LeMonADEGPU/utility/alignedMatrizes.h>
-#include <LeMonADEGPU/core/MonomerEdges.h>
-#include <LeMonADEGPU/core/BondVectorSet.h>
-
-#include <LeMonADEGPU/core/Method.h>
 
 template< typename T_UCoordinateCuda > 
 class UpdaterGPUScBFM_AB_Type
@@ -110,7 +110,7 @@ public:
      */
     SelectedLogger mLog;
 
-private:
+protected:
     /* only do checks for uint8_t and uint16_t, for all signed data types
      * we kinda assume the user to think himself smart enough that he does
      * not want the overflow checking version. This is because the overflow
@@ -118,13 +118,12 @@ private:
     static bool constexpr useOverflowChecks =
         sizeof( T_UCoordinateCuda ) <= 2 &&
         ! std::is_signed< T_UCoordinateCuda >::value;
-protected:
+
     /**
      * @brief up to now there is only the default stream used
      * @details this could be extended to more streams for concurrency running kernels 
      */
     cudaStream_t mStream;
-private:
     /**
      * Vector of length boxX * boxY * boxZ. Actually only contains 0 if
      * the cell / lattice point is empty or 1 if it is occupied by a monomer
@@ -169,10 +168,9 @@ private:
      * The saved location is used as the lower left front corner when
      * populating the lattice with 2x2x2 boxes representing the monomers
      */
-protected:    
+
     size_t mnAllMonomers;
     MirroredVector< T_Coordinates > * mPolymerSystem;
-private:
     /**
      * This is mPolymerSystem sorted by species and also made struct of array
      * in order to split neighbors size off into extra array, thereby also
@@ -220,15 +218,14 @@ private:
     MirroredVector< T_Id > * miNewToiSpatial; /* used for sorting monomers along z-curve on GPU */
     MirroredVector< T_Id > * mvKeysZOrderLinearIds; /* used for sorting monomers along z-curve on GPU */
 
-    /* needed to decide whether we can even check autocoloring with given one */
-    bool bSetAttributeCalled;
+    /* set autocoloring or manual coloring*/
+    bool bSetAutoColoring;
     /* in order to decide how to work with setMonomerCoordinates and
      * getMonomerCoordinates. This way we might just return the monomer
      * info directly instead of needing to desort after each execute run */
     bool bPolymersSorted;
-protected:
+
     MirroredVector< MonomerEdges > * mNeighbors;
-private:
     /**
      * stores the IDs of all neighbors as is needed to check for the bond
      * set / length restrictions.
@@ -286,7 +283,7 @@ private:
      * the monomers!
      */
     MirroredVector < T_Id   > * mNeighborsUnsorted;
-protected:
+
     RandomNumberGenerators randomNumbers;
 
     bool    mUsePeriodicMonomerSorting;
@@ -303,6 +300,7 @@ protected:
     T_BoxSize mBoxX     ;
     T_BoxSize mBoxY     ;
     T_BoxSize mBoxZ     ;
+    BoxCheck boxCheck   ; 
     //holds some methods which can be set before usage of the GPU..
     Method met;
     T_BoxSize mBoxXM1   ;
@@ -311,24 +309,15 @@ protected:
     T_BoxSize mBoxXLog2 ;
     T_BoxSize mBoxXYLog2;
     uint32_t mGlobalIterator; // used for the RNG, equal to mAge + iStep * nSpecies + iSubstep
+    int            miGpuToUse;
+    cudaDeviceProp mCudaProps;
+    uint8_t mnSplitColors;
     
 
 public: 
   void setMethod(Method& met_){met=met_;}
   Method getMethod(){ return met;}
-private:
-    int            miGpuToUse;
-    cudaDeviceProp mCudaProps;
- 
-private:
-    uint8_t mnSplitColors;
 
-
-protected:
-    /**
-     * Checks for excluded volume condition and for correctness of all monomer bonds
-     */
-    void checkSystem() const;
  
 public:
     UpdaterGPUScBFM_AB_Type();
@@ -350,7 +339,7 @@ public:
      * => normally setNrOfAllMonomers and setGpu schould be in the constructor ... :S
      */
 
-private:
+protected: 
     void initializeBondTable();
     void initializeSpeciesSorting(); /* using miNewToi and miToiNew the monomers are mapped to be sorted by species */
     void initializeSpatialSorting(); /* miNewToi and miToiNew will be updated so that monomers are sorted spatially per species */
@@ -360,11 +349,20 @@ private:
     void initializeLattices();
     void checkMonomerReorderMapping();
     void findAndRemoveOverflows( bool copyToHost = true );
-    
-protected: 
+    /**
+     * Checks for excluded volume condition and for correctness of all monomer bonds
+     */
+    void checkSystem() const;
     void checkLatticeOccupation() const ;
     void checkBonds() const ;
     void doCopyBack();
+    void doCopyBackConnectivity(); 
+    void launch_CheckSpecies(const size_t nBlocks, const size_t nThreads, const size_t iSpecies, const size_t iOffsetLatticeTmp, const uint64_t seed);
+    void launch_PerformSpecies(const size_t nBlocks, const size_t nThreads, const size_t iSpecies, cudaTextureObject_t texLatticeTmp );
+    void launch_PerformSpeciesAndApply(const size_t nBlocks, const size_t nThreads, const size_t iSpecies, cudaTextureObject_t texLatticeTmp );
+    void launch_ZeroArraySpecies(const size_t nBlocks, const size_t nThreads, const size_t iSpecies );
+    void launch_CountFilteredCheck(const size_t nBlocks, const size_t nThreads, const size_t iSpecies, cudaTextureObject_t texLatticeTmp, unsigned long long int * dpFiltered , const size_t iOffsetLatticeTmp);
+    void launch_countFilteredPerform(const size_t nBlocks, const size_t nThreads, const size_t iSpecies, cudaTextureObject_t texLatticeTmp, unsigned long long int * dpFiltered);
 
 public:
     void initialize();
@@ -375,13 +373,15 @@ public:
     void setGpu               ( int iGpuToUse );
     void copyBondSet          ( int dx, int dy, int dz, bool bondForbidden );
     void setNrOfAllMonomers   ( T_Id nAllMonomers );
+    void setAutoColoring      ( bool bSetAutoColoring_);
     void setAttribute         ( T_Id i, int32_t attribute ); // this is to be NOT the coloring as needed for parallelizing the BFM, it is to be used for additional e.g. physical attributes like actual chemical types
     void setMonomerCoordinates( T_Id i, T_Coordinate x, T_Coordinate y, T_Coordinate z );
     void setConnectivity      ( T_Id monoidx1, T_Id monoidx2 );
     void setLatticeSize       ( T_BoxSize boxX, T_BoxSize boxY, T_BoxSize boxZ );
     /* how often to double the initial number of colors */
     inline void setSplitColors( uint8_t const rnSplitColors ){ mnSplitColors = rnSplitColors; };
-    
+    uint32_t getNumLinks(uint32_t MonID);
+    uint32_t getNeighborIdx(uint32_t MonID, uint32_t BondID);
     void runSimulationOnGPU  ( uint32_t nrMCS_per_Call );
 
     /* using T_Coordinate with int64_t throws error as LeMonADE itself is limited to 32 bit positions! */
