@@ -26,11 +26,15 @@
 # --------------------------------------------------------------------------------
 
 SET ( project_SRCS
+      ${CMAKE_CURRENT_SOURCE_DIR}/LeMonADEGPU/core/SpaceFillingCurve.cu
+#       ${CMAKE_CURRENT_SOURCE_DIR}/LeMonADEGPU/core/Method.cu
       ${CMAKE_CURRENT_SOURCE_DIR}/LeMonADEGPU/core/mainColorBFM.cpp
       ${CMAKE_CURRENT_SOURCE_DIR}/LeMonADEGPU/core/BondVectorSet.cu
-      ${CMAKE_CURRENT_SOURCE_DIR}/LeMonADEGPU/updater/UpdaterGPUScBFM_AB_Type.cu
+      ${CMAKE_CURRENT_SOURCE_DIR}/LeMonADEGPU/core/kernelConnection.cu
+      ${CMAKE_CURRENT_SOURCE_DIR}/LeMonADEGPU/updater/UpdaterGPUScBFM_AB_Type.cu      
       ${CMAKE_CURRENT_SOURCE_DIR}/LeMonADEGPU/updater/UpdaterGPUScBFM_Connection.cu
 #       ${CMAKE_CURRENT_SOURCE_DIR}/LeMonADEGPU/updater/UpdaterGPUScBFMGPR_AB_Type.cu
+      ${CMAKE_CURRENT_SOURCE_DIR}/LeMonADEGPU/utility/AutomaticThreadChooser.cu
       ${CMAKE_CURRENT_SOURCE_DIR}/LeMonADEGPU/utility/findBestZCurveFrontOrder.cpp
       ${CMAKE_CURRENT_SOURCE_DIR}/LeMonADEGPU/utility/graphColoring.cpp
       ${CMAKE_CURRENT_SOURCE_DIR}/LeMonADEGPU/utility/SelectiveLogger.cpp
@@ -46,6 +50,8 @@ ENDIF (NOT DEFINED project_build_static)
 
 IF (project_build_static)
 	CUDA_ADD_LIBRARY(libLeMonADEGPU-static STATIC ${project_SRCS} )
+# 	set_property(TARGET libLeMonADEGPU-static PROPERTY CUDA_RESOLVE_DEVICE_SYMBOLS ON)
+	set_target_properties(libLeMonADEGPU-static PROPERTIES CUDA_SEPARABLE_COMPILATION ON)
 	#TARGET_LINK_LIBRARIES(staticlib ${project_LIBS})
 	SET_TARGET_PROPERTIES(libLeMonADEGPU-static PROPERTIES VERSION "${APPLICATION_VERSION_MAJOR}.${APPLICATION_VERSION_MINOR}" OUTPUT_NAME ${project_BIN} CLEAN_DIRECT_OUTPUT 1)
 	INSTALL(TARGETS libLeMonADEGPU-static DESTINATION lib)

@@ -38,9 +38,11 @@ SET(_src
   findBestZCurveFrontOrder.cpp
   findMaxNeighbors.cpp
   SelectiveLogger.cpp
+  AutomaticThreadChooser.cu
   )
 FILE(_header
     ${CMAKE_SOURCE_DIR}/include/LeMonADEGPU/utility/graphColoring.h
+    ${CMAKE_SOURCE_DIR}/include/LeMonADEGPU/utility/AutomaticThreadChooser.h
     ${CMAKE_SOURCE_DIR}/include/extern/Fundamental/Fundamental.hpp
     ${CMAKE_SOURCE_DIR}/include/extern/Fundamental/toString.hpp
     ${CMAKE_SOURCE_DIR}/include/extern/Fundamental/vectorIndex.hpp
