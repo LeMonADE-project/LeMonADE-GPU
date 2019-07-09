@@ -26,10 +26,12 @@ along with LeMonADE.  If not, see <http://www.gnu.org/licenses/>.
 --------------------------------------------------------------------------------*/
 #ifndef LEMONADE_CORE_SPACE_FILLING_CURVE
 #define LEMONADE_CORE_SPACE_FILLING_CURVE
-#include <LeMonADEGPU/updater/UpdaterGPUScBFM_AB_Type.h>
+// #include <LeMonADEGPU/updater/UpdaterGPUScBFM_Connection.h>
 
 #include <extern/Fundamental/BitsCompileTime.hpp>
-#include <LeMonADEGPU/core/constants.cuh>
+// #include <LeMonADEGPU/core/constants.cuh>
+#include <LeMonADEGPU/utility/cudacommon.hpp>
+// #include <LeMonADEGPU/updater/UpdaterGPUScBFM_AB_Type.h>
 
 /*****************************************************************************/
 /**
@@ -47,31 +49,31 @@ public:
 
 template< typename T >
 __host__ __device__ inline T_Id linearizeBoxVectorIndex
-( T const & ix, T const & iy, T const & iz) const { 
-  return static_cast<specializedCurve*>(this)->linearizeBoxVectorIndex(ix,iy,iz);
-}
+( T const & ix, T const & iy, T const & iz) const 
+{ return static_cast<specializedCurve*>(this)->linearizeBoxVectorIndex(ix,iy,iz); }
 
 template< typename T >
 __host__ __device__ inline T_Id linearizeBoxVectorIndexX
-( T const & ix ) const { return static_cast<specializedCurve*>(this)->linearizeBoxVectorIndexX(ix);}
+( T const & ix ) const 
+{ return static_cast<specializedCurve*>(this)->linearizeBoxVectorIndexX(ix);}
 
 template< typename T >
 __host__ __device__ inline T_Id linearizeBoxVectorIndexY
-( T const & iy ) const { return static_cast<specializedCurve*>(this)->linearizeBoxVectorIndexY(iy);}
+( T const & iy ) const 
+{ return static_cast<specializedCurve*>(this)->linearizeBoxVectorIndexY(iy);}
 
 template< typename T >
 __host__ __device__ inline T_Id linearizeBoxVectorIndexZ
-( T const & iz ) const { return static_cast<specializedCurve*>(this)->linearizeBoxVectorIndexZ(iz);}
+( T const & iz ) const 
+{ return static_cast<specializedCurve*>(this)->linearizeBoxVectorIndexZ(iz);}
 
 template < class IngredientsType >
-void initialize(const IngredientsType& ing){ static_cast<specializedCurve*>(this)->initialize(ing);}
+void initialize(const IngredientsType& ing)
+{ static_cast<specializedCurve*>(this)->initialize(ing);}
 
 template < typename T >
-void initialize(T mBoxX_, T mBoxY_, T mBoxZ_){ static_cast<specializedCurve*>(this)->initialize(mBoxX_,mBoxY_,mBoxZ_);}
-
-private:
-
-  
+void initialize(T mBoxX_, T mBoxY_, T mBoxZ_)
+{ static_cast<specializedCurve*>(this)->initialize(mBoxX_,mBoxY_,mBoxZ_);} 
 };
 
 
@@ -103,7 +105,8 @@ class ZOrderCurve:public AbstractSpaceFillingCurve<ZOrderCurve>
 {
   
 public:
-  ZOrderCurve():mBoxXM1(0),mBoxYM1(0),mBoxZM1(0){};
+  ZOrderCurve()
+  :mBoxXM1(0),mBoxYM1(0),mBoxZM1(0){};
   template <class IngredientsType >
   void initialize(const IngredientsType& ing)
   {
@@ -112,7 +115,8 @@ public:
     mBoxZM1 = ing.getBoxZ()-1;
   }
   template < typename T >
-  void initialize(T mBoxX_, T mBoxY_, T mBoxZ_){
+  void initialize(T mBoxX_, T mBoxY_, T mBoxZ_)
+  {
     mBoxXM1 = mBoxX_-1;
     mBoxYM1 = mBoxY_-1;
     mBoxZM1 = mBoxZ_-1;
@@ -120,7 +124,8 @@ public:
   
   template< typename T >
   __host__ __device__ inline T_Id linearizeBoxVectorIndexX
-  ( T const & ix ) const {
+  ( T const & ix ) const
+  {
     #ifdef __CUDA_ARCH__
 	    return diluteBits< T_Id, 2 >( ix & dcBoxXM1 ) ;
     #else 
@@ -129,7 +134,8 @@ public:
   }
   template< typename T >
   __host__ __device__ inline T_Id linearizeBoxVectorIndexY
-  ( T const & iy ) const {
+  ( T const & iy ) const 
+  {
   #ifdef __CUDA_ARCH__
 	  return diluteBits< T_Id, 2 >( iy & dcBoxYM1 ) << 1 ;
   #else 
@@ -139,7 +145,8 @@ public:
 
   template< typename T >
   __host__ __device__ inline T_Id linearizeBoxVectorIndexZ
-  ( T const & iz ) const {
+  ( T const & iz ) const 
+  {
   #ifdef __CUDA_ARCH__
 	  return diluteBits< T_Id, 2 >( iz & dcBoxZM1 ) << 2 ;
   #else 
@@ -148,7 +155,8 @@ public:
   }
   template< typename T >
   __host__ __device__ inline T_Id linearizeBoxVectorIndex
-  ( T const & ix, T const & iy, T const & iz) const { 
+  ( T const & ix, T const & iy, T const & iz) const 
+  { 
     return linearizeBoxVectorIndexX(ix) +
 	   linearizeBoxVectorIndexY(iy) +
 	   linearizeBoxVectorIndexZ(iz);
@@ -164,9 +172,11 @@ private:
 class LinearCurvePowOfTwo:public AbstractSpaceFillingCurve<LinearCurvePowOfTwo>{
 
 public:
-  LinearCurvePowOfTwo():mBoxXM1(0),mBoxYM1(0),mBoxZM1(0),mBoxXLog2(0),mBoxXYLog2(0){};
+  LinearCurvePowOfTwo()
+  :mBoxXM1(0),mBoxYM1(0),mBoxZM1(0),mBoxXLog2(0),mBoxXYLog2(0){};
   template <class IngredientsType >
-  void initialize(const IngredientsType& ing){
+  void initialize(const IngredientsType& ing)
+  {
     auto mBoxX =  ing.getBoxX();
     auto mBoxY =  ing.getBoxY();
     auto mBoxZ =  ing.getBoxZ();
@@ -191,7 +201,8 @@ public:
     }
   }
   template < typename T >
-  void initialize(T mBoxX_, T mBoxY_, T mBoxZ_){
+  void initialize(T mBoxX_, T mBoxY_, T mBoxZ_)
+  {
     mBoxXM1 = mBoxX_-1;
     mBoxYM1 = mBoxY_-1;
     mBoxZM1 = mBoxZ_-1;
@@ -214,7 +225,8 @@ public:
   }
   template< typename T >
   __host__ __device__ inline T_Id linearizeBoxVectorIndexX
-  ( T const & ix ) const {
+  ( T const & ix ) const 
+  {
   #ifdef __CUDA_ARCH__
 	  return    ( ix & dcBoxXM1 ) ;
   #else 
@@ -223,7 +235,8 @@ public:
   }
   template< typename T >
   __host__ __device__ inline T_Id linearizeBoxVectorIndexY
-  ( T const & iy ) const {
+  ( T const & iy ) const 
+  {
   #ifdef __CUDA_ARCH__
 	  return  ( iy & dcBoxYM1 ) << dcBoxXLog2 ;
   #else 
@@ -233,7 +246,8 @@ public:
 
   template< typename T >
   __host__ __device__ inline T_Id linearizeBoxVectorIndexZ
-  ( T const & iz ) const { 
+  ( T const & iz ) const 
+  { 
   #ifdef __CUDA_ARCH__
 	  return  ( ( iz & dcBoxZM1 ) << dcBoxXYLog2 );
   #else 
@@ -242,7 +256,8 @@ public:
   }
   template< typename T >
   __host__ __device__ inline T_Id linearizeBoxVectorIndex
-  ( T const & ix, T const & iy, T const & iz) const { 
+  ( T const & ix, T const & iy, T const & iz) const 
+  { 
     return linearizeBoxVectorIndexX(ix) +
 	   linearizeBoxVectorIndexY(iy) +
 	   linearizeBoxVectorIndexZ(iz);
@@ -260,16 +275,19 @@ class LinearCurve:public AbstractSpaceFillingCurve<LinearCurve>{
 
 public:
   
-  LinearCurve():mBoxX(0),mBoxY(0),mBoxZ(0){};
+  LinearCurve()
+  :mBoxX(0),mBoxY(0),mBoxZ(0){};
   
   template <class IngredientsType >
-  void initialize(const IngredientsType& ing){
+  void initialize(const IngredientsType& ing)
+  {
     mBoxX =  ing.getBoxX();
     mBoxY =  ing.getBoxY();
     mBoxZ =  ing.getBoxZ();
   }
   template < typename T >
-  void initialize(T mBoxX_, T mBoxY_, T mBoxZ_){
+  void initialize(T mBoxX_, T mBoxY_, T mBoxZ_)
+  {
     mBoxX = mBoxX_;
     mBoxY = mBoxY_;
     mBoxZ = mBoxZ_;
@@ -277,7 +295,8 @@ public:
   
   template< typename T >
   __host__ __device__ inline T_Id linearizeBoxVectorIndexX
-  ( T const & ix ) const {
+  ( T const & ix ) const 
+  {
     #ifdef __CUDA_ARCH__
 	  return ( ix % dcBoxX );
     #else 
@@ -286,7 +305,8 @@ public:
   }
   template< typename T >
   __host__ __device__ inline T_Id linearizeBoxVectorIndexY
-  ( T const & iy ) const { 
+  ( T const & iy ) const 
+  { 
     #ifdef __CUDA_ARCH__
 	    return ( iy % dcBoxY ) * dcBoxX;
     #else 
@@ -296,7 +316,8 @@ public:
 
   template< typename T >
   __host__ __device__ inline T_Id linearizeBoxVectorIndexZ
-  ( T const & iz ) const {
+  ( T const & iz ) const
+  {
     #ifdef __CUDA_ARCH__
 	    return ( iz % dcBoxZ ) * dcBoxX * dcBoxY;
     #else 
@@ -305,7 +326,8 @@ public:
   }
     template< typename T >
   __host__ __device__ inline T_Id linearizeBoxVectorIndex
-  ( T const & ix, T const & iy, T const & iz) const { 
+  ( T const & ix, T const & iy, T const & iz) const 
+  { 
     return linearizeBoxVectorIndexX(ix) +
 	   linearizeBoxVectorIndexY(iy) +
 	   linearizeBoxVectorIndexZ(iz);
@@ -324,28 +346,29 @@ public:
 	            LinearMode=1,
 	            LinearPowOfTwoMode=2
   };
-  SpaceFillingCurve(){};
+  SpaceFillingCurve();
+//   {};
   template <class IngredientsType >
-  SpaceFillingCurve(IngredientsType& ing)
-  {
-    zCurve.initialize(ing);
-    lCurve.initialize(ing);
-    lP2Curve.initialize(ing);
-  }
-  template <class T >
-  SpaceFillingCurve(T mBoxX_, T mBoxY_, T mBoxZ_)
-  {
-    zCurve.initialize(mBoxX_,mBoxY_,mBoxZ_);
-    lCurve.initialize(mBoxX_,mBoxY_,mBoxZ_);
-    lP2Curve.initialize(mBoxX_,mBoxY_,mBoxZ_);
-  }
-  template <class T >
-  void setBox(T mBoxX_, T mBoxY_, T mBoxZ_)
-  {
-    zCurve.initialize(mBoxX_,mBoxY_,mBoxZ_);
-    lCurve.initialize(mBoxX_,mBoxY_,mBoxZ_);
-    lP2Curve.initialize(mBoxX_,mBoxY_,mBoxZ_);
-  }
+  SpaceFillingCurve(IngredientsType& ing);
+//   {
+//     zCurve.initialize(ing);
+//     lCurve.initialize(ing);
+//     lP2Curve.initialize(ing);
+//   }
+
+  SpaceFillingCurve(uint32_t mBoxX_, uint32_t mBoxY_, uint32_t mBoxZ_);
+//   {
+//     zCurve.initialize(mBoxX_,mBoxY_,mBoxZ_);
+//     lCurve.initialize(mBoxX_,mBoxY_,mBoxZ_);
+//     lP2Curve.initialize(mBoxX_,mBoxY_,mBoxZ_);
+//   }
+
+  void setBox(uint32_t mBoxX_, uint32_t mBoxY_, uint32_t mBoxZ_);
+//   {
+//     zCurve.initialize(mBoxX_,mBoxY_,mBoxZ_);
+//     lCurve.initialize(mBoxX_,mBoxY_,mBoxZ_);
+//     lP2Curve.initialize(mBoxX_,mBoxY_,mBoxZ_);
+//   }
   
 private:
   int mode;
@@ -353,8 +376,10 @@ private:
   LinearCurve lCurve;
   LinearCurvePowOfTwo lP2Curve;
 public:  
-  int getMode() const {return mode;}
-  void setMode( int mode_) { mode=mode_; }
+  int getMode() const ;
+//   {return mode;}
+  void setMode( int mode_);
+//   { mode=mode_; }
   
 template< typename T >
 __host__ __device__ inline T_Id linearizeBoxVectorIndex
@@ -363,6 +388,7 @@ __host__ __device__ inline T_Id linearizeBoxVectorIndex
     case ZOrderCurveMode    : return zCurve.linearizeBoxVectorIndex(ix,iy,iz);
     case LinearMode         : return lCurve.linearizeBoxVectorIndex(ix,iy,iz);
     case LinearPowOfTwoMode : return lP2Curve.linearizeBoxVectorIndex(ix,iy,iz);
+
   };
   return T_Id(); // to supress warnings 
 }
