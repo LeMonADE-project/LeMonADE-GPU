@@ -357,6 +357,7 @@ protected:
     void checkBonds() const ;
     void doCopyBack();
     void doCopyBackConnectivity(); 
+    void doCopyBackMonomerPositions();
     void launch_CheckSpecies(const size_t nBlocks, const size_t nThreads, const size_t iSpecies, const size_t iOffsetLatticeTmp, const uint64_t seed);
     void launch_PerformSpecies(const size_t nBlocks, const size_t nThreads, const size_t iSpecies, cudaTextureObject_t texLatticeTmp );
     void launch_PerformSpeciesAndApply(const size_t nBlocks, const size_t nThreads, const size_t iSpecies, cudaTextureObject_t texLatticeTmp );

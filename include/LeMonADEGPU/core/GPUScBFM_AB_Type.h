@@ -240,17 +240,17 @@ public:
             );
         }
         // copy back connectivity for all monomers 
-//         mLog( "Info" ) << "[" << __FILENAME__ << "] copy back monomer connectivity from GPU updater to CPU 'molecules' to be used with analyzers\n";
-// 	for( size_t i = 0; i < mIngredients.getMolecules().size(); ++i )
-//         {
-// 	  auto nLinks(mUpdaterGpu.getNumLinks(i));
-// 	  for ( size_t iBond = 0; iBond < nLinks; ++iBond ) 
-// 	  {
-//             auto Neighbor(mUpdaterGpu.getNeighborIdx(i,iBond));
-// 	    if (! molecules.areConnected(i,Neighbor))
-// 	      molecules.connect(i,Neighbor);
-// 	  }
-//         }
+        mLog( "Info" ) << "[" << __FILENAME__ << "] copy back monomer connectivity from GPU updater to CPU 'molecules' to be used with analyzers\n";
+	for( size_t i = 0; i < mIngredients.getMolecules().size(); ++i )
+        {
+	  auto nLinks(mUpdaterGpu.getNumLinks(i));
+	  for ( size_t iBond = 0; iBond < nLinks; ++iBond ) 
+	  {
+            auto Neighbor(mUpdaterGpu.getNeighborIdx(i,iBond));
+	    if (! molecules.areConnected(i,Neighbor))
+	      molecules.connect(i,Neighbor);
+	  }
+        }
 	
 	
         /* update number of total simulation steps already done */

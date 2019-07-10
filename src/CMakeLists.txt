@@ -31,7 +31,7 @@ SET ( project_SRCS
       ${CMAKE_CURRENT_SOURCE_DIR}/LeMonADEGPU/core/BondVectorSet.cu
       ${CMAKE_CURRENT_SOURCE_DIR}/LeMonADEGPU/core/kernelConnection.cu
       ${CMAKE_CURRENT_SOURCE_DIR}/LeMonADEGPU/updater/UpdaterGPUScBFM_AB_Type.cu      
-#       ${CMAKE_CURRENT_SOURCE_DIR}/LeMonADEGPU/updater/UpdaterGPUScBFM_Connection.cu
+      ${CMAKE_CURRENT_SOURCE_DIR}/LeMonADEGPU/updater/UpdaterGPUScBFM_Connection.cu
       ${CMAKE_CURRENT_SOURCE_DIR}/LeMonADEGPU/utility/AutomaticThreadChooser.cu
       ${CMAKE_CURRENT_SOURCE_DIR}/LeMonADEGPU/utility/findBestZCurveFrontOrder.cpp
       ${CMAKE_CURRENT_SOURCE_DIR}/LeMonADEGPU/utility/graphColoring.cpp

@@ -615,13 +615,11 @@ void UpdaterGPUScBFM_Connection< T_UCoordinateCuda >::runSimulationOnGPU
 template< typename T_UCoordinateCuda >
 void UpdaterGPUScBFM_Connection< T_UCoordinateCuda >::doCopyBack()
 {
-
-    BaseClass::doCopyBack();
-    mNeighborsSortedSizes->pop();
-    mNeighborsSorted->pop();
-//     mNeighbors->pop(0);
-    mLog ( "Info" )
-      << "UpdaterGPUScBFM_Connection< T_UCoordinateCuda >::doCopyBack() \n";
+    mLog( "Info" ) << "UpdaterGPUScBFM_AB_Type< T_UCoordinateCuda >::doCopyBackConnectivity() \n";
+    doCopyBackMonomerPositions();
+    mLog( "Info" ) << "UpdaterGPUScBFM_AB_Type< T_UCoordinateCuda >::doCopyBackConnectivity() \n";
+    doCopyBackConnectivity();
+  
 }
 
 

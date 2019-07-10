@@ -666,37 +666,21 @@ template< typename T_UCoordinateCuda >
 void UpdaterGPUScBFM_AB_Type< T_UCoordinateCuda >::destruct()
 {
     DeleteMirroredObject deletePointer;
-    mLog ( "Info" ) <<"Try set free mLatticeOut: \n";
     deletePointer( mLatticeOut                     , "mLatticeOut"                      );
-    mLog ( "Info" ) <<"Try set free mLatticeTmp: \n";
     deletePointer( mLatticeTmp                     , "mLatticeTmp"                      );
-    mLog ( "Info" ) <<"Try set free mLatticeTmp2: \n";
     deletePointer( mLatticeTmp2                    , "mLatticeTmp2"                     );
-    mLog ( "Info" ) <<"Try set free mPolymerSystem: \n";
     deletePointer( mPolymerSystem                  , "mPolymerSystem"                   );
-    mLog ( "Info" ) <<"Try set free mPolymerSystemSorted: \n";
     deletePointer( mPolymerSystemSorted            , "mPolymerSystemSorted"             );
-    mLog ( "Info" ) <<"Try set free mPolymerSystemSortedOld: \n";
     deletePointer( mPolymerSystemSortedOld         , "mPolymerSystemSortedOld"          );
-    mLog ( "Info" ) <<"Try set free mviPolymerSystemSortedVirtualBox: \n";
     deletePointer( mviPolymerSystemSortedVirtualBox, "mviPolymerSystemSortedVirtualBox" );
-    mLog ( "Info" ) <<"Try set free mPolymerFlags: \n";
     deletePointer( mPolymerFlags                   , "mPolymerFlags"                    );
-    mLog ( "Info" ) <<"Try set free miToiNew: \n";
     deletePointer( miToiNew                        , "miToiNew"                         );
-    mLog ( "Info" ) <<"Try set free miNewToi: \n";
     deletePointer( miNewToi                        , "miNewToi"                         );
-    mLog ( "Info" ) <<"Try set free miNewToiComposition: \n";
     deletePointer( miNewToiComposition             , "miNewToiComposition"              );
-    mLog ( "Info" ) <<"Try set free miNewToiSpatial: \n";
     deletePointer( miNewToiSpatial                 , "miNewToiSpatial"                  );
-    mLog ( "Info" ) <<"Try set free mvKeysZOrderLinearIds: \n";
     deletePointer( mvKeysZOrderLinearIds           , "mvKeysZOrderLinearIds"            );
-    mLog ( "Info" ) <<"Try set free mNeighbors: \n";
     deletePointer( mNeighbors                      , "mNeighbors"                       );
-    mLog ( "Info" ) <<"Try set free mNeighborsSorted: \n";
     deletePointer( mNeighborsSorted                , "mNeighborsSorted"                 );
-    mLog ( "Info" ) <<"Try set free mNeighborsSortedSizes: \n";
     deletePointer( mNeighborsSortedSizes           , "mNeighborsSortedSizes"            );
     if ( deletePointer.nBytesFreed > 0 )
     {
@@ -2273,16 +2257,7 @@ void UpdaterGPUScBFM_AB_Type< T_UCoordinateCuda >::runSimulationOnGPU
         CUDA_ERROR( cudaMalloc( &dpFiltered, nFilters * sizeof( *dpFiltered ) ) );
         CUDA_ERROR( cudaMemsetAsync( (void*) dpFiltered, 0, nFilters * sizeof( *dpFiltered ), mStream ) );
     }
-
-    /**
-     * Logic for determining the best threadsPerBlock configuration
-     *
-     * This might be dependent on the species, therefore for each species
-     * store the current best thread count and all timings.
-     * As the cudaEventSynchronize timings are expensive, stop benchmarking
-     * after having found the best configuration.
-     * Only try out power two multiples of warpSize up to maxThreadsPerBlock,
-     * e.g. 32, 64, 128, 256, 512, 1024, because smaller than warp size
+     /**
      * should never lead to a speedup and non power of twos, e.g. 196 even,
      * won't be able to perfectly fill out the shared multi processor.
      * Also, automatically determine whether cudaMemset is faster or not (after
@@ -2608,6 +2583,14 @@ void UpdaterGPUScBFM_AB_Type< T_UCoordinateCuda >::runSimulationOnGPU
 template< typename T_UCoordinateCuda >
 void UpdaterGPUScBFM_AB_Type< T_UCoordinateCuda >::doCopyBack()
 {
+    mLog( "Info" ) << "UpdaterGPUScBFM_AB_Type< T_UCoordinateCuda >::doCopyBackConnectivity() \n";
+    doCopyBackMonomerPositions();
+//     mLog( "Info" ) << "UpdaterGPUScBFM_AB_Type< T_UCoordinateCuda >::doCopyBackConnectivity() \n";
+//     doCopyBackConnectivity();
+}
+template< typename T_UCoordinateCuda >
+void UpdaterGPUScBFM_AB_Type< T_UCoordinateCuda >::doCopyBackMonomerPositions()
+{
     /* all MCS are done- copy information back from GPU to host */
     if ( mLog.isActive( "Check" ) )
     {
@@ -2632,12 +2615,10 @@ void UpdaterGPUScBFM_AB_Type< T_UCoordinateCuda >::doCopyBack()
 	  checkMonomerReorderMapping();
       }
     }
-    mLog( "Info" ) << "step 1 done \n";
     if ( useOverflowChecks )
     {
         findAndRemoveOverflows( false );
     }
-    mLog( "Info" ) << "step 2 done \n";
     if(met.isONGPUForOverhead() ){
       auto const nThreads = 128;
       auto const nBlocksP = ceilDiv( mnMonomersPadded, nThreads );
@@ -2650,9 +2631,7 @@ void UpdaterGPUScBFM_AB_Type< T_UCoordinateCuda >::doCopyBack()
 	  mPolymerSystem                  ->gpu,
 	  mnMonomersPadded
       );
-      mLog( "Info" ) << "step 3 done mPolymerSystem.nElements = "<<mPolymerSystem->nElements<<"\n";
       mPolymerSystem->pop();
-            mLog( "Info" ) << "step 4 done \n";
     }else{
       mPolymerSystemSorted->pop();
       mviPolymerSystemSortedVirtualBox->pop();
@@ -2668,9 +2647,6 @@ void UpdaterGPUScBFM_AB_Type< T_UCoordinateCuda >::doCopyBack()
 	  mPolymerSystem->host[i].w = pTarget->w;
       }
     }
-//     doCopyBackConnectivity();
-
-
 }
 template< typename T_UCoordinateCuda >
 uint32_t UpdaterGPUScBFM_AB_Type< T_UCoordinateCuda >::getNumLinks(uint32_t MonID)
@@ -2683,14 +2659,18 @@ uint32_t UpdaterGPUScBFM_AB_Type< T_UCoordinateCuda >::getNeighborIdx(uint32_t M
 {
   return  mNeighbors->host[ MonID ].neighborIds[BondID]; 
 }
-
 template< typename T_UCoordinateCuda >
 void UpdaterGPUScBFM_AB_Type< T_UCoordinateCuda >::doCopyBackConnectivity()
 {
+    mNeighborsSortedSizes->pop();
+    miNewToi->pop();
+    miToiNew->pop();
+    mNeighborsSorted->pop();
     //update the bonds between monomers:
     size_t iSpecies = 0u;
     /* iterate over sorted instead of unsorted array so that calculating
       * the current species we are working on is easier */
+    mLog( "Info" ) << "Rund over " << miNewToi->nElements << " number of IDs in miNewToi\n"; 
     for ( size_t i = 0u; i < miNewToi->nElements; ++i )
     {
 	
@@ -2707,36 +2687,15 @@ void UpdaterGPUScBFM_AB_Type< T_UCoordinateCuda >::doCopyBackConnectivity()
 	    continue;
 	/* actually to the sorting / copying and conversion */
 	auto const pitch = mNeighborsSortedInfo.getMatrixPitchElements( iSpecies );
-// 	if(iSpecies == 1 )
-// 	{
-// 	  mLog( "Info" ) 
-// 	     << "Old Neighbor size: " << mNeighbors->host[ miNewToi->host[i] ].size << " "
-// 	     << "New Neighbor size: "<<(uint32_t)mNeighborsSortedSizes->host[i] << " " 
-// 	     << "Old ID " << miNewToi->host[i] << " " 
-// 	     << "New ID " << i  << " " 
-// 	     << "Pitch = "<<pitch <<"\n";
-// 	}
 	mNeighbors->host[iOld ].size = (uint32_t)mNeighborsSortedSizes->host[i];
 
 	for ( size_t j = 0; j < (uint32_t)mNeighborsSortedSizes->host[i]; j++ )
 	{
 	    std::stringstream outMoveState;  
-	    if (iSpecies == 1 ) 
-	    {
-	      outMoveState << "NEW: " << i << " Old: " << iOld << " Bond ID:" << j << " OldNeigh: "  << mNeighbors->host[ miNewToi->host[i] ].neighborIds[j];
-	    }
 	    mNeighbors->host[ iOld ].neighborIds[j] = miNewToi->host        [ 
 	                                              mNeighborsSorted->host[ 
 	                                                mNeighborsSortedInfo.getMatrixOffsetElements( iSpecies ) + j * pitch + ( i - mviSubGroupOffsets[ iSpecies ] ) 
 									    ] ];
-	    if ( iSpecies == 1 )  
-	    {
-		outMoveState  << " NewNeigh: " << mNeighbors->host[ iOld ].neighborIds[j] 
-		              << " i-Offset: " << i - mviSubGroupOffsets[ iSpecies ]
-			      << " mNeighSo: " << mNeighborsSorted->host[ mNeighborsSortedInfo.getMatrixOffsetElements( iSpecies ) + j * pitch + ( i - mviSubGroupOffsets[ iSpecies ] ) ]
-			      << " \n";
-		mLog( "Info" ) << outMoveState.str(); 
-	    }
 	}
     }
 }

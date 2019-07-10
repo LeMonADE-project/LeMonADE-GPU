@@ -69,6 +69,8 @@ protected:
     using BaseClass::mGroupIds;
     using BaseClass::mNeighborsSortedSizes;
     using BaseClass::mGlobalIterator;
+    using BaseClass::doCopyBackMonomerPositions;
+    using BaseClass::doCopyBackConnectivity;
 
     void doCopyBack();
     void launch_CheckConnection(const size_t nBlocks, const size_t nThreads, const size_t iSpecies, const size_t iOffsetLatticeTmp, const uint64_t seed);
