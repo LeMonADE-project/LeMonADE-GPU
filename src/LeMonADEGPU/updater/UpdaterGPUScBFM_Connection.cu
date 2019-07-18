@@ -374,8 +374,8 @@ void UpdaterGPUScBFM_Connection<T_UCoordinateCuda>::destruct(){
       
     DeleteMirroredObject deletePointer;
     deletePointer( mLatticeIds       , "mLatticeIds"        );
-    CUDA_ERROR(cudaFree(mCrossLinkFlags));  
-    CUDA_ERROR(cudaFree(mCrossLinkIDS)); 
+//     CUDA_ERROR(cudaFree(mCrossLinkFlags));  
+//     CUDA_ERROR(cudaFree(mCrossLinkIDS)); 
     if ( deletePointer.nBytesFreed > 0 )
     {
         mLog( "Info" )

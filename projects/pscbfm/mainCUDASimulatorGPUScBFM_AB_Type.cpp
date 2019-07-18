@@ -17,6 +17,7 @@
 #include <LeMonADE/utility/TaskManager.h>
 #include <LeMonADE/updater/UpdaterReadBfmFile.h>
 #include <LeMonADE/updater/UpdaterSimpleSimulator.h>
+#include <LeMonADE/feature/FeatureConnectionSc.h>
 
 
 #include <LeMonADEGPU/core/GPUScBFM_AB_Type.h>
@@ -133,8 +134,8 @@ int main( int argc, char ** argv )
             FeatureLattice< uint8_t > FeatureExcludedVolume< FeatureLatticePowerOfTwo<> > )
             Features;
         */
-        typedef LOKI_TYPELIST_3( FeatureMoleculesIO, FeatureAttributes<>,
-                                 FeatureExcludedVolumeSc<> ) Features;
+        typedef LOKI_TYPELIST_4( FeatureMoleculesIO, FeatureAttributes<>,
+                                 FeatureExcludedVolumeSc<>, FeatureConnectionSc ) Features;
 
         typedef ConfigureSystem< VectorInt3, Features, 8 > Config;
         typedef Ingredients< Config > Ing;

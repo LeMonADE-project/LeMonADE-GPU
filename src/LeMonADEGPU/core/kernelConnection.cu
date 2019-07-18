@@ -89,7 +89,7 @@ void Connection::init()
 void Connection::clean()
 {
   std::cout << "Free memory for the buffer " << sizeof(uint32_t)*arraySize <<" bytes\n";
-  CUDA_ERROR(cudaFree(dBuffer));
+//   CUDA_ERROR(cudaFree(dBuffer)); //??
 }
 Connection::~Connection(){clean();}
 void Connection::resetMultipleIDs( uint32_t * crosslinkId, uint32_t * chainID, cudaStream_t mStream )
