@@ -39,13 +39,16 @@ SET(_src
   findMaxNeighbors.cpp
   SelectiveLogger.cpp
   AutomaticThreadChooser.cu
+  GPUConnectionTracker.cu
   )
 FILE(_header
     ${CMAKE_SOURCE_DIR}/include/LeMonADEGPU/utility/graphColoring.h
     ${CMAKE_SOURCE_DIR}/include/LeMonADEGPU/utility/AutomaticThreadChooser.h
+    ${CMAKE_SOURCE_DIR}/include/LeMonADEGPU/utility/GPUConnectionTracker.h
     ${CMAKE_SOURCE_DIR}/include/extern/Fundamental/Fundamental.hpp
     ${CMAKE_SOURCE_DIR}/include/extern/Fundamental/toString.hpp
     ${CMAKE_SOURCE_DIR}/include/extern/Fundamental/vectorIndex.hpp
     )
-CUDA_ADD_LIBRARY(obj_utility OBJECT ${_src} ${_header})
+set_property(TARGET obj_utility PROPERTY CUDA_RESOLVE_DEVICE_SYMBOLS ON)
+CUDA_ADD_LIBRARY(obj_utility OBJECT ${_src} ${_header} cuda )
 

@@ -10,16 +10,17 @@
 #include <LeMonADE/utility/RandomNumberGenerators.h>
 #include <LeMonADE/core/ConfigureSystem.h>
 #include <LeMonADE/core/Ingredients.h>
-#include <LeMonADE/feature/FeatureMoleculesIO.h>
+#include <LeMonADE/feature/FeatureMoleculesIOUnsaveCheck.h>
 #include <LeMonADE/feature/FeatureAttributes.h>
 #include <LeMonADE/feature/FeatureExcludedVolumeSc.h>
 #include <LeMonADE/feature/FeatureFixedMonomers.h>
 #include <LeMonADE/utility/TaskManager.h>
 #include <LeMonADE/updater/UpdaterReadBfmFile.h>
 #include <LeMonADE/updater/UpdaterSimpleSimulator.h>
+#include <LeMonADE/feature/FeatureConnectionSc.h>
 
 
-#include <LeMonADEGPU/core/GPUScBFM_AB_Type.h>
+#include <LeMonADEGPU/core/GPUScBFM_AB_Connection.h>
 #include <LeMonADEGPU/utility/SelectiveLogger.hpp> // __FILENAME__
 
 
@@ -27,7 +28,7 @@
 void printHelp( void )
 {
     std::stringstream msg;
-    msg << "usage: ./SimulatorCUDAGPUScBFM_AB_Type [options]\n"
+    msg << "usage: ./SimulatorCUDAGPUScBFM_AB_Connection [options]\n"
         << "\n"
         << "Simple Simulator for the ScBFM with excluded volume and BondCheck splitted CL-PEG in z on GPU\n"
         << "\n"
@@ -60,7 +61,6 @@ int main( int argc, char ** argv )
     uint32_t max_mcs         = 0; /* how many Monte-Carlo steps to simulate */
     uint32_t save_interval   = 0;
     int      iGpuToUse       = 0;
-    int      iRngToUse       = -1;
     std::string seedFileName = "";
     int      nSplitColors    = 0;
 
@@ -104,7 +104,6 @@ int main( int argc, char ** argv )
                 case 'i': infile        = std::string( optarg ); break;
                 case 'm': max_mcs       = std::atol  ( optarg ); break;
                 case 'o': outfile       = std::string( optarg ); break;
-                case 'r': iRngToUse     = std::atoi  ( optarg ); break;
                 case 's': save_interval = std::atol  ( optarg ); break;
                     break;
                 default:
@@ -133,8 +132,8 @@ int main( int argc, char ** argv )
             FeatureLattice< uint8_t > FeatureExcludedVolume< FeatureLatticePowerOfTwo<> > )
             Features;
         */
-        typedef LOKI_TYPELIST_3( FeatureMoleculesIO, FeatureAttributes<>,
-                                 FeatureExcludedVolumeSc<> ) Features;
+        typedef LOKI_TYPELIST_4( FeatureMoleculesIOUnsaveCheck, FeatureAttributes<>,
+                                 FeatureExcludedVolumeSc<>, FeatureConnectionSc ) Features;
 
         typedef ConfigureSystem< VectorInt3, Features, 8 > Config;
         typedef Ingredients< Config > Ing;
@@ -148,7 +147,7 @@ int main( int argc, char ** argv )
          * it on the heap, i.e.:
          *   GPUScBFM_AB_Type<Ing> gpuBfm( myIngredients, save_interval, iGpuToUse );
          */
-        auto const pUpdaterGpu = new GPUScBFM_AB_Type<Ing>( myIngredients, save_interval );
+        auto const pUpdaterGpu = new GPUScBFM_AB_Connection<Ing>( myIngredients, save_interval );
         pUpdaterGpu->setGpu( iGpuToUse );
         pUpdaterGpu->activateLogging( "Error"     );
         //pUpdaterGpu->activateLogging( "Stats"      );

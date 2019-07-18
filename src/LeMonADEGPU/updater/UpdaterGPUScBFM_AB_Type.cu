@@ -1744,8 +1744,8 @@ void UpdaterGPUScBFM_AB_Type< T_UCoordinateCuda >::initialize( void )
     checkSystem();
     initializeLattices();
     
-    if ( mAge != 0 )
-        doSpatialSorting();
+//     if ( mAge != 0 )
+//         doSpatialSorting();
     boxCheck.initialize( mIsPeriodicX, mIsPeriodicY, mIsPeriodicZ );
     
     /* Saru, IntHash and Philox don't need any particular initialization */
@@ -2659,18 +2659,21 @@ uint32_t UpdaterGPUScBFM_AB_Type< T_UCoordinateCuda >::getNeighborIdx(uint32_t M
 {
   return  mNeighbors->host[ MonID ].neighborIds[BondID]; 
 }
+
+// __global__ void 
+
 template< typename T_UCoordinateCuda >
 void UpdaterGPUScBFM_AB_Type< T_UCoordinateCuda >::doCopyBackConnectivity()
 {
     mNeighborsSortedSizes->pop();
     miNewToi->pop();
-    miToiNew->pop();
+//     miToiNew->pop();
     mNeighborsSorted->pop();
     //update the bonds between monomers:
+    mLog ( "Info" ) << "Copied  mNeighborsSortedSizes, miNewToi and mNeighborsSorted. Start writing connectivity:\n";
     size_t iSpecies = 0u;
     /* iterate over sorted instead of unsorted array so that calculating
       * the current species we are working on is easier */
-    mLog( "Info" ) << "Rund over " << miNewToi->nElements << " number of IDs in miNewToi\n"; 
     for ( size_t i = 0u; i < miNewToi->nElements; ++i )
     {
 	
@@ -2678,7 +2681,7 @@ void UpdaterGPUScBFM_AB_Type< T_UCoordinateCuda >::doCopyBackConnectivity()
 	if ( iSpecies+1 < mviSubGroupOffsets.size() &&
 	      i >= mviSubGroupOffsets[ iSpecies+1 ] )
 	{
-	  mLog( "Info" ) <<"Increase number of species by one at " << i <<"\n";
+	  mLog( "Check" ) <<"Increase number of species by one at " << i <<"\n";
 	    ++iSpecies;
 	}
 	auto iOld(miNewToi->host[i]);
@@ -2691,11 +2694,16 @@ void UpdaterGPUScBFM_AB_Type< T_UCoordinateCuda >::doCopyBackConnectivity()
 
 	for ( size_t j = 0; j < (uint32_t)mNeighborsSortedSizes->host[i]; j++ )
 	{
-	    std::stringstream outMoveState;  
 	    mNeighbors->host[ iOld ].neighborIds[j] = miNewToi->host        [ 
 	                                              mNeighborsSorted->host[ 
 	                                                mNeighborsSortedInfo.getMatrixOffsetElements( iSpecies ) + j * pitch + ( i - mviSubGroupOffsets[ iSpecies ] ) 
 									    ] ];
+// 	    if (iSpecies < 2 && mLog("Info").isActive() )
+// 	    {
+// 	      mLog("Info")  << "New= " << i << " iOld= " <<iOld << " nLink= " << (uint32_t)mNeighborsSortedSizes->host[i] 
+// 			    << " GPUNeighbor= " << mNeighborsSorted->host[ mNeighborsSortedInfo.getMatrixOffsetElements( iSpecies ) + j * pitch + ( i - mviSubGroupOffsets[ iSpecies ] ) ]
+// 			    << " CPUNeighbor= " << mNeighbors->host[ iOld ].neighborIds[j] << "\n" ;
+// 	    }
 	}
     }
 }
