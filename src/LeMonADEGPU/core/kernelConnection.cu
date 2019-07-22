@@ -118,5 +118,32 @@ void Connection::resetMultipleIDs( uint32_t * crosslinkId, uint32_t * chainID, c
 //   thrust::sort_by_key(thrust::device,crosslinkId,crosslinkId+arraySize,chainID  ); // I think this is not needed...
 //   std::cout << "Sort back the Ids.done \n";
 }
-
+__global__ void kernelresetMultipleBonds(uint32_t * const  flags, uint32_t const * const flagsbuffer, uint32_t const size )
+{
+for ( auto i = blockIdx.x * blockDim.x + threadIdx.x;
+          i < size; i += gridDim.x * blockDim.x ){
+          auto flag=flagsbuffer[i];
+          auto flags2=flagsbuffer[flag];
+          if ( flags2 != 0 ) flags[i]=0;
+  }
+}
+__global__ void kernelResetArray(uint32_t  * const array, const uint32_t size)
+{
+for ( auto i = blockIdx.x * blockDim.x + threadIdx.x;
+          i < size; i += gridDim.x * blockDim.x ){
+          array[i]=0;
+  }
+}
+void Connection::resetMultipleBonds( uint32_t * IDs, uint32_t * flags, cudaStream_t mStream )
+{
+    auto const nThreads(128);
+    auto const nBlocks(ceilDiv(arraySize,nThreads));
+//     std::cout << "Sort back the Ids: \n";
+//     sort back to get the real indecies 
+    thrust::sort_by_key(thrust::device,IDs,IDs+arraySize,flags  ); 
+//     std::cout << "Sort back the Ids.done \n";
+    kernelfillBuffer<<<nBlocks,nThreads,0,mStream>>>(dBuffer,flags, arraySize);
+    kernelresetMultipleBonds<<<nBlocks,nThreads,0,mStream>>>(flags,dBuffer, arraySize);
+    kernelResetArray<<<nBlocks,nThreads,0,mStream>>>(dBuffer, arraySize);
+}
 #endif /*LEMONADEGPU_CORE_KERNELCONNECTION_CU*/ 

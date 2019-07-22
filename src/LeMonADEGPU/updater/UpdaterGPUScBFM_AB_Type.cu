@@ -197,7 +197,7 @@ __device__ inline bool checkFront
  * @return true if bond is forbidden, false if all bonds are allowed
  */
 template< typename T_UCoordinateCuda >
-__device__   bool checkBonds(
+__device__   bool checkNeighboringBonds(
 uint8_t     const * const              dpNeighborsSizes        ,
 T_Id                const              iMonomer                , 
 T_Id        const * const              dpNeighbors             ,
@@ -222,7 +222,7 @@ BondVectorSet       const              checkBondVector
   return false;	
 }
 #define MAKEINSTANCE(TYPE) \
-template __device__  bool checkBonds < TYPE > (uint8_t const * const, T_Id const, T_Id const * const, uint32_t const, typename CudaVec4< TYPE >::value_type const * const __restrict__, typename CudaVec4< TYPE >::value_type const, BondVectorSet const);
+template __device__  bool checkNeighboringBonds < TYPE > (uint8_t const * const, T_Id const, T_Id const * const, uint32_t const, typename CudaVec4< TYPE >::value_type const * const __restrict__, typename CudaVec4< TYPE >::value_type const, BondVectorSet const);
 MAKEINSTANCE(uint8_t);
 MAKEINSTANCE(uint16_t);
 MAKEINSTANCE(uint32_t);
@@ -312,7 +312,7 @@ __global__ void kernelSimulationScBFMCheckSpecies
         };
 
 	if (    bCheck(r1.x,r1.y,r1.z) && 
-	      ! checkBonds<T_UCoordinateCuda>(dpNeighborsSizes, iMonomer, dpNeighbors, rNeighborsPitchElements, dpPolymerSystem, r1, checkBondVector ) && 
+	      ! checkNeighboringBonds<T_UCoordinateCuda>(dpNeighborsSizes, iMonomer, dpNeighbors, rNeighborsPitchElements, dpPolymerSystem, r1, checkBondVector ) && 
 	      ! checkFront( texLatticeRefOut, r0.x, r0.y, r0.z, direction, met, &BitPacking::bitPackedTextureGetStandard ) )
 	{
 	    /* everything fits so perform move on temporary lattice */
@@ -324,6 +324,71 @@ __global__ void kernelSimulationScBFMCheckSpecies
 	}
 
         dpPolymerFlags[ iMonomer ] = direction;
+    }
+}
+template< typename T_UCoordinateCuda >
+__global__ void kernelSimulationScBFMCheckReactiveSpecies
+(
+    typename CudaVec4< T_UCoordinateCuda >::value_type
+                const * const __restrict__ dpPolymerSystem         ,
+    T_Flags           * const              dpPolymerFlags          ,
+    uint32_t            const              iOffset                 ,
+    T_Lattice         * const __restrict__ dpLatticeTmp            ,
+    T_Id        const * const              dpNeighbors             ,
+    uint32_t            const              rNeighborsPitchElements ,
+    uint8_t     const * const              dpNeighborsSizes        ,
+    T_Id                const              nMonomers               ,
+    uint64_t            const              rSeed                   ,
+    uint64_t            const              rGlobalIteration        ,
+    cudaTextureObject_t const              texLatticeRefOut        ,
+    BoxCheck                               boxCheck                , 
+    Method              const              met                     ,
+    BondVectorSet       const              checkBondVector         ,
+    cudaTextureObject_t const              texAllowedToMove	   ,
+    uint32_t            const              AASpeciesFlag
+)
+{
+    uint32_t rn;
+    int iGrid = 0;
+    for ( auto iMonomer = blockIdx.x * blockDim.x + threadIdx.x;
+          iMonomer < nMonomers; iMonomer += gridDim.x * blockDim.x, ++iGrid )
+    {
+
+	  
+	/* upcast int3 to int4 in preparation to use PTX SIMD instructions */
+	//int4 const r0 = { r0Raw.x, r0Raw.y, r0Raw.z, 0 }; // not faster nor slower
+	//select random direction. Own implementation of an rng :S? But I think it at least# was initialized using the LeMonADE RNG ...
+	if ( iGrid % 1 == 0 ) // 12 = floor( log(2^32) / log(6) )
+	{
+	  Saru rng(rGlobalIteration,iMonomer,rSeed);
+	  rn =rng.rng32();
+	}
+	
+	int direction = rn % 6;
+	
+	if (tex1Dfetch<uint8_t>( texAllowedToMove, iMonomer) == AASpeciesFlag )
+	{  
+	  auto const r0 = dpPolymerSystem[ iOffset + iMonomer ];
+	  /* select random direction. Do this with bitmasking instead of lookup ??? */
+	  typename CudaVec4< T_UCoordinateCuda >::value_type const r1 = {
+	      T_UCoordinateCuda( r0.x + DXTable_d[ direction ] ),
+	      T_UCoordinateCuda( r0.y + DYTable_d[ direction ] ),
+	      T_UCoordinateCuda( r0.z + DZTable_d[ direction ] )
+	  };
+	  if (    boxCheck(r1.x,r1.y,r1.z) &&
+		! checkNeighboringBonds<T_UCoordinateCuda>(dpNeighborsSizes, iMonomer, dpNeighbors, rNeighborsPitchElements, dpPolymerSystem, r1, checkBondVector ) &&
+		! checkFront( texLatticeRefOut, r0.x, r0.y, r0.z, direction, met, &BitPacking::bitPackedTextureGetStandard ) 
+	     )
+	  {
+	      /* everything fits so perform move on temporary lattice */
+	      /* can I do this ??? dpPolymerSystem is the device pointer to the read-only
+		* texture used above. Won't this result in read-after-write race-conditions?
+		* Then again the written / changed bits are never used in the above code ... */
+	      direction += T_Flags(8) /* can-move-flag */;
+	      met.getPacking().bitPackedSet(dpLatticeTmp, met.getCurve().linearizeBoxVectorIndex( r1.x, r1.y, r1.z ));
+	  }
+	}
+	dpPolymerFlags[ iMonomer ] = direction;        
     }
 }
 
@@ -365,7 +430,7 @@ __global__ void kernelCountFilteredCheck
 	     checkFront( texLatticeRefOut, r0.x, r0.y, r0.z, direction, met, &BitPacking::bitPackedTextureGetStandard  ) )
 	{
 	    atomicAdd( dpFiltered+2, 1ull );
-	    if ( ! checkBonds<T_UCoordinateCuda>(dpNeighborsSizes, iMonomer, dpNeighbors, rNeighborsPitchElements, dpPolymerSystem, r1, checkBondVector ) ) /* this is the more real relative use-case where invalid bonds are already filtered out */
+	    if ( ! checkNeighboringBonds<T_UCoordinateCuda>(dpNeighborsSizes, iMonomer, dpNeighbors, rNeighborsPitchElements, dpPolymerSystem, r1, checkBondVector ) ) /* this is the more real relative use-case where invalid bonds are already filtered out */
 		atomicAdd( dpFiltered+3, 1ull );
 	}
 
@@ -2134,6 +2199,35 @@ void UpdaterGPUScBFM_AB_Type< T_UCoordinateCuda >::launch_CheckSpecies(
       boxCheck, 
       met,
       checkBondVector
+  );
+  mGlobalIterator++;
+}
+
+template< typename T_UCoordinateCuda  >
+void UpdaterGPUScBFM_AB_Type< T_UCoordinateCuda >::launch_CheckReactiveSpecies(
+    const size_t nBlocks, const size_t nThreads, 
+    const size_t iSpecies, const size_t iOffsetLatticeTmp, 
+    const uint64_t seed, uint32_t AASpeciesFlag,
+    cudaTextureObject_t const texAllowedToMoveInSpecies )
+{
+  kernelSimulationScBFMCheckReactiveSpecies< T_UCoordinateCuda > 
+  <<< nBlocks, nThreads, 0, mStream >>>(                
+      mPolymerSystemSorted->gpu,                                     
+      mPolymerFlags->gpu + mviSubGroupOffsets[ iSpecies ],           
+      mviSubGroupOffsets[ iSpecies ],                                
+      mLatticeTmp->gpu + iOffsetLatticeTmp,                          
+      mNeighborsSorted->gpu + mNeighborsSortedInfo.getMatrixOffsetElements( iSpecies ), 
+      mNeighborsSortedInfo.getMatrixPitchElements( iSpecies ),       
+      mNeighborsSortedSizes->gpu + mviSubGroupOffsets[ iSpecies ],   
+      mnElementsInGroup[ iSpecies ],                                 
+      seed, 
+      mGlobalIterator,                                         
+      mLatticeOut->texture,
+      boxCheck, 
+      met,
+      checkBondVector,
+      texAllowedToMoveInSpecies,
+      AASpeciesFlag
   );
   mGlobalIterator++;
 }

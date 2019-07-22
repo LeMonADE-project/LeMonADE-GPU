@@ -4,3 +4,5 @@ add_subdirectory(GPUInfo)
 add_subdirectory(pscbfmConnection)
 
 add_subdirectory(pscbfmReversibleConnection)
+add_subdirectory(pscbfmConnectionAA)
+add_subdirectory(pscbfmReversibleAAConnection)

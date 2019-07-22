@@ -30,6 +30,10 @@ public:
    * 	- use again shared memory...	
    */
   void resetMultipleIDs( uint32_t * crosslinkId, uint32_t * chainID, cudaStream_t mStream );
+  /**
+   * @brief check if the connection partner in flags has found also a partner... 
+   */
+  void resetMultipleBonds( uint32_t * IDs, uint32_t * flags, cudaStream_t mStream );
   
 private: 
   uint32_t nThreads;
