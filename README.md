@@ -9,12 +9,10 @@ Repository with updaters, analyzers, and projects for sharing BFM stuff related 
 * Install gcc   (minimum version 4.8)
 * Install cuda  (minimum version 7.0)
 * Just do for standard compilation:
- 
+ go to the main directory of the source code and do: 
 ````sh
     # generates the projects
-    mkdir build
-    cd build
-    ./configure -DINSTALLDIR_LEMONADEGPU=/path/to/install/lemonadeGPU_install -DLEMONADE_DIR=/path/to/installation/lemonade_install  -DCUDA_ARCH=60 -DBUILDDIR=/path/to/build -DLEMONADEGPU_TESTS=ON/OFF -DCMAKE_BUILD_TYPE=Release/Debug
+    ./configure -DINSTALLDIR_LEMONADEGPU=/path/to/install/lemonadeGPU_install -DLEMONADE_DIR=/path/to/installation/lemonade_install  -DCUDA_ARCH=arch_of_graphics_card -DBUILDDIR=/path/to/build -DLEMONADEGPU_TESTS=ON/OFF -DCMAKE_BUILD_TYPE=Release/Debug
     make -j 2 
 ````
 
