@@ -299,8 +299,6 @@ __global__ void kernelApplyConnection
     {
       auto iPartner(mCrossLinkFlags[i]);
       auto iMonomer(mCrossLinkIDS[i]);
-      mCrossLinkFlags[i]=0;
-      mCrossLinkIDS[i]=0;
       if (iPartner == 0 || iMonomer == 0 ) 
       	continue; //no Partner found -> go to next Crosslink in the grid 
       
@@ -327,7 +325,6 @@ void UpdaterGPUScBFM_Connection< T_UCoordinateCuda >::launch_ApplyConnection(
   const size_t PartnerSpecies
 )
 { 
-  tracker.trackConnections( mCrossLinkFlags, mCrossLinkIDS, flagArraySize, miNewToi->gpu, mviSubGroupOffsets[ PartnerSpecies ], mAge );
   kernelApplyConnection<T_UCoordinateCuda><<<nBlocks,nThreads,0,mStream>>>(
     mCrossLinkFlags,
     mCrossLinkIDS,
@@ -341,6 +338,7 @@ void UpdaterGPUScBFM_Connection< T_UCoordinateCuda >::launch_ApplyConnection(
     mviSubGroupOffsets[ MonomerSpecies ],   
     mviSubGroupOffsets[ PartnerSpecies ]
   );
+  tracker.trackConnections( mCrossLinkIDS, mCrossLinkFlags, flagArraySize, miNewToi->gpu, mviSubGroupOffsets[ MonomerSpecies ], mviSubGroupOffsets[ PartnerSpecies ], mAge );
 }
 
 

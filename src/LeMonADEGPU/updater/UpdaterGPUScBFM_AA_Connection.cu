@@ -215,6 +215,7 @@ __global__ void kernelCheckConnection
     for ( uint32_t iMonomer = blockIdx.x * blockDim.x + threadIdx.x;
           iMonomer < nMonomers; iMonomer += gridDim.x * blockDim.x, ++iGrid )
     {
+	dpFlag[ iMonomer + 1 ] =0;
         auto const r0 = dpPolymerSystem[ iOffset + iMonomer ];
 	if ( dcChainMaxNumLinks == dpNeighborsSizes[ iMonomer ] ) continue; //already max number of connections for the crosslinker
         if ( iGrid % 1 == 0 ) //for what is this  
@@ -297,8 +298,6 @@ __global__ void kernelApplyConnection
     {
       auto iPartner(mChainEndFlags[i]);
       auto iMonomer(mChainEndIDS[i]);
-      mChainEndFlags[i]=0;
-      mChainEndIDS[i]=0;
       if (iPartner == 0 || iMonomer == 0 ) 
       	continue; //no Partner found -> go to next Crosslink in the grid 
       
@@ -310,15 +309,15 @@ __global__ void kernelApplyConnection
       dpNeighborsSizes[ iPartner ]++; 
       MoveFlags[iMonomer] = 1;
       MoveFlags[iPartner] = 0;
-//       printf(" %d Connect monomers: %d with %d , %d ,%d ,%d ,%d \n", i,iMonomer, iPartner, 
-// 	     dpNeighbors[ (dpNeighborsSizes[ iMonomer ]-1) * rNeighborsPitchElements + iMonomer ], 
-// 	     dpNeighbors[ (dpNeighborsSizes[ iPartner ]-1) * rNeighborsPitchElements + iPartner ],
-// 	     dpNeighborsSizes[ iMonomer ],
-// 	     dpNeighborsSizes[ iPartner ]
-// 	    ); 
+      printf("ConnectAA: %d Connect monomers: %d with %d , %d ,%d ,%d ,%d, flag1=%d, flags2=%d \n", i,iMonomer, iPartner, 
+	     dpNeighbors[ (dpNeighborsSizes[ iMonomer ]-1) * rNeighborsPitchElements + iMonomer ], 
+	     dpNeighbors[ (dpNeighborsSizes[ iPartner ]-1) * rNeighborsPitchElements + iPartner ],
+	     dpNeighborsSizes[ iMonomer ],
+	     dpNeighborsSizes[ iPartner ],
+	     MoveFlags[iMonomer],MoveFlags[iPartner]
+	    ); 
     }
 }
-
 
 template< typename T_UCoordinateCuda >
 void UpdaterGPUScBFM_AA_Connection< T_UCoordinateCuda >::launch_ApplyConnection(
@@ -326,7 +325,7 @@ void UpdaterGPUScBFM_AA_Connection< T_UCoordinateCuda >::launch_ApplyConnection(
   const size_t iSpecies
 )
 { 
-  tracker.trackConnections( mChainEndFlags, mChainEndIDS, flagArraySize, miNewToi->gpu+mviSubGroupOffsets[ iSpecies ],0, mAge );
+  
   kernelApplyConnection<T_UCoordinateCuda><<<nBlocks,nThreads,0,mStream>>>(
     mChainEndFlags,
     mChainEndIDS,
@@ -337,6 +336,9 @@ void UpdaterGPUScBFM_AA_Connection< T_UCoordinateCuda >::launch_ApplyConnection(
     mviSubGroupOffsets[ iSpecies ],
     AAMonomerFlag->gpu
   );
+  tracker.trackConnections( mChainEndFlags, mChainEndIDS, flagArraySize, miNewToi->gpu,mviSubGroupOffsets[ iSpecies ],mviSubGroupOffsets[ iSpecies ], mAge );
+  CUDA_ERROR(cudaDeviceSynchronize());
+  CUDA_ERROR( cudaStreamSynchronize( mStream ) );
 }
 
 
@@ -460,7 +462,7 @@ void UpdaterGPUScBFM_AA_Connection<T_UCoordinateCuda>::initialize()
   connection.init();
   miNewToi->popAsync();
   CUDA_ERROR( cudaStreamSynchronize( mStream ) ); // finish e.g. initializations
-  tracker.setIDOffset(miNewToi->host[mviSubGroupOffsets[ ChainEndSpecies ]]);
+//   tracker.setIDOffset(miNewToi->host[mviSubGroupOffsets[ ChainEndSpecies ]]);
   assert( AAMonomerFlag      == NULL );
   AAMonomerFlag = new MirroredTexture<uint8_t>(nReactiveMonomers,mStream);
   
@@ -683,7 +685,7 @@ void UpdaterGPUScBFM_AA_Connection< T_UCoordinateCuda >::runSimulationOnGPU
     << nMonteCarloSteps * ( mnAllMonomers / dt )  << "     runtime[s]:" << dt << "\n";
     doCopyBack();
     checkSystem(); // no-op if "Check"-level deactivated
-    tracker.dumpReactions();
+    
 }
 
 template< typename T_UCoordinateCuda >

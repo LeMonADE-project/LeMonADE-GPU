@@ -5,89 +5,117 @@ using ID_t = Tracker::ID_t;
 
 __global__ void kernelTrackBreaks
 (
-  ID_t     * const dBreaks ,
-  uint32_t   const size    ,
-  ID_t     * const miNewToi,
-  ID_t     * const output  ,
-  uint32_t   const offset  
+  ID_t           * const dID1      ,
+  ID_t           * const dID2      ,
+  ID_t             const dSize     ,
+  int32_t          const dOffsetA  ,
+  int32_t          const dOffsetB  ,
+  ID_t           * const diNewToi  ,
+  ID_t           * const dOutputID1,
+  ID_t           * const dOutputID2 
 )
 {
   for ( auto i = blockIdx.x * blockDim.x + threadIdx.x;
-          i < size; i += gridDim.x * blockDim.x )
+          i < dSize; i += gridDim.x * blockDim.x )
+  {
+    auto iMonomer(dID1[i]);
+    auto iPartner(dID2[i]);
+    if (iPartner == 0 || iMonomer == 0 ) 
     {
-      auto iPartner(dBreaks[i]);
-      if (iPartner == 0 ) 
-      {
-	dBreaks[i]=0;
-	continue; //no Partner found -> go to next Crosslink in the grid 
-      }
-      output[miNewToi[i-1]-offset]= ( (miNewToi[iPartner-1]+1)<<1 )+0;
-//       printf("Breaks index=%d  %d %d Id1=%d Id2=%d\n ",miNewToi[i-1]-offset, miNewToi[i-1], miNewToi[iPartner-1], iPartner-1, i-1  );
-      dBreaks[i]=0;
+      continue; //no Partner found -> go to next Crosslink in the grid 
     }
+    iMonomer--;
+    iPartner--;
+    dID1[i]=0;
+    dID2[i]=0;
+    dOutputID1[i] = diNewToi[iMonomer + dOffsetA ];
+    dOutputID2[i] = ( (diNewToi[iPartner+dOffsetB]+1)<<1 )+0;
+//     output[miNewToi[iMonomer-1]-dOffsetA]= ( (miNewToi[iPartner-1]-dOffsetB+1)<<1 )+0;
+    printf("Breaks index=%d %d Id1=%d Id2=%d\n ",diNewToi[iMonomer+dOffsetA], diNewToi[iPartner+dOffsetB], iMonomer+dOffsetA,iPartner+dOffsetB );
+  }
 }
 
-void Tracker::trackBreaks( ID_t     * const dBreaks, 
-			   uint32_t   const size, 
-			   ID_t     * const miNewToi,
-			   uint32_t   const mAge){
-
+void Tracker::trackBreaks( ID_t * const ID1     ,
+			   ID_t * const ID2     ,
+			   ID_t   const size    ,     
+			   ID_t * const diNewToi,
+			   int32_t const offsetA,
+			   int32_t const offsetB,
+			   uint32_t const mAge  )
+{
   auto nThreads(256);
   auto nBlocks(ceilDiv(size,nThreads));
   kernelTrackBreaks<<<nBlocks,nThreads,0, mStream>>>(
-  dBreaks, 
+  ID1, 
+  ID2, 
   size, 
-  miNewToi, 
-  BondHistory->gpu + counter*nIDs, 
-  IDoffset);  
+  offsetA,
+  offsetB,
+  diNewToi, 
+  BondHistoryID1->gpu + counter*nIDs,
+  BondHistoryID2->gpu + counter*nIDs
+  );  
   age.push_back(mAge);
   increaseCounter();	
-
+  if(counter == bufferSize )
+  dumpReactions();
 }
 __global__ void kernelTrackConnections
 (
-  ID_t    const  * const mCrossLinkFlags,
-  ID_t    const  * const mCrossLinkIDS  ,
-  ID_t       const size           ,
-  uint32_t   const chainoffset    ,
-  ID_t     * const miNewToi       ,
-  ID_t     * const output         ,
-  uint32_t   const offset         
+  ID_t           * const dID1      ,
+  ID_t           * const dID2      ,
+  ID_t             const dSize     ,
+  int32_t          const dOffsetA  ,
+  int32_t          const dOffsetB  ,
+  ID_t           * const diNewToi  ,
+  ID_t           * const dOutputID1,
+  ID_t           * const dOutputID2
 )
 {
   for ( auto i = blockIdx.x * blockDim.x + threadIdx.x;
-          i < size; i += gridDim.x * blockDim.x )
+          i < dSize; i += gridDim.x * blockDim.x )
     {
-      auto iPartner(mCrossLinkFlags[i]);
-      auto iMonomer(mCrossLinkIDS[i]);
+      auto iMonomer(dID1[i]);
+      auto iPartner(dID2[i]);
+      dID1[i]=0;
+      dID2[i]=0;
       if (iPartner == 0 || iMonomer == 0 ) 
       {
 	continue; //no Partner found -> go to next Crosslink in the grid 
       }
-      output[miNewToi[iMonomer-1]-offset]= ( (miNewToi[iPartner-1+chainoffset]+1)<<1 )+1;
-//       printf("Bonds Mon1 = %d  Mon2 = %d Id1=%d Id2=%d %d %d  \n ", iPartner-1+chainoffset, iMonomer-1, miNewToi[iMonomer-1],miNewToi[iPartner-1+chainoffset], offset, chainoffset );
+      iMonomer--;
+      iPartner--;
+      dOutputID1[i] = diNewToi[iMonomer + dOffsetA ];
+      dOutputID2[i] = ( (diNewToi[iPartner+dOffsetB]+1)<<1 )+1;
+//       output[miNewToi[iMonomer-1+offsetA]]= ( (miNewToi[iPartner-1+offsetB]+1)<<1 )+1;
+      printf("Bonds Mon1 = %d  Mon2 = %d Id1=%d Id2=%d %d %d  \n ", iMonomer+dOffsetA, iPartner+dOffsetB, diNewToi[iMonomer+dOffsetA],diNewToi[iPartner+dOffsetB], dOffsetA,dOffsetB );
     }
 }
-void Tracker::trackConnections( ID_t * const mCrossLinkFlags,
-                                ID_t * const mCrossLinkIDS  ,
-                                ID_t   const size  ,     
-				ID_t * const miNewToi,
-				uint32_t const offset,
+void Tracker::trackConnections( ID_t * const ID1     ,
+                                ID_t * const ID2     ,
+                                ID_t   const size    ,     
+				ID_t * const diNewToi,
+				int32_t const offsetA,
+				int32_t const offsetB,
 				uint32_t const mAge)
 {
   auto nThreads(256);	
   auto nBlocks(ceilDiv(size,nThreads));
-  
+//   std::cout << "Tracker::trackConnections: offsetA= "<< offset << " mAge= " << mAge  << " size= " << size <<std::endl;
   kernelTrackConnections<<<nBlocks,nThreads,0, mStream>>>(
-  mCrossLinkFlags, 
-  mCrossLinkIDS, 
+  ID1, 
+  ID2, 
   size, 
-  offset,
-  miNewToi, 
-  BondHistory->gpu + counter *nIDs, 
-  IDoffset);
+  offsetA,
+  offsetB,
+  diNewToi, 
+  BondHistoryID1->gpu + counter*nIDs,
+  BondHistoryID2->gpu + counter*nIDs
+  );
   age.push_back(mAge);
   increaseCounter();
+  if(counter == bufferSize )
+  dumpReactions();
 }
 
 void Tracker::init(uint32_t bufferSize_, uint32_t nIDs_, cudaStream_t mStream_)
@@ -95,52 +123,51 @@ void Tracker::init(uint32_t bufferSize_, uint32_t nIDs_, cudaStream_t mStream_)
   bufferSize=bufferSize_; nIDs=nIDs_; mStream=mStream_;
   BaseClass::setInformationSize(4);
   BaseClass::addComment("MCS Bond/Break ID1 ID2");
-  std::cout << "Tracker::init: BondHistory can take " 
+  std::cout << "Tracker::init: each BondHistory can take " 
             << 2*bufferSize*nIDs << " number of elements with " 
             << 2*bufferSize*nIDs *sizeof(ID_t)/1024.<< " kB \n";
-  BondHistory = new MirroredVector< ID_t >( 2*bufferSize*nIDs, mStream );
+  BondHistoryID1 = new MirroredVector< ID_t >( 2*bufferSize*nIDs, mStream ); //essentially the ids of the first monomer 
+  BondHistoryID2 = new MirroredVector< ID_t >( 2*bufferSize*nIDs, mStream ); //essentially the ids of the second monomer
 }
 void Tracker::increaseCounter()
 {
   counter++;
-  if(counter == bufferSize ){
-//   std::cout << "Tracker::increaseCounter()  increased counter and"
-// 	    << " start dumpReactions, because the bufferSize "
-//             << counter << "/" << bufferSize<< "is reached.\n "; 
-    dumpReactions();
-    }
 }
 
 
 void Tracker::dumpReactions()
 {
   BaseClass::setBufferSize(bufferSize);
-  BondHistory->popAsync();
+  BondHistoryID1->popAsync();
+  BondHistoryID2->popAsync();
   CUDA_ERROR( cudaStreamSynchronize( mStream ) );
-
+  std::cout <<"counter= " << counter << " nIDs="<<nIDs << std::endl;
   for (uint32_t j=0 ; j < counter ; j ++ ) {
   uint32_t currentAge(age[j]);
     for(uint32_t i =0 ; i < nIDs; i ++)
     {
-      auto Mon(i+j*nIDs);
-      uint32_t entry(BondHistory->host[Mon]);
-      if( entry  > 0 )
+      auto index(i+nIDs*j);
+      auto Mon1(BondHistoryID1->host[index]);
+      auto Mon2(BondHistoryID2->host[index]);
+      
+      if( Mon2  > 0 )
       {
 	std::vector<uint32_t> vec;
 	vec.push_back(currentAge); //time 
-	vec.push_back(entry & 1 ); // either 0 or 1 for remove or add 
-	uint32_t ID1(i+IDoffset);
-	uint32_t ID2((BondHistory->host[Mon] >> 1) -1);
-	vec.push_back(std::min(ID1,ID2)); 
-	vec.push_back(std::max(ID1,ID2));
+	vec.push_back( Mon2 & 1 ); // either 0 or 1 for remove or add 
+	Mon2 = (Mon2 >> 1) -1;
+	vec.push_back(std::min(Mon1,Mon2)); 
+	vec.push_back(std::max(Mon1,Mon2));
 	BaseClass::addConnection(vec);
-	BondHistory->host[Mon]=0;
+	BondHistoryID1->host[index]=0;
+	BondHistoryID2->host[index]=0;
       }
     }
   }
   BaseClass::dumpReactions();
   counter=0;
   age.resize(0);
-  BondHistory->push();
+  BondHistoryID1->push();
+  BondHistoryID2->push();
   
 }

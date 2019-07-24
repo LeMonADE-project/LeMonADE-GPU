@@ -47,7 +47,8 @@ __global__ void kernel_BreakConnections
     T_Id                const              nMonomers                      ,
     uint64_t            const              rSeed                          ,
     uint64_t            const              rGlobalIteration               ,
-    T_Id              * const              dBreaks
+    T_Id              * const              dBreaksID1                     ,
+    T_Id              * const              dBreaksID2
 )
 {
     double rn;
@@ -81,7 +82,8 @@ __global__ void kernel_BreakConnections
 	    dpNeighbors[ rNeighborsMatrixOffsetPartner + neighborBond * rNeighborsPitchElementsPartner + (iGlobalNeighbor-iOffsetChains) ]=dpNeighbors[ rNeighborsMatrixOffsetPartner + dpNeighborsSizes[iGlobalNeighbor ] * rNeighborsPitchElementsPartner + (iGlobalNeighbor-iOffsetChains) ];
 	    dpNeighborsSizes[iOffsetCrossLinks + iMonomer ]--;
 	    dpNeighbors[ rNeighborsMatrixOffsetMonomer + iBond * rNeighborsPitchElementsMonomer + iMonomer ]=dpNeighbors[ rNeighborsMatrixOffsetMonomer + dpNeighborsSizes[iOffsetCrossLinks + iMonomer ] * rNeighborsPitchElementsMonomer + iMonomer ];
-	    dBreaks[iMonomer+1] = iGlobalNeighbor+1;
+	    dBreaksID1[i] = iMonomer+1-iOffsetCrossLinks;
+	    dBreaksID2[i] = iGlobalNeighbor+1-iOffsetChains;
 	  }else 
 	    iBond++;
 	}
@@ -108,17 +110,20 @@ void UpdaterGPUScBFM_Breaking<T_UCoordinateCuda>::launch_BreakConnections(
       mnElementsInGroup[ iSpeciesCrossLink ],                       
       seed, 
       mGlobalIterator,
-      dBreaks->gpu
+      dBreaksID1->gpu,
+      dBreaksID2->gpu
   );
 //   CUDA_ERROR(cudaDeviceSynchronize());
   mGlobalIterator++;
-  tracker.trackBreaks( dBreaks->gpu, nReactiveMonomersCrossLinks+1, miNewToi->gpu, mAge);
+  tracker.trackBreaks( dBreaksID1->gpu, dBreaksID2->gpu, nReactiveMonomersCrossLinks+1, miNewToi->gpu,mviSubGroupOffsets[ iSpeciesCrossLink ], mviSubGroupOffsets[ iSpeciesChain ], mAge);
+//   tracker.trackBreaks( dBreaks->gpu, nReactiveMonomersCrossLinks+1, miNewToi->gpu, mAge);
  
 }
 template< typename T_UCoordinateCuda > 
 UpdaterGPUScBFM_Breaking<T_UCoordinateCuda>::UpdaterGPUScBFM_Breaking():
 BaseClass()  ,
-dBreaks(NULL)
+dBreaksID1(NULL),
+dBreaksID2(NULL)
 {
     /**
      * Log control.
@@ -137,7 +142,8 @@ template< typename T_UCoordinateCuda >
 void UpdaterGPUScBFM_Breaking<T_UCoordinateCuda>::destruct(){
       
     DeleteMirroredObject deletePointer;
-    deletePointer( dBreaks       , "dBreaks"        );
+    deletePointer( dBreaksID1       , "dBreaksID1"        );
+    deletePointer( dBreaksID2       , "dBreaksID2"        );
     if ( deletePointer.nBytesFreed > 0 )
     {
         mLog( "Info" )
@@ -168,7 +174,8 @@ void UpdaterGPUScBFM_Breaking<T_UCoordinateCuda>::initialize()
   BaseClass::initialize();
   
   double mBreakingProbability(exp(-energy));
-  dBreaks = new MirroredVector<T_Id>(nReactiveMonomersCrossLinks+1);
+  dBreaksID1 = new MirroredVector<T_Id>(nReactiveMonomersCrossLinks+1);
+  dBreaksID2 = new MirroredVector<T_Id>(nReactiveMonomersCrossLinks+1);
   CUDA_ERROR( cudaMemcpyToSymbol( dcBreakingProbability, &mBreakingProbability, sizeof( mBreakingProbability ) ) );
   mLog("Info") << "Bond energy is " << energy << " which corresponds to a breaking probabilit of " << mBreakingProbability <<"\n" ;
 

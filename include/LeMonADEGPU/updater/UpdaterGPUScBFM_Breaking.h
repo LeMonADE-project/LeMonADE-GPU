@@ -69,7 +69,8 @@ public:
     ~UpdaterGPUScBFM_Breaking();
 private:
     double energy;
-    MirroredVector<T_Id> * dBreaks;
+    MirroredVector<T_Id> * dBreaksID1;
+    MirroredVector<T_Id> * dBreaksID2;
 public:
     void setBondEnergy(double energy_);
     void initialize();
