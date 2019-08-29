@@ -140,7 +140,8 @@ protected:
      * Then after 8 usages we can call one cudaMemset for all, possibly making
      * 8 times better use of parallelism on the GPU!
      */
-    static auto constexpr mnLatticeTmpBuffers = 2u;
+//     static auto constexpr mnLatticeTmpBuffers = 2u; // brings a undefined reference for gcc 7.3, but not for gcc 4.85 ?!
+    const uint mnLatticeTmpBuffers = 2u;
 
     std::vector< cudaTextureObject_t > mvtLatticeTmp;
 
