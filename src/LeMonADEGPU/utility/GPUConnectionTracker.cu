@@ -31,7 +31,7 @@ __global__ void kernelTrackBreaks
     dOutputID1[i] = diNewToi[iMonomer + dOffsetA ];
     dOutputID2[i] = ( (diNewToi[iPartner+dOffsetB]+1)<<1 )+0;
 //     output[miNewToi[iMonomer-1]-dOffsetA]= ( (miNewToi[iPartner-1]-dOffsetB+1)<<1 )+0;
-    printf("Breaks index=%d %d Id1=%d Id2=%d\n ",diNewToi[iMonomer+dOffsetA], diNewToi[iPartner+dOffsetB], iMonomer+dOffsetA,iPartner+dOffsetB );
+//     printf("Breaks index=%d %d Id1=%d Id2=%d\n ",diNewToi[iMonomer+dOffsetA], diNewToi[iPartner+dOffsetB], iMonomer+dOffsetA,iPartner+dOffsetB );
   }
 }
 
@@ -88,7 +88,7 @@ __global__ void kernelTrackConnections
       dOutputID1[i] = diNewToi[iMonomer + dOffsetA ];
       dOutputID2[i] = ( (diNewToi[iPartner+dOffsetB]+1)<<1 )+1;
 //       output[miNewToi[iMonomer-1+offsetA]]= ( (miNewToi[iPartner-1+offsetB]+1)<<1 )+1;
-      printf("Bonds Mon1 = %d  Mon2 = %d Id1=%d Id2=%d %d %d  \n ", iMonomer+dOffsetA, iPartner+dOffsetB, diNewToi[iMonomer+dOffsetA],diNewToi[iPartner+dOffsetB], dOffsetA,dOffsetB );
+//       printf("Bonds Mon1 = %d  Mon2 = %d Id1=%d Id2=%d %d %d  \n ", iMonomer+dOffsetA, iPartner+dOffsetB, diNewToi[iMonomer+dOffsetA],diNewToi[iPartner+dOffsetB], dOffsetA,dOffsetB );
     }
 }
 void Tracker::trackConnections( ID_t * const ID1     ,
