@@ -2020,7 +2020,7 @@ void UpdaterGPUScBFM_AB_Type< T_UCoordinateCuda >::findAndRemoveOverflows( bool 
 	      //assert( nMonteCarloSteps <= boxSizeCudaType / 2 );
 	      //assert( nMonteCarloSteps <= std::min( std::min( mBoxX, mBoxY ), mBoxZ ) / 2 );
 	      auto const deltaMove = r1[ iCoord ] - r0[ iCoord ];
-	      if ( std::abs( deltaMove ) > boxSizeCudaType / 2 )
+	      if ( std::abs( (int) deltaMove ) > boxSizeCudaType / 2 )
 	      {
 		  if ( nPrintInfo > 0 )
 		  {
