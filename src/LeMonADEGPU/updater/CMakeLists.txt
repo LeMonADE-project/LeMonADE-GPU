@@ -43,4 +43,4 @@ FILE(_header
     )
 # set_property(TARGET obj_updater PROPERTY CUDA_RESOLVE_DEVICE_SYMBOLS ON)
 set_target_properties(obj_updater PROPERTIES CUDA_SEPARABLE_COMPILATION ON)
-CUDA_ADD_LIBRARY(obj_updater OBJECT ${_src} ${_header} cuda ${CUDA_curand_LIBRARY} )
+CUDA_ADD_LIBRARY(obj_updater OBJECT ${_src} ${_header} cuda )

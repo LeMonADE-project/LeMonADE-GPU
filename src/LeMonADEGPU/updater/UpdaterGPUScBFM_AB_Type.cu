@@ -1806,7 +1806,7 @@ void UpdaterGPUScBFM_AB_Type< T_UCoordinateCuda >::initialize( void )
     checkMonomerReorderMapping();
     initializeSortedNeighbors();
     initializeSortedMonomerPositions();
-    checkSystem();
+//     checkSystem();
     initializeLattices();
     
 //     if ( mAge != 0 )

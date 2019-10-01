@@ -75,11 +75,11 @@ protected:
     using BaseClass::mNeighborsSortedSizes;
     using BaseClass::mGlobalIterator;
     using BaseClass::doCopyBackMonomerPositions;
-    using BaseClass::doCopyBackConnectivity;
+    using BaseClass::doCopyBackConnectivity;	
     using BaseClass::mPolymerFlags;
     using BaseClass::mLatticeOut;
     using BaseClass::boxCheck;
-    using BaseClass::checkBonds;
+//     using BaseClass::checkBonds;
 
     uint32_t ChainEndSpecies ; 
     size_t nReactiveMonomers;

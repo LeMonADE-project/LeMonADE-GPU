@@ -31,7 +31,7 @@ __global__ void kernelTrackBreaks
     dOutputID1[i] = diNewToi[iMonomer + dOffsetA ];
     dOutputID2[i] = ( (diNewToi[iPartner+dOffsetB]+1)<<1 )+0;
 //     output[miNewToi[iMonomer-1]-dOffsetA]= ( (miNewToi[iPartner-1]-dOffsetB+1)<<1 )+0;
-//     printf("Breaks index=%d %d Id1=%d Id2=%d\n ",diNewToi[iMonomer+dOffsetA], diNewToi[iPartner+dOffsetB], iMonomer+dOffsetA,iPartner+dOffsetB );
+//     printf("Breaks iOld1=%d iOld2=%d Id1=%d Id2=%d\n ",diNewToi[iMonomer+dOffsetA], diNewToi[iPartner+dOffsetB], iMonomer+dOffsetA,iPartner+dOffsetB );
   }
 }
 
@@ -141,7 +141,7 @@ void Tracker::dumpReactions()
   BondHistoryID1->popAsync();
   BondHistoryID2->popAsync();
   CUDA_ERROR( cudaStreamSynchronize( mStream ) );
-  std::cout <<"counter= " << counter << " nIDs="<<nIDs << std::endl;
+//   std::cout <<"counter= " << counter << " nIDs="<<nIDs << std::endl;
   for (uint32_t j=0 ; j < counter ; j ++ ) {
   uint32_t currentAge(age[j]);
     for(uint32_t i =0 ; i < nIDs; i ++)

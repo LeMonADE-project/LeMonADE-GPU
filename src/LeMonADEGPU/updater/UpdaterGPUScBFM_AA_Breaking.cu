@@ -66,24 +66,24 @@ __global__ void kernel_BreakConnections
 	    for (iBond1=0; iBond1< nNeighbors1;iBond1++)
 	    {
 	      iGlobalNeighbor = dpNeighbors[  iBond1 * rNeighborsPitchElements + iMonomer ];
-	      for (iBond2=0; iBond2< dpNeighborsSizes[iGlobalNeighbor]; iBond2++)
-	      {
-		if (iOffset + iMonomer ==   dpNeighbors[  iBond2 * rNeighborsPitchElements + iGlobalNeighbor-iOffset ])
+	      if (iGlobalNeighbor < nMonomers){
+		for (iBond2=0; iBond2< dpNeighborsSizes[iGlobalNeighbor]; iBond2++)
 		{
-		  foundValues=true;
-		  break;
+		  if (iOffset + iMonomer == dpNeighbors[  iBond2 * rNeighborsPitchElements + iGlobalNeighbor-iOffset ])
+		  {
+		    foundValues=true;
+		    break;
+		  }
 		}
 	      }
+	      if (foundValues == true )	break ;
 	    }
-	    printf("BreakAA: ID1=%d ID2=%d  \n", iMonomer, iGlobalNeighbor-iOffset );
-	    if (foundValues)
+// 	    if (foundValues) // only usefull for debugging
 	    {
 	      dpNeighborsSizes[ iGlobalNeighbor ]--;
 	      dpNeighbors[  iBond2 * rNeighborsPitchElements + (iGlobalNeighbor-iOffset) ]=dpNeighbors[  dpNeighborsSizes[iGlobalNeighbor ] * rNeighborsPitchElements + (iGlobalNeighbor-iOffset) ];
-	      
 	      dpNeighborsSizes[iOffset + iMonomer ]--;
 	      dpNeighbors[ iBond1 * rNeighborsPitchElements + iMonomer ]=dpNeighbors[ dpNeighborsSizes[iOffset + iMonomer ] * rNeighborsPitchElements + iMonomer ];
-	      
 	      dBreaksID1[iMonomer+1] = iMonomer-iOffset+1;
 	      dBreaksID2[iMonomer+1] = iGlobalNeighbor-iOffset+1;
 	      
@@ -95,7 +95,24 @@ __global__ void kernel_BreakConnections
       }
     }
 }
-
+__global__ void kernel_CheckNumberOfConnections
+(    
+    uint8_t           * const              dpNeighborsSizes               ,
+    uint32_t 		const 		   iOffset                        ,
+    T_Id                const              nMonomers 			  ,
+    uint8_t           * const              texAllowedToMove	          
+)
+{
+    int iGrid;
+    for ( uint32_t iMonomer = blockIdx.x * blockDim.x + threadIdx.x;
+          iMonomer < nMonomers; iMonomer += gridDim.x * blockDim.x, iGrid++)
+    { 
+      if(dpNeighborsSizes[iMonomer+iOffset] != 2 && texAllowedToMove[iMonomer] == 1)
+	  printf("kernel_CheckNumberOfConnections::Check1: ID=%d, NSizes=%d\n",iMonomer, dpNeighborsSizes[iMonomer+iOffset]);
+      if(dpNeighborsSizes[iMonomer+iOffset] == 0 )
+	  printf("kernel_CheckNumberOfConnections::Check2: ID=%d, NSizes=%d\n",iMonomer, dpNeighborsSizes[iMonomer+iOffset]);
+    }
+}
 template< typename T_UCoordinateCuda > 
 void UpdaterGPUScBFM_AA_Breaking<T_UCoordinateCuda>::launch_BreakConnections(
 	  const size_t nBlocks, const size_t nThreads, 
@@ -114,6 +131,16 @@ void UpdaterGPUScBFM_AA_Breaking<T_UCoordinateCuda>::launch_BreakConnections(
       dBreaksID1->gpu,
       dBreaksID2->gpu
   );
+  if( mLog( "Check" ).isActive()){
+    mLog( "Check" ) << "Check the number of connections of the reactive ends\n" ;
+    kernel_CheckNumberOfConnections<<<nBlocks,nThreads,0,mStream>>>
+    (
+      mNeighborsSortedSizes->gpu, 
+      mviSubGroupOffsets[ iSpecies ],
+      mnElementsInGroup[ iSpecies ],
+      AAMonomerFlag->gpu
+    );
+  }
   CUDA_ERROR(cudaDeviceSynchronize());
   CUDA_ERROR( cudaStreamSynchronize( mStream ) );
   mGlobalIterator++;
@@ -162,6 +189,7 @@ UpdaterGPUScBFM_AA_Breaking<T_UCoordinateCuda>::~UpdaterGPUScBFM_AA_Breaking()
 template< typename T_UCoordinateCuda >
 void UpdaterGPUScBFM_AA_Breaking<T_UCoordinateCuda>::cleanup()
 {
+    tracker.dumpReactions();
     BaseClass::destruct();
     this->destruct();    
     cudaDeviceSynchronize();
@@ -180,7 +208,7 @@ void UpdaterGPUScBFM_AA_Breaking<T_UCoordinateCuda>::initialize()
   dBreaksID2 = new MirroredVector<T_Id>(nReactiveMonomers+1,mStream);
   CUDA_ERROR( cudaMemcpyToSymbol( dcBreakingProbability, &mBreakingProbability, sizeof( mBreakingProbability ) ) );
   mLog("Info") << "Bond energy is " << energy << " which corresponds to a breaking probabilit of " << mBreakingProbability <<"\n" ;
-
+  
 }
 
 template< typename T_UCoordinateCuda  >

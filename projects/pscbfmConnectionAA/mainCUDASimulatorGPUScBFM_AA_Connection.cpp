@@ -152,6 +152,7 @@ int main( int argc, char ** argv )
         pUpdaterGpu->activateLogging( "Error"     );
         //pUpdaterGpu->activateLogging( "Stats"      );
         pUpdaterGpu->activateLogging( "Info"      );
+// 	pUpdaterGpu->activateLogging( "Check"      );
         if ( nSplitColors > 0 )
             pUpdaterGpu->setSplitColors( nSplitColors );
 

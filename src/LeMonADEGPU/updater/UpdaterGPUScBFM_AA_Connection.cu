@@ -80,8 +80,8 @@ void UpdaterGPUScBFM_AA_Connection< T_UCoordinateCuda >::launch_initializeReacti
   mLog ( "Check" ) <<"Start filling lattice with ones:  \n" ;
 //   mLatticeIds->memset(0);
   mLog ( "Check" ) << "launch_initializeReactiveLattice:: iSpecies = " << iSpecies <<"\n"
-		  << "launch_initializeReactiveLattice:: mviSubGroupOffsets[ iSpecies ] = "<< mviSubGroupOffsets[ iSpecies ]<<"\n"
-		  << "launch_initializeReactiveLattice:: mnElementsInGroup[ iSpecies ] = "<< mnElementsInGroup[ iSpecies ]<<"\n";
+		   << "launch_initializeReactiveLattice:: mviSubGroupOffsets[ iSpecies ] = "<< mviSubGroupOffsets[ iSpecies ]<<"\n"
+		   << "launch_initializeReactiveLattice:: mnElementsInGroup[ iSpecies ] = "<< mnElementsInGroup[ iSpecies ]<<"\n";
   if ( false ){ //fill in cpu 
     mPolymerSystemSorted->pop();
     for (T_Id i =0; i < mnElementsInGroup[ iSpecies ]; i++)
@@ -161,6 +161,7 @@ template< typename T_UCoordinateCuda  >
 void UpdaterGPUScBFM_AA_Connection< T_UCoordinateCuda >::checkReactiveLatticeOccupation()  
 {
   mLatticeIds->pop(0);
+  //check the number of reactive lattice entries 
   uint32_t countLatticeEntries(0);
   for(T_Id x=0; x< mBoxX; x++ )
     for(T_Id y=0; y< mBoxY; y++ )
@@ -168,23 +169,27 @@ void UpdaterGPUScBFM_AA_Connection< T_UCoordinateCuda >::checkReactiveLatticeOcc
 	if(mLatticeIds->host[met.getCurve().linearizeBoxVectorIndex(x,y,z)] > 0 )
 	  countLatticeEntries++;
   assert(nReactiveMonomers == countLatticeEntries );  
-    mLog( "Check" )
+  
+  mLog( "Check" )
         << "checkReactiveLatticeOccupation: \n"
-	<< "nReactiveMonomers = " << nReactiveMonomers << "\n"
-	<< "countLatticeEntries     = " << countLatticeEntries << "\n";
+	<< "nReactiveMonomers   = " << nReactiveMonomers << "\n"
+	<< "countLatticeEntries = " << countLatticeEntries << "\n";
+  //check if the lattice entry is on the right place 
   mPolymerSystemSorted->pop();
   for(T_Id x=0; x< mBoxX; x++ )
     for(T_Id y=0; y< mBoxY; y++ )
-      for(T_Id z=0; z< mBoxX; z++ ){
+      for(T_Id z=0; z< mBoxX; z++ )
+      {
 	T_Id LatticeEntry(mLatticeIds->host[met.getCurve().linearizeBoxVectorIndex(x,y,z)]);
 	if( LatticeEntry > 0 ){
-	  auto r=mPolymerSystemSorted->host[LatticeEntry-1 + mviSubGroupOffsets[1] ];
-	  if ( r.x != x || r.y != y || r.z != z  )
+// 	  auto r=mPolymerSystemSorted->host[LatticeEntry-1 + mviSubGroupOffsets[1] ];
+	  auto r=mPolymerSystemSorted->host[LatticeEntry-1 + mviSubGroupOffsets[0] ];
+	  if ( r.x % mBoxX != x || r.y % mBoxY != y || r.z % mBoxZ != z  )
 	  {
 	    std::stringstream error_message;
-	    error_message << "LatticeEntry=  "<<LatticeEntry  << " "
-			  << "Pos= ("<< x <<"," << y << "," << z << ")" << " "
-			  << "mPolymerSystemSorted= ("<< r.x <<"," << r.y << "," << r.z << ")" << "\n";
+	    error_message << "LatticeEntry="<<LatticeEntry  << " "
+			  << "Pos=("<< x <<"," << y << "," << z << ")" << " "
+			  << "mPolymerSystemSorted=("<< (uint32_t)r.x % mBoxX <<"," << (uint32_t)r.y% mBoxY << "," << (uint32_t)r.z % mBoxZ<< ")" << "\n";
 	    throw std::runtime_error(error_message.str());
 	  }
 	}
@@ -309,13 +314,13 @@ __global__ void kernelApplyConnection
       dpNeighborsSizes[ iPartner ]++; 
       MoveFlags[iMonomer] = 1;
       MoveFlags[iPartner] = 0;
-      printf("ConnectAA: %d Connect monomers: %d with %d , %d ,%d ,%d ,%d, flag1=%d, flags2=%d \n", i,iMonomer, iPartner, 
-	     dpNeighbors[ (dpNeighborsSizes[ iMonomer ]-1) * rNeighborsPitchElements + iMonomer ], 
-	     dpNeighbors[ (dpNeighborsSizes[ iPartner ]-1) * rNeighborsPitchElements + iPartner ],
-	     dpNeighborsSizes[ iMonomer ],
-	     dpNeighborsSizes[ iPartner ],
-	     MoveFlags[iMonomer],MoveFlags[iPartner]
-	    ); 
+//       printf("ConnectAA: %d Connect monomers: =%d with =%d , n1=%d, n2=%d ,s1=%d ,s2=%d, flag1=%d, flags2=%d \n", i,iMonomer, iPartner, 
+// 	     dpNeighbors[ (dpNeighborsSizes[ iMonomer ]-1) * rNeighborsPitchElements + iMonomer ], 
+// 	     dpNeighbors[ (dpNeighborsSizes[ iPartner ]-1) * rNeighborsPitchElements + iPartner ],
+// 	     dpNeighborsSizes[ iMonomer ],
+// 	     dpNeighborsSizes[ iPartner ],
+// 	     MoveFlags[iMonomer],MoveFlags[iPartner]
+// 	    ); 
     }
 }
 
@@ -351,7 +356,7 @@ mChainEndFlags              ( NULL ),
 mChainEndIDS                ( NULL ),
 AAMonomerFlag               ( NULL ),
 nReactiveMonomers           ( 0    ),
-crosslinkFunctionality      ( 0    )
+crosslinkFunctionality      ( 4    )
 {
     /**
      * Log control.
@@ -366,6 +371,7 @@ crosslinkFunctionality      ( 0    )
     mLog.deactivate( "Stats"     );
     mLog.deactivate( "Warning"   );
 };
+
 template< typename T_UCoordinateCuda > 
 void UpdaterGPUScBFM_AA_Connection<T_UCoordinateCuda>::destruct(){
       
@@ -391,6 +397,7 @@ UpdaterGPUScBFM_AA_Connection<T_UCoordinateCuda>::~UpdaterGPUScBFM_AA_Connection
 template< typename T_UCoordinateCuda >
 void UpdaterGPUScBFM_AA_Connection<T_UCoordinateCuda>::cleanup()
 {
+    tracker.dumpReactions();
     BaseClass::destruct();
     this->destruct();    
     cudaDeviceSynchronize();
@@ -406,22 +413,45 @@ void UpdaterGPUScBFM_AA_Connection<T_UCoordinateCuda>::initialize()
   BaseClass::setAutoColoring(false);
   mLog( "Info" )<< "Start manual coloring of the graph...\n" ;
   //do manual coloring
-  bool const bUniformColors = true;
-  mGroupIds = graphColoring< MonomerEdges const *, T_Id, T_Color >(
-      mNeighbors->host, mNeighbors->nElements, bUniformColors,
-      []( MonomerEdges const * const & x, T_Id const & i ){ return x[i].size; },
-      []( MonomerEdges const * const & x, T_Id const & i, size_t const & j ){ return x[i].neighborIds[j]; }
-  );
-  // 
-  for ( auto i = 0; i < mGroupIds.size() ; i++)
-    mGroupIds[i]++; 
-
-  for (auto i = 0; i < nReactiveMonomers; i++)
+  //I assume a star like structure where the end groups of the stars are the reactive monomers.
+  //To achieve a good labeling we start at the reactive end groups and reduce the ID by one 
+  //and increase the color by one as long as there are only two connections. If there are more 
+  //than two, then this monomer is also colored and then we continue with the next reactive end 
+  //group.
+  /*  monomer ids      coloring
+   *      7                0
+   *      |                |
+   *      6                1
+   *      |                |
+   *  5-4-1-2-3  -->   0-1-2-1-0
+   *      |                |
+   *      8                1
+   *      |                |
+   *      9                0
+   */
+  mGroupIds.resize(mnAllMonomers,0);
+  int32_t armLength(mNewToOldReactiveID[0]);
+  int32_t functionality(mNeighbors->host[ 0 ].size);
+  int32_t DeltaID(0);
+  for (uint32_t i =0 ; i < mnAllMonomers; i ++ )
   {
-    mGroupIds[mNewToOldReactiveID[i]] = 0 ;
-    if (i <20 ) 
-      mLog( "Info" )<< "mGroups[" << mNewToOldReactiveID[i] << "]= "<< mGroupIds[mNewToOldReactiveID[i]] <<"\n" ;
+    if ( i % (armLength*functionality+1) == 0 )
+    {
+      mGroupIds[i]=3;
+      if(i %2 == 0 || armLength % 2 == 1 ) DeltaID=0; //even star number  or for uneven number of additional monomers attachted to the center monomer
+      else DeltaID=1; //odd star number
+    }
+    else
+    {
+      i%2 == 1 ? mGroupIds[i]=1+DeltaID  :  mGroupIds[i]=2-DeltaID;
+    }
   }
+  for (auto i = 0; i < nReactiveMonomers; i++)
+    mGroupIds[mNewToOldReactiveID[i]] = 0 ;
+  for (uint32_t i =0 ; i < mnAllMonomers; i ++ )
+      if (i < 20 ) 
+	  mLog( "Info" )<< "mGroups[" << i << "]= "<< mGroupIds[i] << "\n" ;
+  
   mLog( "Info" )<< "Start manual coloring of the graph...done\n" ;
   mLog( "Info" )<< "Initialize baseclass \n" ;
   BaseClass::initialize();
@@ -463,17 +493,24 @@ void UpdaterGPUScBFM_AA_Connection<T_UCoordinateCuda>::initialize()
   miNewToi->popAsync();
   CUDA_ERROR( cudaStreamSynchronize( mStream ) ); // finish e.g. initializations
 //   tracker.setIDOffset(miNewToi->host[mviSubGroupOffsets[ ChainEndSpecies ]]);
+
+  //initialize the flags for the reactive monomers 
   assert( AAMonomerFlag      == NULL );
   AAMonomerFlag = new MirroredTexture<uint8_t>(nReactiveMonomers,mStream);
   
   miToiNew->pop();
+  //if two reactive monomers are connected, they must be sorted into different groups, therefore the move flag...
+  uint32_t counter(0);
   for (auto i = 0; i < nReactiveMonomers; i++)
   {
     auto iOld(mNewToOldReactiveID[i]);
     if ( mNeighbors->host[ iOld ].size > 1 )
     {
+      counter++;
       for ( size_t j = 0; j < mNeighbors->host[iOld ].size; j++ )
       {
+	// the reactive id differ always by more then 1 id and thus, if the difference is abs()=1, then the neighbor is 
+	// not a reactive monomer.
 	int Diff( mNeighbors->host[ iOld ].neighborIds[j] - iOld );
 	if ( !(Diff == 1 || Diff == -1 ) )
 	{
@@ -484,6 +521,21 @@ void UpdaterGPUScBFM_AA_Connection<T_UCoordinateCuda>::initialize()
 	}
       }
     }
+  }
+  // check if the labels/flags are correctly set (this is just a weak test!!!)
+  // every second reactive monomer is set to 1 
+  uint32_t counter2(0);
+  for(auto i=0; i < nReactiveMonomers;i++)
+    if(AAMonomerFlag->host[i] == 1 )counter2++;
+  if (counter != counter2*2)
+  {
+	  std::stringstream msg;
+	  msg << "[" << __FILENAME__ << " set move flags for reactive monomers ] "
+	      << "Number of nReactiveMonomers is set to " << nReactiveMonomers 
+	      << " and there must be "<< counter << " move flags set to 1 " 
+	      << " but only " << counter2 << " have been recorded in the check"  
+	      << "!\n";
+	  throw std::runtime_error( msg.str() );
   }
   AAMonomerFlag->pushAsync();
   
@@ -634,8 +686,6 @@ void UpdaterGPUScBFM_AA_Connection< T_UCoordinateCuda >::runSimulationOnGPU
             {
 	      for(uint32_t n=0; n < 1; n++)
 	      {
-
-	      
 		launch_CheckReactiveSpecies(nBlocks, nThreads, iSpecies, iOffsetLatticeTmp, seed, n, AAMonomerFlag->texture );
 		if ( useCudaMemset )
 		    launch_PerformSpeciesAndApply(nBlocks, nThreads, iSpecies, texLatticeTmp);
@@ -704,45 +754,47 @@ void UpdaterGPUScBFM_AA_Connection< T_UCoordinateCuda >::checkBonds() const
      * Check bonds i.e. that |dx|<=3 and whether it is allowed by the given
      * bond set
      */
+     std::cout  << "Using UpdaterGPUScBFM_AA_Connection for the checkBonds() \n";  
     for ( T_Id i = 0; i < mnAllMonomers; ++i )
-    for ( unsigned iNeighbor = 0; iNeighbor < mNeighbors->host[i].size; ++iNeighbor )
-    {
-        /* calculate the bond vector between the neighbor and this particle
-         * neighbor - particle = ( dx, dy, dz ) */
-        auto const neighbor = mPolymerSystem->host[ mNeighbors->host[i].neighborIds[ iNeighbor ] ];
-        auto dx = (int) neighbor.x - (int) mPolymerSystem->host[i].x;
-        auto dy = (int) neighbor.y - (int) mPolymerSystem->host[i].y;
-        auto dz = (int) neighbor.z - (int) mPolymerSystem->host[i].z;
-        /* with this uncommented, we can ignore if a monomer jumps over the
-         * whole box range or T_UCoordinateCuda range */
-        dx %= mBoxX; if ( dx < -int( mBoxX )/ 2 ) dx += mBoxX; if ( dx > (int) mBoxX / 2 ) dx -= mBoxX;
-        dy %= mBoxY; if ( dy < -int( mBoxY )/ 2 ) dy += mBoxY; if ( dy > (int) mBoxY / 2 ) dy -= mBoxY;
-        dz %= mBoxZ; if ( dz < -int( mBoxZ )/ 2 ) dz += mBoxZ; if ( dz > (int) mBoxZ / 2 ) dz -= mBoxZ;
-        int erroneousAxis = -1;
-        if ( ! ( -3 <= dx && dx <= 3 ) ) erroneousAxis = 0;
-        if ( ! ( -3 <= dy && dy <= 3 ) ) erroneousAxis = 1;
-        if ( ! ( -3 <= dz && dz <= 3 ) ) erroneousAxis = 2;
-	if ( ! ( dx*dx+dy*dy+dz*dz > 10 ) ) erroneousAxis = 3;
-        if ( erroneousAxis >= 0 || checkBondVector( dx, dy, dz )  )
-        {
-            std::stringstream msg;
-            msg << "[" << __FILENAME__ << "::checkSystem] ";
-            if ( erroneousAxis > 0 && erroneousAxis < 3 )
-                msg << "Invalid " << char( 'X' + erroneousAxis ) << "-Bond: ";
-	    if ( erroneousAxis == 3 )
-	        msg << "Invalid square length=" << dx*dx+dy*dy+dz*dz << ": ";
-            if ( checkBondVector( dx, dy, dz ) )
-                msg << "This particular bond is forbidden: ";
-            msg << "(" << dx << "," << dy<< "," << dz << ") between monomer "
-                << i << " at (" << mPolymerSystem->host[i].x << ","
-                                << mPolymerSystem->host[i].y << ","
-                                << mPolymerSystem->host[i].z << ") and monomer "
-                << mNeighbors->host[i].neighborIds[ iNeighbor ] << " at ("
-                << neighbor.x << "," << neighbor.y << "," << neighbor.z << ")"
-                << std::endl;
-             throw std::runtime_error( msg.str() );
-        }
-    } 
+	for ( unsigned iNeighbor = 0; iNeighbor < mNeighbors->host[i].size; ++iNeighbor )
+	{
+	    /* calculate the bond vector between the neighbor and this particle
+	    * neighbor - particle = ( dx, dy, dz ) */
+	    auto const neighbor = mPolymerSystem->host[ mNeighbors->host[i].neighborIds[ iNeighbor ] ];
+	    auto dx = (int) neighbor.x - (int) mPolymerSystem->host[i].x;
+	    auto dy = (int) neighbor.y - (int) mPolymerSystem->host[i].y;
+	    auto dz = (int) neighbor.z - (int) mPolymerSystem->host[i].z;
+	    /* with this uncommented, we can ignore if a monomer jumps over the
+	    * whole box range or T_UCoordinateCuda range */
+	    dx %= mBoxX; if ( dx < -int( mBoxX )/ 2 ) dx += mBoxX; if ( dx > (int) mBoxX / 2 ) dx -= mBoxX;
+	    dy %= mBoxY; if ( dy < -int( mBoxY )/ 2 ) dy += mBoxY; if ( dy > (int) mBoxY / 2 ) dy -= mBoxY;
+	    dz %= mBoxZ; if ( dz < -int( mBoxZ )/ 2 ) dz += mBoxZ; if ( dz > (int) mBoxZ / 2 ) dz -= mBoxZ;
+	    int erroneousAxis = -1;
+	    if ( ! ( -3 <= dx && dx <= 3 ) ) erroneousAxis = 0;
+	    if ( ! ( -3 <= dy && dy <= 3 ) ) erroneousAxis = 1;
+	    if ( ! ( -3 <= dz && dz <= 3 ) ) erroneousAxis = 2;
+	    if (  ( dx*dx+dy*dy+dz*dz > 10 ) ) erroneousAxis = 3;
+	    if ( erroneousAxis >= 0 || checkBondVector( dx, dy, dz )  )
+	    {
+		std::stringstream msg;
+		msg << "[" << __FILENAME__ << "::checkSystem] ";
+		if ( erroneousAxis > 0 && erroneousAxis < 3 )
+		    msg << "Invalid " << char( 'X' + erroneousAxis ) << "-Bond: ";
+		if ( erroneousAxis == 3 )
+		    msg << "Invalid square length=" << dx*dx+dy*dy+dz*dz << ": ";
+		if ( checkBondVector( dx, dy, dz ) )
+		    msg << "This particular bond is forbidden: ";
+		msg << "(" << dx << "," << dy<< "," << dz << ") between monomer "
+		    << i << " at (" << mPolymerSystem->host[i].x << ","
+				    << mPolymerSystem->host[i].y << ","
+				    << mPolymerSystem->host[i].z << ") and monomer "
+		    << mNeighbors->host[i].neighborIds[ iNeighbor ] << " at ("
+		    << neighbor.x << "," << neighbor.y << "," << neighbor.z << ")"
+		    << " at bond number " << iNeighbor  
+		    << std::endl;
+		throw std::runtime_error( msg.str() );
+	    }
+	} 
 }
 
 template< typename T_UCoordinateCuda >
@@ -751,35 +803,22 @@ void UpdaterGPUScBFM_AA_Connection< T_UCoordinateCuda >::checkSystem() const
     if ( ! mLog.isActive( "Check" ) )
         return;
     BaseClass::checkLatticeOccupation();
-//     BaseClass::checkBonds();
-    for (auto i = 0; i < nReactiveMonomers; i++)
+    for (auto i = 0; i < mnAllMonomers; i++)
     {
-      if (mGroupIds[mNewToOldReactiveID[i]] == 0 )
+      if (mGroupIds[i] == 0 )
       {
-	if (mNeighbors->host[i].size > crosslinkFunctionality)
+      	if (mNeighbors->host[i].size ==0 || mNeighbors->host[i].size > 2  )
 	{
 	  std::stringstream error_message;
-	  error_message << "Exceeds the maximum number of bonds of " <<crosslinkFunctionality << "for crossLinks at monomer Id "
+	  error_message << "Exceeds the maximum number of bonds of " << 2 << " for crossLinks at monomer Id "
 		        <<  i << " with " << mNeighbors->host[i].size << "\n";
 	  for (size_t j =0 ; j < mNeighbors->host[i].size; j++ )
 	    error_message <<"Neighbor[" <<j << "]= " <<  mNeighbors->host[i].neighborIds[j] << "\n";
 	  throw std::runtime_error(error_message.str());
 	}
       }
-      else if (mGroupIds[mNewToOldReactiveID[i]] == 0 )
-      { 
-	if (mNeighbors->host[i].size > 2)
-	{
-	  std::stringstream error_message;
-	  error_message << "Exceeds the maximum number of bonds of " << 2 << " for chain ends at monomer Id "
-		        <<  i << " with " << mNeighbors->host[i].size << "\n";
-	  for (size_t j =0 ; j < mNeighbors->host[i].size; j++ )
-	    error_message <<"Neighbor[" <<j << "]= " <<  mNeighbors->host[i].neighborIds[j] << "\n";
-	  throw std::runtime_error(error_message.str());
-	}
-      }
-      
     }
+    
     checkBonds();
 }
 
