@@ -131,7 +131,8 @@ public:
          * @todo predefine some values like error above ..
          */
         if ( SelectiveLogger::getInstance().isActive( mActiveFile, mActiveLevel ) )
-            std::cerr << x;
+//             std::cerr << x;
+	    std::cout << x;
         //else
         //    std::cerr << "[SelectiveLogger] " << mActiveFile << "::" << mActiveLevel << " is not activated!\n";
         return *this;

@@ -11,6 +11,7 @@
 #include <LeMonADE/core/ConfigureSystem.h>
 #include <LeMonADE/core/Ingredients.h>
 #include <LeMonADE/feature/FeatureMoleculesIO.h>
+#include <LeMonADE/feature/FeatureMoleculesIOUnsaveCheck.h>
 #include <LeMonADE/feature/FeatureAttributes.h>
 #include <LeMonADE/feature/FeatureExcludedVolumeSc.h>
 #include <LeMonADE/feature/FeatureFixedMonomers.h>
@@ -23,7 +24,9 @@
 #include <LeMonADEGPU/core/GPUScBFM_AB_Type.h>
 #include <LeMonADEGPU/utility/SelectiveLogger.hpp> // __FILENAME__
 
-
+#include "../analyzer/AnalyzerCrossLinkMSD.h"
+#include "../analyzer/AnalyzerMonomerMSD.h"
+#include "../analyzer/AnalyzerSystemMSD.h"
 
 void printHelp( void )
 {
@@ -46,6 +49,8 @@ void printHelp( void )
         << "        Save after every <integer> Monte-Carlo steps to the output file.\n"
         << "    -o, --output <file path>\n"
         << "        All intermediate steps at each save-interval will be appended to this file even if it already exists\n"
+	<< "    -a, --analyze-MSD-ON <bool 0/1>\n"
+        << "        Analyzes the MSD of the whole system, the cross links and all monomers.\n"
         << "    -v, --version\n"
         ;
     std::cout << msg.str();
@@ -64,7 +69,8 @@ int main( int argc, char ** argv )
     int      iRngToUse       = -1;
     std::string seedFileName = "";
     int      nSplitColors    = 0;
-
+    bool analyzeON=false;
+    
     try
     {
 
@@ -86,12 +92,13 @@ int main( int argc, char ** argv )
                 { "max-mcs"      , required_argument, 0, 'm' },
                 { "output"       , required_argument, 0, 'o' },
                 { "rng"          , required_argument, 0, 'r' },
+		{ "analyze"      , required_argument, 0, 'a' },
                 { "save-interval", required_argument, 0, 's' },
                 { 0, 0, 0, 0 }    // signal end of list
             };
             /* getopt_long stores the option index here. */
             int option_index = 0;
-            int c = getopt_long( argc, argv, "c:e:g:hi:m:o:r:s:", long_options, &option_index );
+            int c = getopt_long( argc, argv, "c:e:g:hi:m:o:r:a:s:", long_options, &option_index );
 
             if ( c == -1 )
                 break;
@@ -106,6 +113,7 @@ int main( int argc, char ** argv )
                 case 'm': max_mcs       = std::atol  ( optarg ); break;
                 case 'o': outfile       = std::string( optarg ); break;
                 case 'r': iRngToUse     = std::atoi  ( optarg ); break;
+		case 'a': analyzeON     = std::atoi  ( optarg ); break;
                 case 's': save_interval = std::atol  ( optarg ); break;
                     break;
                 default:
@@ -134,9 +142,11 @@ int main( int argc, char ** argv )
             FeatureLattice< uint8_t > FeatureExcludedVolume< FeatureLatticePowerOfTwo<> > )
             Features;
         */
-        typedef LOKI_TYPELIST_4( FeatureMoleculesIO, FeatureAttributes<>,
+//         typedef LOKI_TYPELIST_4( FeatureMoleculesIO, FeatureAttributes<>,
+//                                  FeatureExcludedVolumeSc<>, FeatureConnectionSc ) Features;
+        typedef LOKI_TYPELIST_4( FeatureMoleculesIOUnsaveCheck, FeatureAttributes<>,
                                  FeatureExcludedVolumeSc<>, FeatureConnectionSc ) Features;
-
+				 
         typedef ConfigureSystem< VectorInt3, Features, 8 > Config;
         typedef Ingredients< Config > Ing;
         Ing myIngredients;
@@ -162,7 +172,12 @@ int main( int argc, char ** argv )
         //here you can choose to use MoveLocalBcc instead. Careful though: no real tests made yet
         //(other than for latticeOccupation, valid bonds, frozen monomers...)
         taskmanager.addUpdater( pUpdaterGpu );
-
+	if (analyzeON)
+	{
+	  taskmanager.addAnalyzer( new AnalyzerSystemMSD   <Ing>( myIngredients, 0       ) );
+	  taskmanager.addAnalyzer( new AnalyzerMonomerMSD  <Ing>( myIngredients, 0       ) );
+	  taskmanager.addAnalyzer( new AnalyzerCrossLinkMSD<Ing>( myIngredients, 0       ) );
+	}
         taskmanager.addAnalyzer( new AnalyzerWriteBfmFile<Ing>( outfile, myIngredients ) );
 
         taskmanager.initialize();

@@ -684,7 +684,7 @@ void UpdaterGPUScBFM_AA_Connection< T_UCoordinateCuda >::runSimulationOnGPU
             }
             else 
             {
-	      for(uint32_t n=0; n < 1; n++)
+	      for(uint32_t n=0; n < 2; n++)
 	      {
 		launch_CheckReactiveSpecies(nBlocks, nThreads, iSpecies, iOffsetLatticeTmp, seed, n, AAMonomerFlag->texture );
 		if ( useCudaMemset )

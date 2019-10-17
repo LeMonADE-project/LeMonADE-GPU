@@ -309,7 +309,7 @@ void UpdaterGPUScBFM_AA_Breaking< T_UCoordinateCuda >::runSimulationOnGPU
             }
             else 
             {
-	      for(uint32_t n=0; n < 1; n++)
+	      for(uint32_t n=0; n < 2; n++)
 	      {
 
 	      
