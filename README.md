@@ -16,6 +16,13 @@ Repository with updaters, analyzers, and projects for sharing BFM stuff related 
     make -j 2 
 ````
 
+## Note
+
+Unfortunately, the repo cannot be cloned from outside over ssh. Thus please use the https. For that one has to set 
+> git config --global http.sslVerify true
+
+A disadvantage is that for every pull/push, the username and password is requested. 
+
 ## License
 
 See the LICENSE in the root directory.
