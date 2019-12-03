@@ -497,7 +497,10 @@ void UpdaterGPUScBFM_AA_Connection<T_UCoordinateCuda>::initialize()
   //initialize the flags for the reactive monomers 
   assert( AAMonomerFlag      == NULL );
   AAMonomerFlag = new MirroredTexture<uint8_t>(nReactiveMonomers,mStream);
-  
+  //initialize the texture with zeroes
+  for(auto i=0; i < nReactiveMonomers;i++)
+    AAMonomerFlag->host[i] = (uint8_t)0;
+    
   miToiNew->pop();
   //if two reactive monomers are connected, they must be sorted into different groups, therefore the move flag...
   uint32_t counter(0);
@@ -515,9 +518,9 @@ void UpdaterGPUScBFM_AA_Connection<T_UCoordinateCuda>::initialize()
 	if ( !(Diff == 1 || Diff == -1 ) )
 	{
 	  if (mNeighbors->host[ iOld ].neighborIds[j] < iOld)
-	    AAMonomerFlag->host[  miToiNew->host[mNewToOldReactiveID[i]] - mviSubGroupOffsets[ ChainEndSpecies ] ]=0;
+	    AAMonomerFlag->host[  miToiNew->host[mNewToOldReactiveID[i]] - mviSubGroupOffsets[ ChainEndSpecies ] ]= (uint8_t)0;
 	  else
-	    AAMonomerFlag->host[  miToiNew->host[mNewToOldReactiveID[i]] - mviSubGroupOffsets[ ChainEndSpecies ] ]=1;
+	    AAMonomerFlag->host[  miToiNew->host[mNewToOldReactiveID[i]] - mviSubGroupOffsets[ ChainEndSpecies ] ]= (uint8_t)1;
 	}
       }
     }
@@ -526,7 +529,7 @@ void UpdaterGPUScBFM_AA_Connection<T_UCoordinateCuda>::initialize()
   // every second reactive monomer is set to 1 
   uint32_t counter2(0);
   for(auto i=0; i < nReactiveMonomers;i++)
-    if(AAMonomerFlag->host[i] == 1 )counter2++;
+    if(AAMonomerFlag->host[i] == (uint8_t) 1 ) counter2++; //maybe i must be a uint8_t as a comparison !?
   if (counter != counter2*2)
   {
 	  std::stringstream msg;
