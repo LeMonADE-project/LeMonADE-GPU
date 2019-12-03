@@ -26,12 +26,12 @@ along with LeMonADE.  If not, see <http://www.gnu.org/licenses/>.
 --------------------------------------------------------------------------------*/
 #ifndef LEMONADE_CORE_SPACE_FILLING_CURVE
 #define LEMONADE_CORE_SPACE_FILLING_CURVE
-// #include <LeMonADEGPU/updater/UpdaterGPUScBFM_Connection.h>
+// #include <LeMonADEGPU/updater/UpdaterGPUScBFM_AB_Connection.h>
 
 #include <extern/Fundamental/BitsCompileTime.hpp>
 // #include <LeMonADEGPU/core/constants.cuh>
 #include <LeMonADEGPU/utility/cudacommon.hpp>
-// #include <LeMonADEGPU/updater/UpdaterGPUScBFM_AB_Type.h>
+// #include <LeMonADEGPU/updater/UpdaterGPUScBFM.h>
 
 /*****************************************************************************/
 /**

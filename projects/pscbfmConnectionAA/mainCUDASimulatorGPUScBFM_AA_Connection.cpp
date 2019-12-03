@@ -153,7 +153,7 @@ int main( int argc, char ** argv )
          * calls the destructor of the updater, i.e., it would unfortunately
          * be wrong to manually call the destructor or even to allocate
          * it on the heap, i.e.:
-         *   GPUScBFM_AB_Type<Ing> gpuBfm( myIngredients, save_interval, iGpuToUse );
+         *   GPUScBFM<Ing> gpuBfm( myIngredients, save_interval, iGpuToUse );
          */
         auto const pUpdaterGpu = new GPUScBFM_AA_Connection<Ing>( myIngredients, save_interval );
         pUpdaterGpu->setGpu( iGpuToUse );

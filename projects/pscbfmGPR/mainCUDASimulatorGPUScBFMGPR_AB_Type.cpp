@@ -21,7 +21,7 @@
 
 
 #include <LeMonADEGPU/core/GPUScBFMGPR_AB_Type.h>
-#include <LeMonADEGPU/core/GPUScBFM_AB_Type.h>
+#include <LeMonADEGPU/core/GPUScBFM.h>
 // #include "FeatureSystemInformation.h"
 // #include "FeatureShearForce.h"
 // #include "AnalyzerWriteBfmFileEachFrame.h"
@@ -33,7 +33,7 @@
 void printHelp( void )
 {
     std::stringstream msg;
-    msg << "usage: ./SimulatorCUDAGPUScBFM_AB_Type [options]\n"
+    msg << "usage: ./SimulatorCUDAGPUScBFM [options]\n"
         << "\n"
         << "Simple Simulator for the ScBFM with excluded volume and BondCheck splitted CL-PEG in z on GPU\n"
         << "\n"

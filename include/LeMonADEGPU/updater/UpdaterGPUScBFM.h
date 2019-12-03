@@ -1,5 +1,5 @@
 /*
- * UpdaterGPUScBFM_AB_Type.h
+ * UpdaterGPUScBFM.h
  *
  *  Created on: 27.07.2017
  *      Authors: Ron Dockhorn, Maximilian Knespel
@@ -53,7 +53,7 @@
  */
 
 template< typename T_UCoordinateCuda > 
-class UpdaterGPUScBFM_AB_Type
+class UpdaterGPUScBFM
 {
 
 public:
@@ -321,8 +321,8 @@ public:
 
  
 public:
-    UpdaterGPUScBFM_AB_Type();
-    virtual ~UpdaterGPUScBFM_AB_Type();
+    UpdaterGPUScBFM();
+    virtual ~UpdaterGPUScBFM();
     void destruct();
 
     /**

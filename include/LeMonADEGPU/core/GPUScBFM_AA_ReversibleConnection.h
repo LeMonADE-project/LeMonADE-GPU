@@ -23,7 +23,7 @@
 
 
 template< class T_IngredientsType >
-class GPUScBFM_AB_ReversibleConnection : public AbstractUpdater
+class GPUScBFM_AA_ReversibleConnection : public AbstractUpdater
 {
 public:
     typedef T_IngredientsType IngredientsType;
@@ -74,7 +74,7 @@ public:
      * @param rnSteps       Number of mcs to be executed per GPU-call
      * @param riGpuToUse    ID of the GPU to use. Default: 0
      */
-    inline GPUScBFM_AB_ReversibleConnection
+    inline GPUScBFM_AA_ReversibleConnection
     (
         T_IngredientsType & rIngredients,
         uint32_t            rnSteps     ,

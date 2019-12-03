@@ -1,23 +1,23 @@
 #ifndef LEMONADEGPU_UPDATER_GPUREAVERSIBLECONNECTION_H_
 #define LEMONADEGPU_UPDATER_GPUREAVERSIBLECONNECTION_H_
 
-#include <LeMonADEGPU/updater/UpdaterGPUScBFM_Connection.h>
+#include <LeMonADEGPU/updater/UpdaterGPUScBFM_AB_Connection.h>
 #include <LeMonADEGPU/utility/SelectiveLogger.hpp>
 #include <LeMonADEGPU/utility/cudacommon.hpp>
 #include <LeMonADEGPU/core/constants.cuh>
 #include <LeMonADEGPU/utility/GPUConnectionTracker.h>
 
 template< typename T_UCoordinateCuda >
-class UpdaterGPUScBFM_Breaking: public UpdaterGPUScBFM_Connection<T_UCoordinateCuda>
+class UpdaterGPUScBFM_AB_Breaking: public UpdaterGPUScBFM_AB_Connection<T_UCoordinateCuda>
 {
 
 public:
-    typedef UpdaterGPUScBFM_Connection< T_UCoordinateCuda> BaseClass;
-    using T_Flags            = UpdaterGPUScBFM_Connection<  uint8_t > :: T_Flags      ;
-    using T_Lattice          = UpdaterGPUScBFM_Connection< uint8_t >::T_Lattice    ;
-    using T_Coordinate       = UpdaterGPUScBFM_Connection< uint8_t >::T_Coordinate ;
-    using T_Coordinates      = UpdaterGPUScBFM_Connection< uint8_t >::T_Coordinates;
-    using T_Id               = UpdaterGPUScBFM_Connection< uint8_t >::T_Id         ;
+    typedef UpdaterGPUScBFM_AB_Connection< T_UCoordinateCuda> BaseClass;
+    using T_Flags            = UpdaterGPUScBFM_AB_Connection<  uint8_t > :: T_Flags      ;
+    using T_Lattice          = UpdaterGPUScBFM_AB_Connection< uint8_t >::T_Lattice    ;
+    using T_Coordinate       = UpdaterGPUScBFM_AB_Connection< uint8_t >::T_Coordinate ;
+    using T_Coordinates      = UpdaterGPUScBFM_AB_Connection< uint8_t >::T_Coordinates;
+    using T_Id               = UpdaterGPUScBFM_AB_Connection< uint8_t >::T_Id         ;
     using BaseClass::mLog;
 
 protected:
@@ -65,8 +65,8 @@ protected:
 
     
 public:
-    UpdaterGPUScBFM_Breaking();
-    ~UpdaterGPUScBFM_Breaking();
+    UpdaterGPUScBFM_AB_Breaking();
+    ~UpdaterGPUScBFM_AB_Breaking();
 private:
     double energy;
     MirroredVector<T_Id> * dBreaksID1;

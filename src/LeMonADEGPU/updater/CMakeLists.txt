@@ -28,17 +28,17 @@
 INCLUDE_DIRECTORIES(BEFORE ${CMAKE_CURRENT_BINARY_DIR})
 
 SET(_src
-    UpdaterGPUScBFM_AB_Type.cu
-    UpdaterGPUScBFM_Connection.cu
+    UpdaterGPUScBFM.cu
+    UpdaterGPUScBFM_AB_Connection.cu
     UpdaterGPUScBFM_AA_Connection.cu
-    UpdaterGPUScBFM_Breaking.cu
+    UpdaterGPUScBFM_AB_Breaking.cu
     UpdaterGPUScBFM_AA_Breaking.cu
    )
 FILE(_header
-     ${CMAKE_SOURCE_DIR}/include/LeMonADEGPU/updater/UpdaterGPUScBFM_AB_Type.h
-     ${CMAKE_SOURCE_DIR}/include/LeMonADEGPU/updater/UpdaterGPUScBFM_Connection.h
+     ${CMAKE_SOURCE_DIR}/include/LeMonADEGPU/updater/UpdaterGPUScBFM.h
+     ${CMAKE_SOURCE_DIR}/include/LeMonADEGPU/updater/UpdaterGPUScBFM_AB_Connection.h
      ${CMAKE_SOURCE_DIR}/include/LeMonADEGPU/updater/UpdaterGPUScBFM_AA_Connection.h
-     ${CMAKE_SOURCE_DIR}/include/LeMonADEGPU/updater/UpdaterGPUScBFM_Breaking.h
+     ${CMAKE_SOURCE_DIR}/include/LeMonADEGPU/updater/UpdaterGPUScBFM_AB_Breaking.h
      ${CMAKE_SOURCE_DIR}/include/LeMonADEGPU/updater/UpdaterGPUScBFM_AA_Breaking.h
     )
 # set_property(TARGET obj_updater PROPERTY CUDA_RESOLVE_DEVICE_SYMBOLS ON)

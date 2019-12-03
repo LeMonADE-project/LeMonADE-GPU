@@ -1,14 +1,14 @@
 
 
 /*
- * UpdaterGPUScBFM_Connection.cu
+ * UpdaterGPUScBFM_AB_Connection.cu
  *
  *  Created on: 27.06.2019
  *      Authors: Toni Mueller
  */
 
-#include <LeMonADEGPU/updater/UpdaterGPUScBFM_Connection.h>
-// #include <LeMonADEGPU/updater/UpdaterGPUScBFM_AB_Type.h>
+#include <LeMonADEGPU/updater/UpdaterGPUScBFM_AB_Connection.h>
+// #include <LeMonADEGPU/updater/UpdaterGPUScBFM.h>
 #include <LeMonADEGPU/utility/cudacommon.hpp>
 #include <LeMonADEGPU/core/Method.h>
 #include <LeMonADEGPU/utility/DeleteMirroredObject.h>
@@ -33,7 +33,7 @@
 #include <LeMonADEGPU/core/kernelConnection.h>
 #include <LeMonADEGPU/utility/GPUConnectionTracker.h>
 
-using T_Flags            = UpdaterGPUScBFM_Connection< uint8_t >::T_Flags      ;
+using T_Flags            = UpdaterGPUScBFM_AB_Connection< uint8_t >::T_Flags      ;
 __device__ __constant__ uint32_t dcCrossLinkMaxNumLinks     ;  // functionality of cross links 
 __device__ __constant__ uint32_t dcChainMaxNumLinks =  2    ;  // functionality of chain ends 
 /**
@@ -72,7 +72,7 @@ __global__ void kernelUpdateReactiveLattice
   * @details We introduce such functions because then they can be used latter on from inheritate classes..
   */
 template< typename T_UCoordinateCuda >
-void UpdaterGPUScBFM_Connection< T_UCoordinateCuda >::launch_initializeReactiveLattice(
+void UpdaterGPUScBFM_AB_Connection< T_UCoordinateCuda >::launch_initializeReactiveLattice(
   const size_t nBlocks , const size_t nThreads, const T_Id iSpecies )
 {
   mLog ( "Check" ) <<"Start filling lattice with ones:  \n" ;
@@ -124,7 +124,7 @@ __global__ void kernelResetReactiveLattice
     }
 }
 template< typename T_UCoordinateCuda >
-void UpdaterGPUScBFM_Connection< T_UCoordinateCuda >::launch_resetReactiveLattice(
+void UpdaterGPUScBFM_AB_Connection< T_UCoordinateCuda >::launch_resetReactiveLattice(
   const size_t nBlocks , const size_t nThreads, const T_Id iSpecies )
 {
 
@@ -156,7 +156,7 @@ void UpdaterGPUScBFM_Connection< T_UCoordinateCuda >::launch_resetReactiveLattic
  * @brief Counts the number of occupied lattice sites.
  */
 template< typename T_UCoordinateCuda  >
-void UpdaterGPUScBFM_Connection< T_UCoordinateCuda >::checkReactiveLatticeOccupation()  
+void UpdaterGPUScBFM_AB_Connection< T_UCoordinateCuda >::checkReactiveLatticeOccupation()  
 {
   mLatticeIds->pop(0);
   uint32_t countLatticeEntries(0);
@@ -238,7 +238,7 @@ __global__ void kernelCheckConnection
     }
 }
 template< typename T_UCoordinateCuda >
-void UpdaterGPUScBFM_Connection< T_UCoordinateCuda >::launch_CheckConnection(
+void UpdaterGPUScBFM_AB_Connection< T_UCoordinateCuda >::launch_CheckConnection(
   const size_t nBlocks, const size_t nThreads, 
   const size_t iSpeciesCrossLink, const size_t iSpeciesChain, const uint64_t seed )
 {
@@ -319,7 +319,7 @@ __global__ void kernelApplyConnection
 
 
 template< typename T_UCoordinateCuda >
-void UpdaterGPUScBFM_Connection< T_UCoordinateCuda >::launch_ApplyConnection(
+void UpdaterGPUScBFM_AB_Connection< T_UCoordinateCuda >::launch_ApplyConnection(
   const size_t nBlocks , const size_t   nThreads, 
   const size_t MonomerSpecies,
   const size_t PartnerSpecies
@@ -344,7 +344,7 @@ void UpdaterGPUScBFM_Connection< T_UCoordinateCuda >::launch_ApplyConnection(
 
 
 template< typename T_UCoordinateCuda > 
-UpdaterGPUScBFM_Connection<T_UCoordinateCuda>::UpdaterGPUScBFM_Connection():
+UpdaterGPUScBFM_AB_Connection<T_UCoordinateCuda>::UpdaterGPUScBFM_AB_Connection():
 BaseClass()                         , 
 mLatticeIds                 ( NULL ),
 mCrossLinkFlags             ( NULL ),
@@ -368,7 +368,7 @@ crosslinkFunctionality      ( 0    )
     mLog.deactivate( "Warning"   );
 };
 template< typename T_UCoordinateCuda > 
-void UpdaterGPUScBFM_Connection<T_UCoordinateCuda>::destruct(){
+void UpdaterGPUScBFM_AB_Connection<T_UCoordinateCuda>::destruct(){
       
     DeleteMirroredObject deletePointer;
     deletePointer( mLatticeIds       , "mLatticeIds"        );
@@ -383,13 +383,13 @@ void UpdaterGPUScBFM_Connection<T_UCoordinateCuda>::destruct(){
     }
 }
 template< typename T_UCoordinateCuda > 
-UpdaterGPUScBFM_Connection<T_UCoordinateCuda>::~UpdaterGPUScBFM_Connection()
+UpdaterGPUScBFM_AB_Connection<T_UCoordinateCuda>::~UpdaterGPUScBFM_AB_Connection()
 {
   this->destruct();    
 }
 
 template< typename T_UCoordinateCuda >
-void UpdaterGPUScBFM_Connection<T_UCoordinateCuda>::cleanup()
+void UpdaterGPUScBFM_AB_Connection<T_UCoordinateCuda>::cleanup()
 {
     BaseClass::destruct();
     this->destruct();    
@@ -399,7 +399,7 @@ void UpdaterGPUScBFM_Connection<T_UCoordinateCuda>::cleanup()
 }
 
 template < typename T_UCoordinateCuda >
-void UpdaterGPUScBFM_Connection<T_UCoordinateCuda>::initialize()
+void UpdaterGPUScBFM_AB_Connection<T_UCoordinateCuda>::initialize()
 {
   
 
@@ -463,7 +463,7 @@ void UpdaterGPUScBFM_Connection<T_UCoordinateCuda>::initialize()
 }
 
 template< typename T_UCoordinateCuda >
-void UpdaterGPUScBFM_Connection<T_UCoordinateCuda>::setNrOfReactiveMonomers( T_Id nReactiveMonomers_ , T_Id nReactiveMonomersCrossLinks_, T_Id nReactiveMonomersChains_ )
+void UpdaterGPUScBFM_AB_Connection<T_UCoordinateCuda>::setNrOfReactiveMonomers( T_Id nReactiveMonomers_ , T_Id nReactiveMonomersCrossLinks_, T_Id nReactiveMonomersChains_ )
 {
     if ( nReactiveMonomers != 0 || nReactiveMonomersCrossLinks != 0 || nReactiveMonomersChains != 0 )
     {
@@ -485,7 +485,7 @@ void UpdaterGPUScBFM_Connection<T_UCoordinateCuda>::setNrOfReactiveMonomers( T_I
 };
 
 template< typename T_UCoordinateCuda >
-void UpdaterGPUScBFM_Connection<T_UCoordinateCuda>::setReactiveGroup(T_Id monID_, bool reactivity_, T_MaxNumLinks maxNumLinks_){
+void UpdaterGPUScBFM_AB_Connection<T_UCoordinateCuda>::setReactiveGroup(T_Id monID_, bool reactivity_, T_MaxNumLinks maxNumLinks_){
 
   
   //fill  mMonomerReactivity
@@ -501,7 +501,7 @@ void UpdaterGPUScBFM_Connection<T_UCoordinateCuda>::setReactiveGroup(T_Id monID_
 }
 
 template< typename T_UCoordinateCuda >
-void UpdaterGPUScBFM_Connection<T_UCoordinateCuda>::initializeReactiveLattice()
+void UpdaterGPUScBFM_AB_Connection<T_UCoordinateCuda>::initializeReactiveLattice()
 {
  if ( mLatticeIds != NULL )
     {
@@ -519,7 +519,7 @@ void UpdaterGPUScBFM_Connection<T_UCoordinateCuda>::initializeReactiveLattice()
 
 
 template< typename T_UCoordinateCuda  >
-void UpdaterGPUScBFM_Connection< T_UCoordinateCuda >::runSimulationOnGPU
+void UpdaterGPUScBFM_AB_Connection< T_UCoordinateCuda >::runSimulationOnGPU
 (
     uint32_t const nMonteCarloSteps
 )
@@ -637,16 +637,16 @@ void UpdaterGPUScBFM_Connection< T_UCoordinateCuda >::runSimulationOnGPU
 }
 
 template< typename T_UCoordinateCuda >
-void UpdaterGPUScBFM_Connection< T_UCoordinateCuda >::doCopyBack()
+void UpdaterGPUScBFM_AB_Connection< T_UCoordinateCuda >::doCopyBack()
 {
-    mLog( "Stats" ) << "UpdaterGPUScBFM_Connection< T_UCoordinateCuda >::doCopyBackConnectivity() \n";
+    mLog( "Stats" ) << "UpdaterGPUScBFM_AB_Connection< T_UCoordinateCuda >::doCopyBackConnectivity() \n";
     doCopyBackMonomerPositions();
-    mLog( "Stats" ) << "UpdaterGPUScBFM_Connection< T_UCoordinateCuda >::doCopyBackConnectivity() \n";
+    mLog( "Stats" ) << "UpdaterGPUScBFM_AB_Connection< T_UCoordinateCuda >::doCopyBackConnectivity() \n";
     doCopyBackConnectivity(); // -> need to write a kernel for that. its pretty slow!!! (but works :-) )
 }
 
 template< typename T_UCoordinateCuda >
-void UpdaterGPUScBFM_Connection< T_UCoordinateCuda >::checkBonds() const
+void UpdaterGPUScBFM_AB_Connection< T_UCoordinateCuda >::checkBonds() const
 { 
     /**
      * Check bonds i.e. that |dx|<=3 and whether it is allowed by the given
@@ -694,7 +694,7 @@ void UpdaterGPUScBFM_Connection< T_UCoordinateCuda >::checkBonds() const
 }
 
 template< typename T_UCoordinateCuda >
-void UpdaterGPUScBFM_Connection< T_UCoordinateCuda >::checkSystem() const
+void UpdaterGPUScBFM_AB_Connection< T_UCoordinateCuda >::checkSystem() const
 {
     if ( ! mLog.isActive( "Check" ) )
         return;
@@ -731,8 +731,8 @@ void UpdaterGPUScBFM_Connection< T_UCoordinateCuda >::checkSystem() const
     checkBonds();
 }
 
-template class UpdaterGPUScBFM_Connection< uint8_t  >;
-template class UpdaterGPUScBFM_Connection< uint16_t >;
-template class UpdaterGPUScBFM_Connection< uint32_t >;
-template class UpdaterGPUScBFM_Connection<  int16_t >;
-template class UpdaterGPUScBFM_Connection<  int32_t >;
+template class UpdaterGPUScBFM_AB_Connection< uint8_t  >;
+template class UpdaterGPUScBFM_AB_Connection< uint16_t >;
+template class UpdaterGPUScBFM_AB_Connection< uint32_t >;
+template class UpdaterGPUScBFM_AB_Connection<  int16_t >;
+template class UpdaterGPUScBFM_AB_Connection<  int32_t >;

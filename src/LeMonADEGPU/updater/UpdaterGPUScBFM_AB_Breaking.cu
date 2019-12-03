@@ -1,14 +1,14 @@
 
 
 /*
- * UpdaterGPUScBFM_Breaking.cu
+ * UpdaterGPUScBFM_AB_Breaking.cu
  *
  *  Created on: 27.06.2019
  *      Authors: Toni Mueller
  */
 
-#include <LeMonADEGPU/updater/UpdaterGPUScBFM_Breaking.h>
-// #include <LeMonADEGPU/updater/UpdaterGPUScBFM_AB_Type.h>
+#include <LeMonADEGPU/updater/UpdaterGPUScBFM_AB_Breaking.h>
+// #include <LeMonADEGPU/updater/UpdaterGPUScBFM.h>
 #include <LeMonADEGPU/utility/cudacommon.hpp>
 #include <LeMonADEGPU/core/Method.h>
 #include <LeMonADEGPU/utility/DeleteMirroredObject.h>
@@ -92,7 +92,7 @@ __global__ void kernel_BreakConnections
 }
 
 template< typename T_UCoordinateCuda > 
-void UpdaterGPUScBFM_Breaking<T_UCoordinateCuda>::launch_BreakConnections(
+void UpdaterGPUScBFM_AB_Breaking<T_UCoordinateCuda>::launch_BreakConnections(
 	  const size_t nBlocks, const size_t nThreads, 
 	  const size_t iSpeciesCrossLink, const size_t iSpeciesChain, 
 	  const uint64_t seed)
@@ -120,7 +120,7 @@ void UpdaterGPUScBFM_Breaking<T_UCoordinateCuda>::launch_BreakConnections(
  
 }
 template< typename T_UCoordinateCuda > 
-UpdaterGPUScBFM_Breaking<T_UCoordinateCuda>::UpdaterGPUScBFM_Breaking():
+UpdaterGPUScBFM_AB_Breaking<T_UCoordinateCuda>::UpdaterGPUScBFM_AB_Breaking():
 BaseClass()  ,
 dBreaksID1(NULL),
 dBreaksID2(NULL)
@@ -139,7 +139,7 @@ dBreaksID2(NULL)
     mLog.deactivate( "Warning"   );
 };
 template< typename T_UCoordinateCuda > 
-void UpdaterGPUScBFM_Breaking<T_UCoordinateCuda>::destruct(){
+void UpdaterGPUScBFM_AB_Breaking<T_UCoordinateCuda>::destruct(){
       
     DeleteMirroredObject deletePointer;
     deletePointer( dBreaksID1       , "dBreaksID1"        );
@@ -153,13 +153,13 @@ void UpdaterGPUScBFM_Breaking<T_UCoordinateCuda>::destruct(){
     }
 }
 template< typename T_UCoordinateCuda > 
-UpdaterGPUScBFM_Breaking<T_UCoordinateCuda>::~UpdaterGPUScBFM_Breaking()
+UpdaterGPUScBFM_AB_Breaking<T_UCoordinateCuda>::~UpdaterGPUScBFM_AB_Breaking()
 {
   this->destruct();    
 }
 
 template< typename T_UCoordinateCuda >
-void UpdaterGPUScBFM_Breaking<T_UCoordinateCuda>::cleanup()
+void UpdaterGPUScBFM_AB_Breaking<T_UCoordinateCuda>::cleanup()
 {
     BaseClass::destruct();
     this->destruct();    
@@ -169,7 +169,7 @@ void UpdaterGPUScBFM_Breaking<T_UCoordinateCuda>::cleanup()
 }
 
 template < typename T_UCoordinateCuda >
-void UpdaterGPUScBFM_Breaking<T_UCoordinateCuda>::initialize()
+void UpdaterGPUScBFM_AB_Breaking<T_UCoordinateCuda>::initialize()
 {
   BaseClass::initialize();
   
@@ -182,11 +182,11 @@ void UpdaterGPUScBFM_Breaking<T_UCoordinateCuda>::initialize()
 }
 
 template< typename T_UCoordinateCuda  >
-void UpdaterGPUScBFM_Breaking< T_UCoordinateCuda >::setBondEnergy(double energy_){energy=energy_;}
+void UpdaterGPUScBFM_AB_Breaking< T_UCoordinateCuda >::setBondEnergy(double energy_){energy=energy_;}
 
 
 template< typename T_UCoordinateCuda  >
-void UpdaterGPUScBFM_Breaking< T_UCoordinateCuda >::runSimulationOnGPU
+void UpdaterGPUScBFM_AB_Breaking< T_UCoordinateCuda >::runSimulationOnGPU
 (
     uint32_t const nMonteCarloSteps
 )
@@ -308,10 +308,10 @@ void UpdaterGPUScBFM_Breaking< T_UCoordinateCuda >::runSimulationOnGPU
 }
 
 
-template class UpdaterGPUScBFM_Breaking< uint8_t  >;
-template class UpdaterGPUScBFM_Breaking< uint16_t >;
-template class UpdaterGPUScBFM_Breaking< uint32_t >;
-template class UpdaterGPUScBFM_Breaking<  int16_t >;
-template class UpdaterGPUScBFM_Breaking<  int32_t >;
+template class UpdaterGPUScBFM_AB_Breaking< uint8_t  >;
+template class UpdaterGPUScBFM_AB_Breaking< uint16_t >;
+template class UpdaterGPUScBFM_AB_Breaking< uint32_t >;
+template class UpdaterGPUScBFM_AB_Breaking<  int16_t >;
+template class UpdaterGPUScBFM_AB_Breaking<  int32_t >;
 
 

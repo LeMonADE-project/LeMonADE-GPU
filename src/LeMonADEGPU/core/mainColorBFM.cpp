@@ -24,7 +24,7 @@
 #include <LeMonADE/updater/UpdaterReadBfmFile.h>
 #include <LeMonADE/updater/UpdaterSimpleSimulator.h>
 
-#include <LeMonADEGPU/core/GPUScBFM_AB_Type.h>
+#include <LeMonADEGPU/core/GPUScBFM.h>
 #include <LeMonADEGPU/utility/graphColoring.h>
 #include <LeMonADEGPU/utility/SelectiveLogger.hpp> // __FILENAME__
 
@@ -352,7 +352,7 @@ int main( int argc, char ** argv )
  *     Number of colors needed for the polymer system: 4
  *     Color usage frequencies: A: 279x (44.9275%), B: 267x (42.9952%), C: 65x (10.467%), D: 10x (1.61031%)
  *
- * make && ./SimulatorCUDAGPUScBFM_AB_Type -i ../tests/coloring-test-Hydrogel_HEP_3__PEG_3_NStar_117__NoPerXYZ64_Connected.bfm -m 1000 -s 1000 -o ./result.bfm -e ../tests/resultNormPscBFM.seeds -g 1
+ * make && ./SimulatorCUDAGPUScBFM -i ../tests/coloring-test-Hydrogel_HEP_3__PEG_3_NStar_117__NoPerXYZ64_Connected.bfm -m 1000 -s 1000 -o ./result.bfm -e ../tests/resultNormPscBFM.seeds -g 1
  *     Maximum number of neighbors per monomer: 5
  *     Number of isolated subgraphs / polymers: 1
  *     Number of colors needed for the polymer system: 4

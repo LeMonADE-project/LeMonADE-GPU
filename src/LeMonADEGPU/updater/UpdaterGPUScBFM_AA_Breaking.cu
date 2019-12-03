@@ -8,7 +8,7 @@
  */
 
 #include <LeMonADEGPU/updater/UpdaterGPUScBFM_AA_Breaking.h>
-// #include <LeMonADEGPU/updater/UpdaterGPUScBFM_AB_Type.h>
+// #include <LeMonADEGPU/updater/UpdaterGPUScBFM.h>
 #include <LeMonADEGPU/utility/cudacommon.hpp>
 #include <LeMonADEGPU/core/Method.h>
 #include <LeMonADEGPU/utility/DeleteMirroredObject.h>
