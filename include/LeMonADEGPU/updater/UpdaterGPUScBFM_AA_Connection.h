@@ -2,7 +2,7 @@
 
 #define LEMONADEGPU_UPDATER_GPUCONNECTION_H_
 
-#include <LeMonADEGPU/updater/UpdaterGPUScBFM_AB_Type.h>
+#include <LeMonADEGPU/updater/UpdaterGPUScBFM.h>
 #include <LeMonADEGPU/utility/SelectiveLogger.hpp>
 #include <LeMonADEGPU/utility/cudacommon.hpp>
 #include <LeMonADEGPU/core/constants.cuh>
@@ -17,17 +17,17 @@ struct D_MonomerReactivity {
 
 
 template< typename T_UCoordinateCuda >
-class UpdaterGPUScBFM_AA_Connection: public UpdaterGPUScBFM_AB_Type<T_UCoordinateCuda>
+class UpdaterGPUScBFM_AA_Connection: public UpdaterGPUScBFM<T_UCoordinateCuda>
 {
 
 public:
-    typedef UpdaterGPUScBFM_AB_Type< T_UCoordinateCuda> BaseClass;
-    using T_Flags            = UpdaterGPUScBFM_AB_Type<  uint8_t > :: T_Flags   ;
-    using T_Lattice          = UpdaterGPUScBFM_AB_Type< uint8_t >::T_Lattice    ;
-    using T_Coordinate       = UpdaterGPUScBFM_AB_Type< uint8_t >::T_Coordinate ;
-    using T_Coordinates      = UpdaterGPUScBFM_AB_Type< uint8_t >::T_Coordinates;
-    using T_Id               = UpdaterGPUScBFM_AB_Type< uint8_t >::T_Id         ;
-    using T_Color            = UpdaterGPUScBFM_AB_Type< uint8_t >::T_Color      ;
+    typedef UpdaterGPUScBFM< T_UCoordinateCuda> BaseClass;
+    using T_Flags            = UpdaterGPUScBFM<  uint8_t > :: T_Flags   ;
+    using T_Lattice          = UpdaterGPUScBFM< uint8_t >::T_Lattice    ;
+    using T_Coordinate       = UpdaterGPUScBFM< uint8_t >::T_Coordinate ;
+    using T_Coordinates      = UpdaterGPUScBFM< uint8_t >::T_Coordinates;
+    using T_Id               = UpdaterGPUScBFM< uint8_t >::T_Id         ;
+    using T_Color            = UpdaterGPUScBFM< uint8_t >::T_Color      ;
     using T_MaxNumLinks = D_MonomerReactivity::T_MaxNumLinks;
     typedef uint32_t T_ReactiveLattice;
     using BaseClass::mLog;

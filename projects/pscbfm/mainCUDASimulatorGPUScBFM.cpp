@@ -21,7 +21,7 @@
 #include <LeMonADE/feature/FeatureConnectionSc.h>
 
 
-#include <LeMonADEGPU/core/GPUScBFM_AB_Type.h>
+#include <LeMonADEGPU/core/GPUScBFM.h>
 #include <LeMonADEGPU/utility/SelectiveLogger.hpp> // __FILENAME__
 
 #include "../analyzer/AnalyzerCrossLinkMSD.h"
@@ -31,7 +31,7 @@
 void printHelp( void )
 {
     std::stringstream msg;
-    msg << "usage: ./SimulatorCUDAGPUScBFM_AB_Type [options]\n"
+    msg << "usage: ./SimulatorCUDAGPUScBFM [options]\n"
         << "\n"
         << "Simple Simulator for the ScBFM with excluded volume and BondCheck splitted CL-PEG in z on GPU\n"
         << "\n"
@@ -157,9 +157,9 @@ int main( int argc, char ** argv )
          * calls the destructor of the updater, i.e., it would unfortunately
          * be wrong to manually call the destructor or even to allocate
          * it on the heap, i.e.:
-         *   GPUScBFM_AB_Type<Ing> gpuBfm( myIngredients, save_interval, iGpuToUse );
+         *   GPUScBFM<Ing> gpuBfm( myIngredients, save_interval, iGpuToUse );
          */
-        auto const pUpdaterGpu = new GPUScBFM_AB_Type<Ing>( myIngredients, save_interval );
+        auto const pUpdaterGpu = new GPUScBFM<Ing>( myIngredients, save_interval );
         pUpdaterGpu->setGpu( iGpuToUse );
         pUpdaterGpu->activateLogging( "Error"     );
         //pUpdaterGpu->activateLogging( "Stats"      );

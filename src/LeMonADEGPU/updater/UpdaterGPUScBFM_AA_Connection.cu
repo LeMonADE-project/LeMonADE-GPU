@@ -8,7 +8,7 @@
  */
 
 #include <LeMonADEGPU/updater/UpdaterGPUScBFM_AA_Connection.h>
-// #include <LeMonADEGPU/updater/UpdaterGPUScBFM_AB_Type.h>
+// #include <LeMonADEGPU/updater/UpdaterGPUScBFM.h>
 #include <LeMonADEGPU/utility/cudacommon.hpp>
 #include <LeMonADEGPU/core/Method.h>
 #include <LeMonADEGPU/utility/DeleteMirroredObject.h>
@@ -34,8 +34,8 @@
 #include <LeMonADEGPU/utility/GPUConnectionTracker.h>
 
 using T_Flags            = UpdaterGPUScBFM_AA_Connection< uint8_t >::T_Flags      ;
-using T_Lattice          = UpdaterGPUScBFM_AB_Type< uint8_t >::T_Lattice    ;
-using getBitPackedTextureFunction = UpdaterGPUScBFM_AB_Type<uint8_t>::getBitPackedTextureFunction;
+using T_Lattice          = UpdaterGPUScBFM< uint8_t >::T_Lattice    ;
+using getBitPackedTextureFunction = UpdaterGPUScBFM<uint8_t>::getBitPackedTextureFunction;
 __device__ getBitPackedTextureFunction functor = &BitPacking::bitPackedTextureGetStandard;
 __device__ __constant__ uint32_t dcChainMaxNumLinks =  2    ;  // functionality of chain ends 
 /**

@@ -38,7 +38,7 @@ link_directories (${LEMONADE_LIBRARY_DIR})
 
 
 include_directories ("${LEMONADEGPU_DIR}/include/")
-cuda_add_executable( mainSimulator mainCUDASimulatorGPUScBFM_AB_Type.cpp )
+cuda_add_executable( mainSimulator mainCUDASimulatorGPUScBFM.cpp )
 # target_link_libraries( mainSimulator cuda LeMonADEGPU LeMonADE )
 
 # This condition was in principle copied from LeMonADEGPU/src/CMakeLists.txt,
