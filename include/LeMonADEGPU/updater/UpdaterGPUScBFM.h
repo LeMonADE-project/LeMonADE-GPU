@@ -83,7 +83,10 @@ public:
     using T_Coordinate       = int32_t; // int64_t // should be signed!
     /**
      * @brief type for the coordinate for the device 
-     * @todo choose automatically depending on box size -> template parameter -> need to template all kernels and then basically make a large if for int8 vs. int16 limiting box size to 65536 which is more than enough at least for 3D ...
+     * @todo choose automatically depending on box size -> 
+     * 	     template parameter -> need to template all kernels and then 
+     * 	     basically make a large if for int8 vs. int16 limiting box size 
+     * 	     to 65536 which is more than enough at least for 3D ...
      */
     using T_CoordinateCuda   = typename std::make_signed< int8_t >::type; // int16_t, but only if box size <= 256 :S 
     //type for vector of coordinates on host 
@@ -275,15 +278,16 @@ protected:
     MirroredVector < T_Id    > * mNeighborsSorted;
     MirroredVector < uint8_t > * mNeighborsSortedSizes;
     AlignedMatrices< T_Id    >   mNeighborsSortedInfo;
-    /**
-     * Difficult to merge this with mNeighbors as MirroredVector does not
-     * support too complicated data structures, i.e. we can't use MonomerEdges
-     * which in turn means we would have to do everything manually, especially
-     * changing the call to the graphColoring would be difficult and so on ...
-     * This is needed to recalculate mNeighborsSorted on GPU after resorting
-     * the monomers!
-     */
-    MirroredVector < T_Id   > * mNeighborsUnsorted;
+//     /**
+//      * Difficult to merge this with mNeighbors as MirroredVector does not
+//      * support too complicated data structures, i.e. we can't use MonomerEdges
+//      * which in turn means we would have to do everything manually, especially
+//      * changing the call to the graphColoring would be difficult and so on ...
+//      * This is needed to recalculate mNeighborsSorted on GPU after resorting
+//      * the monomers!
+//      */
+//     MirroredVector < T_Id   > * mNeighborsUnsorted;
+//     seems not to be used anymore -_o
 
     RandomNumberGenerators randomNumbers;
 
@@ -309,7 +313,7 @@ protected:
     T_BoxSize mBoxZM1   ;
     T_BoxSize mBoxXLog2 ;
     T_BoxSize mBoxXYLog2;
-    uint32_t mGlobalIterator; // used for the RNG, equal to mAge + iStep * nSpecies + iSubstep
+    uint32_t hGlobalIterator; // used for the RNG, equal to mAge + iStep * nSpecies + iSubstep
     int            miGpuToUse;
     cudaDeviceProp mCudaProps;
     uint8_t mnSplitColors;
@@ -377,16 +381,18 @@ public:
     void copyBondSet          ( int dx, int dy, int dz, bool bondForbidden );
     void setNrOfAllMonomers   ( T_Id nAllMonomers );
     void setAutoColoring      ( bool bSetAutoColoring_);
-    void setAttribute         ( T_Id i, int32_t attribute ); // this is to be NOT the coloring as needed for parallelizing the BFM, it is to be used for additional e.g. physical attributes like actual chemical types
+    void setAttributeTag      ( T_Id i, int32_t attribute ); // this is to be NOT the coloring as needed for parallelizing the BFM, it is to be used for additional e.g. physical attributes like actual chemical types
     void setMonomerCoordinates( T_Id i, T_Coordinate x, T_Coordinate y, T_Coordinate z );
     void setConnectivity      ( T_Id monoidx1, T_Id monoidx2 );
     void setLatticeSize       ( T_BoxSize boxX, T_BoxSize boxY, T_BoxSize boxZ );
     /* how often to double the initial number of colors */
     inline void setSplitColors( uint8_t const rnSplitColors ){ mnSplitColors = rnSplitColors; };
+    void runSimulationOnGPU  ( uint32_t nrMCS_per_Call );
+    
+    uint32_t getNrOfAllMonomers(); 
+    int32_t  getAttributeTag(T_Id i);
     uint32_t getNumLinks(uint32_t MonID);
     uint32_t getNeighborIdx(uint32_t MonID, uint32_t BondID);
-    void runSimulationOnGPU  ( uint32_t nrMCS_per_Call );
-
     /* using T_Coordinate with int64_t throws error as LeMonADE itself is limited to 32 bit positions! */
     int32_t getMonomerPositionInX( T_Id i );
     int32_t getMonomerPositionInY( T_Id i );

@@ -70,7 +70,7 @@ protected:
     using BaseClass::mNeighborsSortedInfo;
     using BaseClass::mGroupIds;
     using BaseClass::mNeighborsSortedSizes;
-    using BaseClass::mGlobalIterator;
+    using BaseClass::hGlobalIterator;
     using BaseClass::doCopyBackMonomerPositions;
     using BaseClass::doCopyBackConnectivity;
 

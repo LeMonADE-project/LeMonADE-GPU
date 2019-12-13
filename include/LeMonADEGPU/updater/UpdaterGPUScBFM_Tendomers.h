@@ -1,24 +1,26 @@
-#ifndef LEMONADEGPU_UPDATER_GPUCONNECTION_H_
+#ifndef LEMONADEGPU_UPDATER_GPUTENDOMER_H_
 
-#define LEMONADEGPU_UPDATER_GPUCONNECTION_H_
+#define LEMONADEGPU_UPDATER_GPUTENDOMER_H_
 
-#include <LeMonADEGPU/updater/UpdaterGPUScBFM_AB_Type.h>
+#include <LeMonADEGPU/updater/UpdaterGPUScBFM.h>
 #include <LeMonADEGPU/utility/SelectiveLogger.hpp>
 #include <LeMonADEGPU/utility/cudacommon.hpp>
 #include <LeMonADEGPU/core/constants.cuh>
 
 template< typename T_UCoordinateCuda >
-class UpdaterGPUScBFM_Tendomers: public UpdaterGPUScBFM_AB_Type<T_UCoordinateCuda>
+class UpdaterGPUScBFM_Tendomers: public UpdaterGPUScBFM<T_UCoordinateCuda>
 {
 
 public:
-    typedef UpdaterGPUScBFM_AB_Type< T_UCoordinateCuda> BaseClass;
-    using T_Flags            = UpdaterGPUScBFM_AB_Type<  uint8_t > :: T_Flags   ;
-    using T_Lattice          = UpdaterGPUScBFM_AB_Type< uint8_t >::T_Lattice    ;
-    using T_Coordinate       = UpdaterGPUScBFM_AB_Type< uint8_t >::T_Coordinate ;
-    using T_Coordinates      = UpdaterGPUScBFM_AB_Type< uint8_t >::T_Coordinates;
-    using T_Id               = UpdaterGPUScBFM_AB_Type< uint8_t >::T_Id         ;
-    using T_Color            = UpdaterGPUScBFM_AB_Type< uint8_t >::T_Color      ;
+    typedef UpdaterGPUScBFM< T_UCoordinateCuda> BaseClass;
+    using T_Flags            = UpdaterGPUScBFM<  uint8_t > :: T_Flags   ;
+    using T_Lattice          = UpdaterGPUScBFM< uint8_t >::T_Lattice    ;
+    using T_Coordinate       = UpdaterGPUScBFM< uint8_t >::T_Coordinate ;
+    using T_Coordinates      = UpdaterGPUScBFM< uint8_t >::T_Coordinates;
+    using T_Id               = UpdaterGPUScBFM< uint8_t >::T_Id         ;
+    using T_Color            = UpdaterGPUScBFM< uint8_t >::T_Color      ;
+    using T_Label            = uint8_t                                  ;
+    using T_RingCoordinates  = int2; // this cannot be used on the CPU,or ? 
     using BaseClass::mLog;
 
 protected:
@@ -62,12 +64,13 @@ protected:
     using BaseClass::mNeighborsSortedInfo;
     using BaseClass::mGroupIds;
     using BaseClass::mNeighborsSortedSizes;
-    using BaseClass::mGlobalIterator;
+    using BaseClass::hGlobalIterator;
     using BaseClass::doCopyBackMonomerPositions;
     using BaseClass::doCopyBackConnectivity;	
     using BaseClass::mPolymerFlags;
     using BaseClass::mLatticeOut;
     using BaseClass::boxCheck;
+//     using BaseClass::getNrOfAllMonomers;
 
 //     //flag to decide which monomer of the AA bond pair should move in which subsubstep
 //     MirroredTexture< uint8_t > * AAMonomerFlag;
@@ -77,17 +80,42 @@ public:
     ~UpdaterGPUScBFM_Tendomers();
 private:
   
-    //create a lattice with the ids on the edges
-    MirroredTexture< T_Id > * mLatticeIds;
-    uint32_t nSegmentsPerChain;
-    uint32_t nTendomers;
+
+    uint32_t nMonomersPerChain, nTendomers, nCrossLinks, nLabelsPerTendomerArm, functionality, nLabels;
+//     struct LabelInformation { size_t offset, nElements ; };
+
+    std::vector< uint32_t > labelOffset;
+    std::vector< uint32_t > nLabelsPerSpecies;
+//     uint32_t LabelIdOffset;
+    //maybe this could be a normal std::vector....
+//     MirroredVector<T_Label> * mMonomerLabel; 
+    std::vector<uint32_t> vMonomerLabel;
+    //ring id is the vector index and the value is the label ( usually for the tendomer its 6 and 7)
+    std::vector<uint32_t> vLabelValue;
+    
+    // stores if it is occupied by a label and the ID of the corresponding chain monomers 
+    MirroredVector< T_Id > * mLatticeLabel; 
+    // https://stackoverflow.com/questions/19777910/how-make-int2-is-working
+    MirroredVector< T_RingCoordinates > * mLabelPosition;
+    //connectivity of the slide ring 
+    MirroredVector< T_RingCoordinates > * mLabelBonds;
 
 public:
   
-    void set
+    //setter functions 
+    void    setNTendomers             ( uint32_t nTendomers_            ); 
+    void    setNumCrossLinkers        ( uint32_t nCrossLinks_           );
+    void    setNumMonomersPerChain    ( uint32_t nMonomersPerChain_     );
+    void    setNumLabelsPerTendomerArm( uint32_t nLabelsPerTendomerArm_ );
+    void    setFunctionality          ( uint32_t functionality_         );
+    void    setLabel                  ( uint32_t ID_, uint32_t label_);
+    int32_t getLabel                  ( uint32_t ID_ );
+    
     void initialize();
     void runSimulationOnGPU(const uint32_t nSteps );
+    void launch_MoveLabel(const size_t nBlocks, const size_t nThreads, const size_t iSpecies, const uint64_t seed);
     void doCopyBack();
+    void doCopyBackLabels();
     void checkSystem() const  ;
     void checkBonds() const ;
     void cleanup();

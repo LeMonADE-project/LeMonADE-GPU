@@ -21,7 +21,7 @@
 #include <LeMonADE/feature/FeatureConnectionSc.h>
 
 
-#include <LeMonADEGPU/core/GPUScBFM_AB_Type.h>
+#include <LeMonADEGPU/core/GPUScBFM_Tendomers.h>
 #include <LeMonADEGPU/utility/SelectiveLogger.hpp> // __FILENAME__
 
 
@@ -135,8 +135,8 @@ int main( int argc, char ** argv )
         */
 //         typedef LOKI_TYPELIST_4( FeatureMoleculesIO, FeatureAttributes<>,
 //                                  FeatureExcludedVolumeSc<>, FeatureConnectionSc ) Features;
-        typedef LOKI_TYPELIST_4( FeatureMoleculesIOUnsaveCheck, FeatureAttributes<>,
-                                 FeatureExcludedVolumeSc<>, FeatureConnectionSc ) Features;
+        typedef LOKI_TYPELIST_5( FeatureMoleculesIOUnsaveCheck, FeatureAttributes<>,
+                                 FeatureExcludedVolumeSc<>, FeatureConnectionSc, FeatureLabel ) Features;
 				 
         typedef ConfigureSystem< VectorInt3, Features, 8 > Config;
         typedef Ingredients< Config > Ing;
@@ -150,13 +150,11 @@ int main( int argc, char ** argv )
          * it on the heap, i.e.:
          *   GPUScBFM_AB_Type<Ing> gpuBfm( myIngredients, save_interval, iGpuToUse );
          */
-        auto const pUpdaterGpu = new GPUScBFM_AB_Type<Ing>( myIngredients, save_interval );
+        auto const pUpdaterGpu = new GPUScBFM_Tendomers<Ing>( myIngredients, save_interval );
         pUpdaterGpu->setGpu( iGpuToUse );
         pUpdaterGpu->activateLogging( "Error"     );
-        //pUpdaterGpu->activateLogging( "Stats"      );
+        pUpdaterGpu->activateLogging( "Stats"      );
         pUpdaterGpu->activateLogging( "Info"      );
-        if ( nSplitColors > 0 )
-            pUpdaterGpu->setSplitColors( nSplitColors );
 
         TaskManager taskmanager;
         taskmanager.addUpdater( new UpdaterReadBfmFile<Ing>( infile, myIngredients,UpdaterReadBfmFile<Ing>::READ_LAST_CONFIG_SAVE ), 0 );
@@ -165,8 +163,8 @@ int main( int argc, char ** argv )
         taskmanager.addUpdater( pUpdaterGpu );
 // 	if (analyzeON)
 // 	{
-// 	  taskmanager.addAnalyzer( new AnalyzerSystemMSD   <Ing>( myIngredients, 0       ) );
-// 	  taskmanager.addAnalyzer( new AnalyzerMonomerMSD  <Ing>( myIngredients, 0       ) );
+	  taskmanager.addAnalyzer( new AnalyzerSystemMSD   <Ing>( myIngredients, 0       ) );
+	  taskmanager.addAnalyzer( new AnalyzerMonomerMSD  <Ing>( myIngredients, 0       ) );
 // 	  taskmanager.addAnalyzer( new AnalyzerCrossLinkMSD<Ing>( myIngredients, 0       ) );
 // 	}
         taskmanager.addAnalyzer( new AnalyzerWriteBfmFile<Ing>( outfile, myIngredients ) );

@@ -139,30 +139,25 @@ public:
         mUpdaterGpu.setGpu( miGpuToUse );
         if ( mSetStepsBetweenSortings )
             mUpdaterGpu.setStepsBetweenSortings( mnStepsBetweenSortings );
-        mLog( "Info" ) << "[" << __FILENAME__ << "::initialize] mUpdaterGpu.setPeriodicity\n";
-        /* Forward needed parameters to the GPU updater */
         mUpdaterGpu.setAge( mIngredients.modifyMolecules().getAge() );
-        mUpdaterGpu.setPeriodicity( mIngredients.isPeriodicX(),
-                                    mIngredients.isPeriodicY(),
-                                    mIngredients.isPeriodicZ() );
+	
+	mLog( "Info" ) << "[" << __FILENAME__ << "::initialize] mUpdaterGpu.setPeriodicity\n";
+        mUpdaterGpu.setPeriodicity( mIngredients.isPeriodicX(), mIngredients.isPeriodicY(), mIngredients.isPeriodicZ() );
 
         /* copy monomer positions, attributes and connectivity of all monomers */
         mLog( "Info" ) << "[" << __FILENAME__ << "::initialize] mUpdaterGpu.setLatticeSize\n";
-        mUpdaterGpu.setLatticeSize( mIngredients.getBoxX(),
-                                    mIngredients.getBoxY(),
-                                    mIngredients.getBoxZ() );
+        mUpdaterGpu.setLatticeSize( mIngredients.getBoxX(), mIngredients.getBoxY(), mIngredients.getBoxZ() );
+	
         mLog( "Info" ) << "[" << __FILENAME__ << "::initialize] mUpdaterGpu.setNrOfAllMonomers\n";
         mUpdaterGpu.setNrOfAllMonomers( mIngredients.getMolecules().size() );
+	
         mLog( "Info" ) << "[" << __FILENAME__ << "::initialize] mUpdaterGpu.setMonomerCoordinates\n";
         for ( size_t i = 0u; i < mIngredients.getMolecules().size(); ++i )
-        {
-            mUpdaterGpu.setMonomerCoordinates( i, molecules[i].getX(),
-                                                  molecules[i].getY(),
-                                                  molecules[i].getZ() );
-        }
+            mUpdaterGpu.setMonomerCoordinates( i, molecules[i].getX(), molecules[i].getY(), molecules[i].getZ() );
+
         mLog( "Info" ) << "[" << __FILENAME__ << "::initialize] mUpdaterGpu.setAttribute\n";
         for ( size_t i = 0u; i < mIngredients.getMolecules().size(); ++i )
-	  mUpdaterGpu.setAttribute( i, mIngredients.getMolecules()[i].getAttributeTag() );
+	  mUpdaterGpu.setAttributeTag( i, mIngredients.getMolecules()[i].getAttributeTag() );
 
         mLog( "Info" ) << "[" << __FILENAME__ << "::initialize] mUpdaterGpu.setConnectivity\n";
         for ( size_t i = 0u; i < mIngredients.getMolecules().size(); ++i )
@@ -183,15 +178,17 @@ public:
             mUpdaterGpu.copyBondSet( dx, dy, dz, ! mIngredients.getBondset().isValid( VectorInt3( dx, dy, dz ) ) );
         }
 
+	mUpdaterGpu.setNTendomers             ( mIngredients.getNumTendomers()              );
+	mUpdaterGpu.setNumCrossLinkers        ( mIngredients.getNumCrossLinkers()           );
+	mUpdaterGpu.setNumMonomersPerChain    ( mIngredients.getNumMonomersPerChain()       );
+	mUpdaterGpu.setNumLabelsPerTendomerArm( mIngredients.getNumLabelsPerTendomerArm()+1 );
+        mUpdaterGpu.setFunctionality          ( 4                                           );
+        
         mLog( "Info" ) << "[" << __FILENAME__ << "::initialize] mUpdaterGpu.setLabel\n";
         for ( size_t i = 0u; i < mIngredients.getMolecules().size(); ++i )
 	  mUpdaterGpu.setLabel( i, mIngredients.getMolecules()[i].getLabel() );
 	
-	mUpdaterGpu.setNTendomers(mIngredients.getNumTendomers());
-	mIngredients.getNumCrossLinkers()
-	mIngredients.getNumMonomersPerChain()
-	mIngredients.getNumLabelsPerTendomerArm()
-        
+
         
 	Method met;
  	met.modifyCurve().setMode(0);
@@ -228,35 +225,33 @@ public:
         mUpdaterGpu.setAge( mIngredients.modifyMolecules().getAge() );
 	mUpdaterGpu.runSimulationOnGPU( mnSteps ); 
 
+	IngredientsType newIng(mIngredients);
+	  //delete all the informations in molecules
+	newIng.modifyMolecules().clear();
+	newIng.modifyMolecules().resize(mUpdaterGpu.getNrOfAllMonomers());
         // copy back positions of all monomers
         mLog( "Info" ) << "[" << __FILENAME__ << "] copy back monomers from GPU updater to CPU 'molecules' to be used with analyzers\n";
-        for( size_t i = 0; i < mIngredients.getMolecules().size(); ++i )
+        for( size_t i = 0; i < newIng.getMolecules().size(); ++i )
         {
-            molecules[i].setAllCoordinates
+            newIng.modifyMolecules()[i].setAllCoordinates
             (	
                 mUpdaterGpu.getMonomerPositionInX(i),
                 mUpdaterGpu.getMonomerPositionInY(i),
                 mUpdaterGpu.getMonomerPositionInZ(i)
             );
-        }
-	// copy back connectivity for all monomers 
-        mLog( "Info" ) << "[" << __FILENAME__ << "] copy back monomer connectivity from GPU updater to CPU 'molecules' to be used with analyzers\n";
-	for( size_t i = 0; i < mIngredients.getMolecules().size(); ++i )
-        {
-	  if (mIngredients.getMolecules()[i].isReactive()){
 	    auto nLinks(mUpdaterGpu.getNumLinks(i));
 	    for ( size_t iBond = 0; iBond < nLinks; ++iBond ) 
 	    {
 	      auto Neighbor(mUpdaterGpu.getNeighborIdx(i,iBond));
-	      if (! molecules.areConnected(i,Neighbor))
-		molecules.connect(i,Neighbor);
+	      if (! newIng.modifyMolecules().areConnected(i,Neighbor))
+		newIng.modifyMolecules().connect(i,Neighbor);
 	    }
-	  }
-	  
+	    newIng.modifyMolecules()[i].setLabel(mUpdaterGpu.getLabel(i));
         }
         /* update number of total simulation steps already done */
-        mIngredients.modifyMolecules().setAge( mIngredients.modifyMolecules().getAge() + mnSteps );
-
+        newIng.modifyMolecules().setAge( mIngredients.modifyMolecules().getAge() + mnSteps );
+	mIngredients = newIng;
+	
         if ( mLog.isActive( "Stat" ) )
         {
             std::clock_t const t1 = std::clock();

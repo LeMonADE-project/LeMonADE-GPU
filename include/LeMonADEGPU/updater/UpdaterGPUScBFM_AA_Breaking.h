@@ -51,7 +51,7 @@ protected:
     using BaseClass::mNeighborsSorted;
     using BaseClass::mNeighborsSortedInfo;
     using BaseClass::mNeighborsSortedSizes;
-    using BaseClass::mGlobalIterator;
+    using BaseClass::hGlobalIterator;
     using BaseClass::doCopyBackMonomerPositions;
     using BaseClass::doCopyBackConnectivity;
     using BaseClass::launch_CheckConnection;

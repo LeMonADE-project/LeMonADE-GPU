@@ -159,7 +159,7 @@ public:
         }
         mLog( "Info" ) << "[" << __FILENAME__ << "::initialize] mUpdaterGpu.setAttribute\n";
         for ( size_t i = 0u; i < mIngredients.getMolecules().size(); ++i )
-            mUpdaterGpu.setAttribute( i, mIngredients.getMolecules()[i].getAttributeTag() );
+            mUpdaterGpu.setAttributeTag( i, mIngredients.getMolecules()[i].getAttributeTag() );
         mLog( "Info" ) << "[" << __FILENAME__ << "::initialize] mUpdaterGpu.setConnectivity\n";
         for ( size_t i = 0u; i < mIngredients.getMolecules().size(); ++i )
         for ( size_t iBond = 0; iBond < mIngredients.getMolecules().getNumLinks(i); ++iBond )

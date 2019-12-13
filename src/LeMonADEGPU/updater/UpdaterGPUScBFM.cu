@@ -706,7 +706,7 @@ UpdaterGPUScBFM< T_UCoordinateCuda >::UpdaterGPUScBFM()
    mBoxXLog2                        ( 0    ),
    mBoxXYLog2                       ( 0    ),
    mnSplitColors                    ( 0    ),
-   mGlobalIterator                  ( 0    ),
+   hGlobalIterator                  ( 0    ),
    bSetAutoColoring                 ( true )
 {
     /**
@@ -1844,6 +1844,8 @@ void UpdaterGPUScBFM< T_UCoordinateCuda >::setNrOfAllMonomers( T_Id const rnAllM
     mPolymerSystem = new MirroredVector< T_Coordinates >( mnAllMonomers );
     std::memset( mNeighbors->host, 0, mNeighbors->nBytes );
 }
+template< typename T_UCoordinateCuda >
+uint32_t UpdaterGPUScBFM< T_UCoordinateCuda >::getNrOfAllMonomers(){ return  mnAllMonomers;}
 
 template< typename T_UCoordinateCuda >
 void UpdaterGPUScBFM< T_UCoordinateCuda >::setPeriodicity
@@ -1859,8 +1861,10 @@ void UpdaterGPUScBFM< T_UCoordinateCuda >::setPeriodicity
 }
 
 template< typename T_UCoordinateCuda >
-void UpdaterGPUScBFM< T_UCoordinateCuda >::setAttribute( T_Id i, int32_t attribute ){ mAttributeSystem.at(i) = attribute; }
+void UpdaterGPUScBFM< T_UCoordinateCuda >::setAttributeTag( T_Id i, int32_t attribute ){ mAttributeSystem.at(i) = attribute; }
 
+template< typename T_UCoordinateCuda >
+int32_t UpdaterGPUScBFM< T_UCoordinateCuda >::getAttributeTag( T_Id i ){ return mAttributeSystem.at(i); }
 /**
  * @todo add a runtime error for coordinates exceeding the maximum type range
  */
@@ -2194,13 +2198,13 @@ void UpdaterGPUScBFM< T_UCoordinateCuda >::launch_CheckSpecies(
       mNeighborsSortedSizes->gpu + mviSubGroupOffsets[ iSpecies ],   
       mnElementsInGroup[ iSpecies ],                                 
       seed, 
-      mGlobalIterator,                                         
+      hGlobalIterator,                                         
       mLatticeOut->texture,
       boxCheck, 
       met,
       checkBondVector
   );
-  mGlobalIterator++;
+  hGlobalIterator++;
 }
 
 template< typename T_UCoordinateCuda  >
@@ -2221,7 +2225,7 @@ void UpdaterGPUScBFM< T_UCoordinateCuda >::launch_CheckReactiveSpecies(
       mNeighborsSortedSizes->gpu + mviSubGroupOffsets[ iSpecies ],   
       mnElementsInGroup[ iSpecies ],                                 
       seed, 
-      mGlobalIterator,                                         
+      hGlobalIterator,                                         
       mLatticeOut->texture,
       boxCheck, 
       met,
@@ -2229,7 +2233,7 @@ void UpdaterGPUScBFM< T_UCoordinateCuda >::launch_CheckReactiveSpecies(
       texAllowedToMoveInSpecies,
       AASpeciesFlag
   );
-  mGlobalIterator++;
+  hGlobalIterator++;
 }
 
 template< typename T_UCoordinateCuda  >

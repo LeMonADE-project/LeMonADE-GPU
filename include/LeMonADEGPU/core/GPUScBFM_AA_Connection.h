@@ -164,7 +164,7 @@ public:
 		mIngredients.modifyMolecules()[i].setReactive(true);
 		mIngredients.modifyMolecules()[i].setNumMaxLinks(2);
 	    }
-            mUpdaterGpu.setAttribute( i, mIngredients.getMolecules()[i].getAttributeTag() );
+            mUpdaterGpu.setAttributeTag( i, mIngredients.getMolecules()[i].getAttributeTag() );
 	}
         mLog( "Info" ) << "[" << __FILENAME__ << "::initialize] mUpdaterGpu.setConnectivity\n";
         for ( size_t i = 0u; i < mIngredients.getMolecules().size(); ++i )
