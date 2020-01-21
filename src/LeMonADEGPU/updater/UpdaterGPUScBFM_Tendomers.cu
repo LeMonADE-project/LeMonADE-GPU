@@ -73,8 +73,9 @@ uint32_t            const              labelOffset
 	  Saru rng(rGlobalIteration,iMonomer,rSeed);
 	  rn =rng.rng32();
         }
-//         int32_t direction=1-2 *( rn % 2 ); //left(-1) or right (+1)
-        int32_t direction=-1; //left(-1) or right (+1)
+//         printf("ID=%d ID1=%d \n", iMonomer, (dLatticeLabel[ dLabelPosition[labelOffset+iMonomer].x  + dMonomersPerChainP2*dLabelPosition[labelOffset+iMonomer].y  ] >>4));
+        int32_t direction=1-2 *( rn % 2 ); //left(-1) or right (+1)
+//         int32_t direction=1; //left(-1) or right (+1)
 	// this is a position according to the tendomer id and the curvilinear position along the chain
 	// and has nothing to do with the spatial position in 3D
 	uint32_t globalLabelID(labelOffset+iMonomer);
@@ -93,7 +94,7 @@ uint32_t            const              labelOffset
 	  //check if ring is connected to another oneBonds
 	  uint32_t connectedMonomerID(dLabelBonds[globalLabelID].x);//returns the global monomer ID plus one 
 	  if ( connectedMonomerID != 0)
-// 	  if ( false) //do not move slide rings 
+// 	  if ( false)
 	  {
 	    connectedMonomerID--; 
 	    uint32_t neigboringMonomer(neighborLatticeEntry>>4);
@@ -102,36 +103,71 @@ uint32_t            const              labelOffset
 	    // position of the monomer which is connected to the unmoved label 
 	    auto const r1 = dpPolymerSystem[ connectedMonomerID  ]; 
 	    //if the new bond vector is not in the set, then continue with the next in the grid striding loop 
-	    if ( !checkBondVector( r0.x-r1.x, r0.y-r1.y, r0.z-r1.z ) ) continue ;  
-	    // still here: establish the new bond and erase the old oneBonds
-	    
-	    
+	    if ( checkBondVector.checkMinImagePow2Lattice( r0.x-r1.x, r0.y-r1.y, r0.z-r1.z, 128, 128, 128) ) continue ;  
+	    // still here: establish the new bond and erase the old oneBonds	    
 	    uint32_t connectedLabelID(dLabelBonds[globalLabelID].y>>2);
 	    uint32_t connectedLatticeEntry(dLabelPosition[connectedLabelID].x + dMonomersPerChainP2*dLabelPosition[connectedLabelID].y );
-	    
 	    //ugly!! -_:
 	    uint32_t iSpecies                ( (dLatticeLabel[ latticeID ]            & 14u ) >> 1 );
 	    uint32_t iSpeciesNeighbor        ( (neighborLatticeEntry                  & 14u ) >> 1 );
 	    uint32_t iSpeciesNeighboringLabel( (dLatticeLabel[connectedLatticeEntry ] & 14u ) >> 1 );
+	    
 // 	    printf("globalLabelID=%d iS1=%d iS2=%d iS3=%d \n", globalLabelID, iSpecies,iSpeciesNeighbor,iSpeciesNeighboringLabel);
 	    uint32_t monomerID( dLatticeLabel[ latticeID ] >> 4 );
-	    printf("ID=%d IDn=%d IDc=%d nn=%d nm=%d nc=%d\n",monomerID , neigboringMonomer, connectedMonomerID,dpNeighborsSizesMonomer[ neigboringMonomer ], dpNeighborsSizesMonomer[ monomerID ], dpNeighborsSizesMonomer[ connectedMonomerID] );
+// 	    printf("ID=%d IDn=%d IDc=%d nn=%d nm=%d nc=%d\n",monomerID , neigboringMonomer, connectedMonomerID,dpNeighborsSizesMonomer[ neigboringMonomer ], dpNeighborsSizesMonomer[ monomerID ], dpNeighborsSizesMonomer[ connectedMonomerID] );
 	    //add bond for the neighboring chain monomer 
-	    dpNeighborsMonomer[ matrixOffset_d[iSpeciesNeighbor] + dpNeighborsSizesMonomer[ neigboringMonomer ] * pitch_d[iSpeciesNeighbor] + (neigboringMonomer-subgroupOffset_d[iSpeciesNeighbor]) ] = connectedMonomerID; 
+	    dpNeighborsMonomer[ matrixOffset_d[iSpeciesNeighbor] + dpNeighborsSizesMonomer[ neigboringMonomer ] * pitch_d[iSpeciesNeighbor] + (neigboringMonomer-subgroupOffset_d[iSpeciesNeighbor]) ] 
+	    = connectedMonomerID; 
 // 	    printf("i=%d\n", matrixOffset_d[iSpeciesNeighbor] + dpNeighborsSizesMonomer[ neigboringMonomer ] * pitch_d[iSpeciesNeighbor] + (neigboringMonomer-subgroupOffset_d[iSpeciesNeighbor]) );
 	    dpNeighborsSizesMonomer[ neigboringMonomer ]++;
 	    //change neighbor for the connected label
 	    //first search for the bond id and then update the entries
-	    dpNeighborsMonomer[ matrixOffset_d[iSpeciesNeighboringLabel] + (dLabelBonds[connectedLabelID].y & 3u) * pitch_d[iSpeciesNeighboringLabel] + (connectedMonomerID- subgroupOffset_d[iSpeciesNeighboringLabel] ) ] = neigboringMonomer; 
+// 	    if (dpNeighborsMonomer[ matrixOffset_d[iSpeciesNeighboringLabel] + (dLabelBonds[connectedLabelID].y & 3u) * pitch_d[iSpeciesNeighboringLabel] + (connectedMonomerID- subgroupOffset_d[iSpeciesNeighboringLabel] ) ] != (monomerID ))
+// 	      printf("MonID1=%d MonID2=%d\n", dpNeighborsMonomer[ matrixOffset_d[iSpeciesNeighboringLabel] + (dLabelBonds[connectedLabelID].y & 3u) * pitch_d[iSpeciesNeighboringLabel] + (connectedMonomerID- subgroupOffset_d[iSpeciesNeighboringLabel] ) ] , (monomerID ));
+// 	    bool found(false);
+// 	    int bondID;
+// 	    for (auto i =0; i < dpNeighborsSizesMonomer[connectedMonomerID]; i++)
+// 	    {
+// 	      if (dpNeighborsMonomer[ matrixOffset_d[iSpeciesNeighboringLabel] + i * pitch_d[iSpeciesNeighboringLabel] + (connectedMonomerID- subgroupOffset_d[iSpeciesNeighboringLabel] ) ] == (monomerID ))
+// 	      {
+// 		found=true;
+// 		bondID=i;
+// 		break;
+// 	      }
+// 	    }
+// 	    printf("Found correct bond ID for neighboring label %d %d %d %d %d \n", found, bondID,dLabelBonds[connectedLabelID].y & 3u, dpNeighborsMonomer[ matrixOffset_d[iSpeciesNeighboringLabel] + (dLabelBonds[connectedLabelID].y & 3u)  * pitch_d[iSpeciesNeighboringLabel] + (connectedMonomerID- subgroupOffset_d[iSpeciesNeighboringLabel] ) ] , (monomerID ) );
+	    dpNeighborsMonomer[ matrixOffset_d[iSpeciesNeighboringLabel] + (dLabelBonds[connectedLabelID].y & 3u) * pitch_d[iSpeciesNeighboringLabel] + (connectedMonomerID- subgroupOffset_d[iSpeciesNeighboringLabel] ) ] 
+	    = neigboringMonomer; 
 // 	    printf("j=%d\n", matrixOffset_d[iSpeciesNeighboringLabel] + (dLabelBonds[connectedLabelID].y & 3u) * pitch_d[iSpeciesNeighboringLabel] + (connectedMonomerID- subgroupOffset_d[iSpeciesNeighboringLabel] ) );
 	    //erase bond 
 	    //first search for the bond id and then update the entries
 	    
-	    dpNeighborsMonomer[ matrixOffset_d[iSpecies] + ( dLabelBonds[labelOffset + iMonomer].y & 3u) * pitch_d[iSpecies] + (monomerID- subgroupOffset_d[iSpecies] ) ] 
+	    
+// 	    if ( dpNeighborsMonomer[ matrixOffset_d[iSpecies] + ( dLabelBonds[globalLabelID].y & 3u) * pitch_d[iSpecies] + (monomerID- subgroupOffset_d[iSpecies] ) ]  != connectedMonomerID )
+// 	      printf( "N1=%d N2=%d\n",dpNeighborsMonomer[ matrixOffset_d[iSpecies] + ( dLabelBonds[globalLabelID].y & 3u) * pitch_d[iSpecies] + (monomerID- subgroupOffset_d[iSpecies] ) ]  , connectedMonomerID );
+// 	    found =false;
+// 	    int bondID2;
+// 	    for (auto i =0; i < dpNeighborsSizesMonomer[monomerID]; i++)
+// 	    {
+// 	      if (dpNeighborsMonomer[ matrixOffset_d[iSpecies] + (i) * pitch_d[iSpecies] + (monomerID- subgroupOffset_d[iSpecies] ) ] == (connectedMonomerID ))
+// 	      {
+// 		found=true;
+// 		bondID2=i;
+// 		break;
+// 	      }
+// 	    }
+// 	    printf("Found correct bond ID for neighboring chain monomer %d %d %d %d %d \n", 
+// 		  found, 
+// 		  bondID2 ,
+// 		  dLabelBonds[globalLabelID].y & 3u, 
+// 		  dpNeighborsMonomer[ matrixOffset_d[iSpecies] + ( dLabelBonds[globalLabelID].y & 3u) * pitch_d[iSpecies] + (monomerID- subgroupOffset_d[iSpecies] ) ] ,
+// 		  (connectedMonomerID ) 
+// 		  );
+	    dpNeighborsSizesMonomer[ monomerID ]--;
+	    dpNeighborsMonomer[ matrixOffset_d[iSpecies] + ( dLabelBonds[globalLabelID].y & 3u) * pitch_d[iSpecies] + (monomerID- subgroupOffset_d[iSpecies] ) ] 
 	    = dpNeighborsMonomer[ matrixOffset_d[iSpecies] + ( dpNeighborsSizesMonomer[ monomerID ] ) * pitch_d[iSpecies] + (monomerID- subgroupOffset_d[iSpecies] ) ] ;
 // 	    printf("k=%d\n", matrixOffset_d[iSpecies] + ( dLabelBonds[labelOffset + iMonomer].y & 3u) * pitch_d[iSpecies] + (monomerID- subgroupOffset_d[iSpecies] )  );
-	    dpNeighborsSizesMonomer[ monomerID ]--;
-	    printf("ID=%d IDn=%d IDc=%d nn=%d nm=%d nc=%d\n",monomerID , neigboringMonomer, connectedMonomerID,dpNeighborsSizesMonomer[ neigboringMonomer ], dpNeighborsSizesMonomer[ monomerID ], dpNeighborsSizesMonomer[ connectedMonomerID] );
+// 	    printf("ID=%d IDn=%d IDc=%d nn=%d nm=%d nc=%d\n",monomerID , neigboringMonomer, connectedMonomerID,dpNeighborsSizesMonomer[ neigboringMonomer ], dpNeighborsSizesMonomer[ monomerID ], dpNeighborsSizesMonomer[ connectedMonomerID] );
 	    // update the dLabelBonds
 	    dLabelBonds[connectedLabelID].x=neigboringMonomer+1;
 // 	    dLabelBonds[connectedLabelID].y= stays the same label id and the same bond id ;
@@ -154,8 +190,8 @@ void UpdaterGPUScBFM_Tendomers<T_UCoordinateCuda>::launch_MoveLabel(
  const size_t nBlocks, const size_t nThreads, const size_t iSpecies, const uint64_t seed)
 {
 
-  std::cout << "Start kernel call with " << nBlocks << " #blocks and " << nThreads << " #threads. \n";
-  std::cout << "Number of labels in the species group is "  <<   nLabelsPerSpecies[iSpecies] << " at species " << iSpecies << "\n";
+//   std::cout << "Start kernel call with " << nBlocks << " #blocks and " << nThreads << " #threads. \n";
+//   std::cout << "Number of labels in the species group is "  <<   nLabelsPerSpecies[iSpecies] << " at species " << iSpecies << "\n";
   
   kernelSimulateLabelMoves< T_UCoordinateCuda > 
   <<< nBlocks, nThreads, 0, mStream >>>(                
@@ -340,7 +376,7 @@ void UpdaterGPUScBFM_Tendomers<T_UCoordinateCuda>::initialize()
   mLog( "Info" )<< "Start filling lattice, bond table for labels and the 'coordinates' of the labels\n";
   for (uint32_t i =0 ; i < sizeOfLattice; i++ )
   {
-    uint32_t curvilinearDist(i % (nMonomersPerChain+2)); // along the chain
+    uint32_t curvilinearDist(i % (nMonomersPerChain+2)); // along the chain +2 for one position before and after the chain which marks the ends
     T_Id latticEntry(1);
     if (curvilinearDist != 0 && curvilinearDist != nMonomersPerChain+1)// means at the border of the lattice and thus mark lattic entry as occupied
     {
@@ -350,7 +386,7 @@ void UpdaterGPUScBFM_Tendomers<T_UCoordinateCuda>::initialize()
       // 28 bit  | 3 bit    | 1 bit 
       // chainID | iSpecies | Occupied 
       // chainID  = latticeEntry >>4 
-      // iSpecies & 14u
+      // (iSpecies & 14u)>>1
       // Occupied & 1u 
       latticEntry = (miToiNew->host[OldID]<<4 )+ (mGroupIds[OldID]<<1);
       if (i <20 )
@@ -362,11 +398,22 @@ void UpdaterGPUScBFM_Tendomers<T_UCoordinateCuda>::initialize()
 	//I assume to have a better cache hit rate with the following sorting of the ideas 
 	uint32_t sortedID; // 0 2 4 6 8 10 .... offset 1 3 5 7 9 
 // 	sortedID=ID_R;
-	if ( ID_R % 2 == 0 )
-	  sortedID=ID_R/2;
-	else
-	  sortedID=nLabelsPerSpecies[1]+((ID_R-1)/2);
-	  
+	if (nLabelsPerTendomerArm %2 == 1 ){
+	  if ( ID_R % 2 == 0 )
+	    sortedID=ID_R/2;
+	  else
+	    sortedID=nLabelsPerSpecies[1]+((ID_R-1)/2);
+	}else 
+	{
+	  if ( ( ID_R % 2 ) == 0 && ( ChainID % 2 ) == 0 ) //A-Type 
+	    sortedID=ID_R/2;
+	  else if ( ( ID_R % 2 ) == 1 && ( ChainID % 2 ) == 1 ) //A-Type 
+	    sortedID=(ID_R-1)/2;
+	  else if ( ( ID_R % 2 ) == 1 && ( ChainID % 2 ) == 0 ) //B-Type 
+	    sortedID=nLabelsPerSpecies[1]+((ID_R-1)/2);
+	  else	//if ( ( ID_R % 2 ) == 0 && ( ChainID % 2 ) == 1 ) B-Type 
+	    sortedID=nLabelsPerSpecies[1]+(ID_R/2);
+	}
 	ciToli[miToiNew->host[OldID]]=sortedID;
 	//curvilinear distance along the chain
 	mLabelPosition->host[sortedID].x = curvilinearDist;
@@ -566,70 +613,73 @@ void UpdaterGPUScBFM_Tendomers< T_UCoordinateCuda >::runSimulationOnGPU
                     cudaMemcpyDeviceToDevice, mStream ) );
             }
         }
-        /* one Monte-Carlo step:
-         *  - tries to move on average all particles one time
-         *  - each particle could be touched, not just one group */
-//         for ( uint32_t iSubStep = 0; iSubStep < nSpecies; ++iSubStep ) 
-// 	{
-//             auto const iStepTotal = iStep * nSpecies + iSubStep;
-//             auto  iOffsetLatticeTmp = ( iStepTotal % mnLatticeTmpBuffers )
-//             * ( mBoxX * mBoxY * mBoxZ * sizeof( mLatticeTmp->gpu[0] ));
-//             if (met.getPacking().getBitPackingOn()) 
-//                 iOffsetLatticeTmp /= CHAR_BIT;
-//             auto texLatticeTmp = mvtLatticeTmp[ iStepTotal % mnLatticeTmpBuffers ];
-// 
-//             if (met.getPacking().getNBufferedTmpLatticeOn()) {
-//                     iOffsetLatticeTmp = 0u;
-//                     texLatticeTmp = mLatticeTmp->texture;
-//             }
-//             /* randomly choose which monomer group to advance */
-//             auto const iSpecies = randomNumbers.r250_rand32() % nSpecies;
-//             auto const seed     = randomNumbers.r250_rand32();
-//             auto const nThreads = chooseThreads.getBestThread(iSpecies);
-//             auto const nBlocks  = ceilDiv( mnElementsInGroup[ iSpecies ], nThreads );
-//             auto const useCudaMemset = chooseThreads.useCudaMemset(iSpecies);
-//             chooseThreads.addRecord(iSpecies, mStream);
-// 
-// 	    launch_CheckSpecies(nBlocks, nThreads, iSpecies, iOffsetLatticeTmp, seed);
-// 
-// 	    if ( useCudaMemset )
-// 		launch_PerformSpeciesAndApply(nBlocks, nThreads, iSpecies, texLatticeTmp);
-// 	    else
-// 		launch_PerformSpecies(nBlocks,nThreads,iSpecies,texLatticeTmp);
-// 
-// 	    if ( useCudaMemset )
-// 	    {
-// 		if(met.getPacking().getNBufferedTmpLatticeOn()){
-// 		    /* we only need to delete when buffers will wrap around and
-// 			* on the last loop, so that on next runSimulationOnGPU
-// 			* call mLatticeTmp is clean */
-// 		    if ( ( iStepTotal % mnLatticeTmpBuffers == 0 ) ||
-// 			( iStep == nMonteCarloSteps-1 && iSubStep == nSpecies-1 ) )
-// 		    {
-// 			cudaMemsetAsync( (void*) mLatticeTmp->gpu, 0, mLatticeTmp->nBytes, mStream );
-// 		    }
-// 		}else
-// 		    mLatticeTmp->memsetAsync(0);
-// 	    }
-// 	    else
-// 		launch_ZeroArraySpecies(nBlocks,nThreads,iSpecies);
-// 
-// 
-//         } // iSubstep
-        //move labels 
-//         for ( uint32_t iSubStep = 0; iSubStep < labelOffset.size(); ++iSubStep ) 
-        for ( uint32_t iSubStep = 0; iSubStep < labelOffset.size()-1; ++iSubStep ) 
+                //move labels 
+        for ( uint32_t iSubStep = 0; iSubStep < labelOffset.size(); ++iSubStep ) 
 	{
             /* randomly choose which monomer group to advance */
 //             auto const iSpecies = randomNumbers.r250_rand32() % (labelOffset.size());
             auto const iSpecies = iSubStep;
-            std::cout << "Simulate species "<<iSpecies<< " out of " << labelOffset.size() << "\n";
             auto const nThreads = 128;
             auto const nBlocks  = ceilDiv( nLabelsPerSpecies[iSpecies], nThreads );
             auto const seed     = randomNumbers.r250_rand32();
 	    //move label 
 	    launch_MoveLabel(nBlocks, nThreads, iSpecies, seed);
         } // iSubstep
+//         mLog( "Check") << "Check after moving the labels\n";
+//         doCopyBack();
+// 	checkSystem(); // no-op if "Check"-level deactivated
+        /* one Monte-Carlo step:
+         *  - tries to move on average all particles one time
+         *  - each particle could be touched, not just one group */
+        for ( uint32_t iSubStep = 0; iSubStep < nSpecies; ++iSubStep ) 
+	{
+            auto const iStepTotal = iStep * nSpecies + iSubStep;
+            auto  iOffsetLatticeTmp = ( iStepTotal % mnLatticeTmpBuffers )
+            * ( mBoxX * mBoxY * mBoxZ * sizeof( mLatticeTmp->gpu[0] ));
+            if (met.getPacking().getBitPackingOn()) 
+                iOffsetLatticeTmp /= CHAR_BIT;
+            auto texLatticeTmp = mvtLatticeTmp[ iStepTotal % mnLatticeTmpBuffers ];
+
+            if (met.getPacking().getNBufferedTmpLatticeOn()) {
+                    iOffsetLatticeTmp = 0u;
+                    texLatticeTmp = mLatticeTmp->texture;
+            }
+            /* randomly choose which monomer group to advance */
+            auto const iSpecies = randomNumbers.r250_rand32() % nSpecies;
+            auto const seed     = randomNumbers.r250_rand32();
+            auto const nThreads = chooseThreads.getBestThread(iSpecies);
+            auto const nBlocks  = ceilDiv( mnElementsInGroup[ iSpecies ], nThreads );
+            auto const useCudaMemset = chooseThreads.useCudaMemset(iSpecies);
+            chooseThreads.addRecord(iSpecies, mStream);
+
+	    launch_CheckSpecies(nBlocks, nThreads, iSpecies, iOffsetLatticeTmp, seed);
+
+	    if ( useCudaMemset )
+		launch_PerformSpeciesAndApply(nBlocks, nThreads, iSpecies, texLatticeTmp);
+	    else
+		launch_PerformSpecies(nBlocks,nThreads,iSpecies,texLatticeTmp);
+
+	    if ( useCudaMemset )
+	    {
+		if(met.getPacking().getNBufferedTmpLatticeOn()){
+		    /* we only need to delete when buffers will wrap around and
+			* on the last loop, so that on next runSimulationOnGPU
+			* call mLatticeTmp is clean */
+		    if ( ( iStepTotal % mnLatticeTmpBuffers == 0 ) ||
+			( iStep == nMonteCarloSteps-1 && iSubStep == nSpecies-1 ) )
+		    {
+			cudaMemsetAsync( (void*) mLatticeTmp->gpu, 0, mLatticeTmp->nBytes, mStream );
+		    }
+		}else
+		    mLatticeTmp->memsetAsync(0);
+	    }
+	    else
+		launch_ZeroArraySpecies(nBlocks,nThreads,iSpecies);
+        } // iSubstep
+//         mLog( "Check") << "Check after moving the positions\n";
+//         doCopyBack();
+// 	checkSystem(); // no-op if "Check"-level deactivated
+
 
     } // iStep
 
@@ -730,21 +780,21 @@ void UpdaterGPUScBFM_Tendomers< T_UCoordinateCuda >::checkSystem() const
     if ( ! mLog.isActive( "Check" ) )
         return;
     BaseClass::checkLatticeOccupation();
-    for (auto i = 0; i < mnAllMonomers; i++)
-    {
-      if (mGroupIds[i] == 0 )
-      {
-      	if (mNeighbors->host[i].size ==0 || mNeighbors->host[i].size > 2  )
-	{
-	  std::stringstream error_message;
-	  error_message << "Exceeds the maximum number of bonds of " << 2 << " for crossLinks at monomer Id "
-		        <<  i << " with " << mNeighbors->host[i].size << "\n";
-	  for (size_t j =0 ; j < mNeighbors->host[i].size; j++ )
-	    error_message <<"Neighbor[" <<j << "]= " <<  mNeighbors->host[i].neighborIds[j] << "\n";
-	  throw std::runtime_error(error_message.str());
-	}
-      }
-    }
+//     for (auto i = 0; i < mnAllMonomers; i++)
+//     {
+//       if (mGroupIds[i] == 0 ) 
+//       {
+//       	if (mNeighbors->host[i].size ==0 || mNeighbors->host[i].size > 2  )
+// 	{
+// 	  std::stringstream error_message;
+// 	  error_message << "Exceeds the maximum number of bonds of " << 2 << " for crossLinks at monomer Id "
+// 		        <<  i << " with " << mNeighbors->host[i].size << "\n";
+// 	  for (size_t j =0 ; j < mNeighbors->host[i].size; j++ )
+// 	    error_message <<"Neighbor[" <<j << "]= " <<  mNeighbors->host[i].neighborIds[j] << "\n";
+// 	  throw std::runtime_error(error_message.str());
+// 	}
+//       }
+//     }
     
     checkBonds();
 }

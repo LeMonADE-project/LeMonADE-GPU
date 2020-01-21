@@ -154,7 +154,6 @@ public:
         mLog( "Info" ) << "[" << __FILENAME__ << "::initialize] mUpdaterGpu.setMonomerCoordinates\n";
         for ( size_t i = 0u; i < mIngredients.getMolecules().size(); ++i )
             mUpdaterGpu.setMonomerCoordinates( i, molecules[i].getX(), molecules[i].getY(), molecules[i].getZ() );
-
         mLog( "Info" ) << "[" << __FILENAME__ << "::initialize] mUpdaterGpu.setAttribute\n";
         for ( size_t i = 0u; i < mIngredients.getMolecules().size(); ++i )
 	  mUpdaterGpu.setAttributeTag( i, mIngredients.getMolecules()[i].getAttributeTag() );
@@ -233,6 +232,7 @@ public:
         mLog( "Info" ) << "[" << __FILENAME__ << "] copy back monomers from GPU updater to CPU 'molecules' to be used with analyzers\n";
         for( size_t i = 0; i < newIng.getMolecules().size(); ++i )
         {
+     
             newIng.modifyMolecules()[i].setAllCoordinates
             (	
                 mUpdaterGpu.getMonomerPositionInX(i),

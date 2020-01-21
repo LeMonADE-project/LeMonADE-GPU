@@ -155,6 +155,7 @@ int main( int argc, char ** argv )
         pUpdaterGpu->activateLogging( "Error"     );
         pUpdaterGpu->activateLogging( "Stats"      );
         pUpdaterGpu->activateLogging( "Info"      );
+	pUpdaterGpu->activateLogging( "Check"      );
 
         TaskManager taskmanager;
         taskmanager.addUpdater( new UpdaterReadBfmFile<Ing>( infile, myIngredients,UpdaterReadBfmFile<Ing>::READ_LAST_CONFIG_SAVE ), 0 );
