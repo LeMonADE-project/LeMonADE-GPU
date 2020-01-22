@@ -41,6 +41,20 @@ __device__ __constant__ uint32_t matrixOffset_d[5];
 __device__ __constant__ uint32_t subgroupOffset_d[5];
 __device__ __constant__ uint32_t dMonomersPerChainP2;  
 
+/**
+ * @brief calculates the minimal distances of images for one component 
+ * @return int 
+ * @param x1 absolute coordinate
+ * @param x2 absolute coordinate
+ * @param LatticeSize size of the box in the direction of the given coordinates
+ */
+__device__ __host__  int inline MinImageDistanceComponentForPowerOfTwo(const int x, const uint32_t latticeSize )
+{
+  //this is only valid for absolute coordinates
+  uint32_t latticeSizeM1(latticeSize-1);
+  return ( ((x&latticeSizeM1) < (latticeSize/2)) ? (x & latticeSizeM1) :  -(-x & latticeSizeM1));
+} 
+
 //kernel for the movement of labels sitting on the monomers of the chains 
 /**
  * Maybe the kernel could be speed up by using shared memory. For that the labels of one chain must always 
@@ -73,9 +87,7 @@ uint32_t            const              labelOffset
 	  Saru rng(rGlobalIteration,iMonomer,rSeed);
 	  rn =rng.rng32();
         }
-//         printf("ID=%d ID1=%d \n", iMonomer, (dLatticeLabel[ dLabelPosition[labelOffset+iMonomer].x  + dMonomersPerChainP2*dLabelPosition[labelOffset+iMonomer].y  ] >>4));
         int32_t direction=1-2 *( rn % 2 ); //left(-1) or right (+1)
-//         int32_t direction=1; //left(-1) or right (+1)
 	// this is a position according to the tendomer id and the curvilinear position along the chain
 	// and has nothing to do with the spatial position in 3D
 	uint32_t globalLabelID(labelOffset+iMonomer);
@@ -94,7 +106,6 @@ uint32_t            const              labelOffset
 	  //check if ring is connected to another oneBonds
 	  uint32_t connectedMonomerID(dLabelBonds[globalLabelID].x);//returns the global monomer ID plus one 
 	  if ( connectedMonomerID != 0)
-// 	  if ( false)
 	  {
 	    connectedMonomerID--; 
 	    uint32_t neigboringMonomer(neighborLatticeEntry>>4);
@@ -103,8 +114,15 @@ uint32_t            const              labelOffset
 	    // position of the monomer which is connected to the unmoved label 
 	    auto const r1 = dpPolymerSystem[ connectedMonomerID  ]; 
 	    //if the new bond vector is not in the set, then continue with the next in the grid striding loop 
-	    if ( checkBondVector.checkMinImagePow2Lattice( r0.x-r1.x, r0.y-r1.y, r0.z-r1.z, 128, 128, 128) ) continue ;  
-	    // still here: establish the new bond and erase the old oneBonds	    
+	    auto const dx(MinImageDistanceComponentForPowerOfTwo(r0.x-r1.x,dcBoxX));
+	    auto const dy(MinImageDistanceComponentForPowerOfTwo(r0.y-r1.y,dcBoxY));
+	    auto const dz(MinImageDistanceComponentForPowerOfTwo(r0.z-r1.z,dcBoxZ));
+	    if ( dx*dx > 9 ) continue; 
+	    if ( dy*dy > 9 ) continue; 
+	    if ( dz*dz > 9 ) continue; 
+	    //only takes dx,dy,dz in the range of [-4:3]
+	    if ( checkBondVector(dx,dy,dz) ) continue ;  
+	    // still here: establish the new bond and erase the old oneBonds
 	    uint32_t connectedLabelID(dLabelBonds[globalLabelID].y>>2);
 	    uint32_t connectedLatticeEntry(dLabelPosition[connectedLabelID].x + dMonomersPerChainP2*dLabelPosition[connectedLabelID].y );
 	    //ugly!! -_:
@@ -112,62 +130,21 @@ uint32_t            const              labelOffset
 	    uint32_t iSpeciesNeighbor        ( (neighborLatticeEntry                  & 14u ) >> 1 );
 	    uint32_t iSpeciesNeighboringLabel( (dLatticeLabel[connectedLatticeEntry ] & 14u ) >> 1 );
 	    
-// 	    printf("globalLabelID=%d iS1=%d iS2=%d iS3=%d \n", globalLabelID, iSpecies,iSpeciesNeighbor,iSpeciesNeighboringLabel);
 	    uint32_t monomerID( dLatticeLabel[ latticeID ] >> 4 );
-// 	    printf("ID=%d IDn=%d IDc=%d nn=%d nm=%d nc=%d\n",monomerID , neigboringMonomer, connectedMonomerID,dpNeighborsSizesMonomer[ neigboringMonomer ], dpNeighborsSizesMonomer[ monomerID ], dpNeighborsSizesMonomer[ connectedMonomerID] );
 	    //add bond for the neighboring chain monomer 
 	    dpNeighborsMonomer[ matrixOffset_d[iSpeciesNeighbor] + dpNeighborsSizesMonomer[ neigboringMonomer ] * pitch_d[iSpeciesNeighbor] + (neigboringMonomer-subgroupOffset_d[iSpeciesNeighbor]) ] 
 	    = connectedMonomerID; 
-// 	    printf("i=%d\n", matrixOffset_d[iSpeciesNeighbor] + dpNeighborsSizesMonomer[ neigboringMonomer ] * pitch_d[iSpeciesNeighbor] + (neigboringMonomer-subgroupOffset_d[iSpeciesNeighbor]) );
 	    dpNeighborsSizesMonomer[ neigboringMonomer ]++;
 	    //change neighbor for the connected label
 	    //first search for the bond id and then update the entries
-// 	    if (dpNeighborsMonomer[ matrixOffset_d[iSpeciesNeighboringLabel] + (dLabelBonds[connectedLabelID].y & 3u) * pitch_d[iSpeciesNeighboringLabel] + (connectedMonomerID- subgroupOffset_d[iSpeciesNeighboringLabel] ) ] != (monomerID ))
-// 	      printf("MonID1=%d MonID2=%d\n", dpNeighborsMonomer[ matrixOffset_d[iSpeciesNeighboringLabel] + (dLabelBonds[connectedLabelID].y & 3u) * pitch_d[iSpeciesNeighboringLabel] + (connectedMonomerID- subgroupOffset_d[iSpeciesNeighboringLabel] ) ] , (monomerID ));
-// 	    bool found(false);
-// 	    int bondID;
-// 	    for (auto i =0; i < dpNeighborsSizesMonomer[connectedMonomerID]; i++)
-// 	    {
-// 	      if (dpNeighborsMonomer[ matrixOffset_d[iSpeciesNeighboringLabel] + i * pitch_d[iSpeciesNeighboringLabel] + (connectedMonomerID- subgroupOffset_d[iSpeciesNeighboringLabel] ) ] == (monomerID ))
-// 	      {
-// 		found=true;
-// 		bondID=i;
-// 		break;
-// 	      }
-// 	    }
-// 	    printf("Found correct bond ID for neighboring label %d %d %d %d %d \n", found, bondID,dLabelBonds[connectedLabelID].y & 3u, dpNeighborsMonomer[ matrixOffset_d[iSpeciesNeighboringLabel] + (dLabelBonds[connectedLabelID].y & 3u)  * pitch_d[iSpeciesNeighboringLabel] + (connectedMonomerID- subgroupOffset_d[iSpeciesNeighboringLabel] ) ] , (monomerID ) );
 	    dpNeighborsMonomer[ matrixOffset_d[iSpeciesNeighboringLabel] + (dLabelBonds[connectedLabelID].y & 3u) * pitch_d[iSpeciesNeighboringLabel] + (connectedMonomerID- subgroupOffset_d[iSpeciesNeighboringLabel] ) ] 
 	    = neigboringMonomer; 
-// 	    printf("j=%d\n", matrixOffset_d[iSpeciesNeighboringLabel] + (dLabelBonds[connectedLabelID].y & 3u) * pitch_d[iSpeciesNeighboringLabel] + (connectedMonomerID- subgroupOffset_d[iSpeciesNeighboringLabel] ) );
+
 	    //erase bond 
 	    //first search for the bond id and then update the entries
-	    
-	    
-// 	    if ( dpNeighborsMonomer[ matrixOffset_d[iSpecies] + ( dLabelBonds[globalLabelID].y & 3u) * pitch_d[iSpecies] + (monomerID- subgroupOffset_d[iSpecies] ) ]  != connectedMonomerID )
-// 	      printf( "N1=%d N2=%d\n",dpNeighborsMonomer[ matrixOffset_d[iSpecies] + ( dLabelBonds[globalLabelID].y & 3u) * pitch_d[iSpecies] + (monomerID- subgroupOffset_d[iSpecies] ) ]  , connectedMonomerID );
-// 	    found =false;
-// 	    int bondID2;
-// 	    for (auto i =0; i < dpNeighborsSizesMonomer[monomerID]; i++)
-// 	    {
-// 	      if (dpNeighborsMonomer[ matrixOffset_d[iSpecies] + (i) * pitch_d[iSpecies] + (monomerID- subgroupOffset_d[iSpecies] ) ] == (connectedMonomerID ))
-// 	      {
-// 		found=true;
-// 		bondID2=i;
-// 		break;
-// 	      }
-// 	    }
-// 	    printf("Found correct bond ID for neighboring chain monomer %d %d %d %d %d \n", 
-// 		  found, 
-// 		  bondID2 ,
-// 		  dLabelBonds[globalLabelID].y & 3u, 
-// 		  dpNeighborsMonomer[ matrixOffset_d[iSpecies] + ( dLabelBonds[globalLabelID].y & 3u) * pitch_d[iSpecies] + (monomerID- subgroupOffset_d[iSpecies] ) ] ,
-// 		  (connectedMonomerID ) 
-// 		  );
 	    dpNeighborsSizesMonomer[ monomerID ]--;
 	    dpNeighborsMonomer[ matrixOffset_d[iSpecies] + ( dLabelBonds[globalLabelID].y & 3u) * pitch_d[iSpecies] + (monomerID- subgroupOffset_d[iSpecies] ) ] 
 	    = dpNeighborsMonomer[ matrixOffset_d[iSpecies] + ( dpNeighborsSizesMonomer[ monomerID ] ) * pitch_d[iSpecies] + (monomerID- subgroupOffset_d[iSpecies] ) ] ;
-// 	    printf("k=%d\n", matrixOffset_d[iSpecies] + ( dLabelBonds[labelOffset + iMonomer].y & 3u) * pitch_d[iSpecies] + (monomerID- subgroupOffset_d[iSpecies] )  );
-// 	    printf("ID=%d IDn=%d IDc=%d nn=%d nm=%d nc=%d\n",monomerID , neigboringMonomer, connectedMonomerID,dpNeighborsSizesMonomer[ neigboringMonomer ], dpNeighborsSizesMonomer[ monomerID ], dpNeighborsSizesMonomer[ connectedMonomerID] );
 	    // update the dLabelBonds
 	    dLabelBonds[connectedLabelID].x=neigboringMonomer+1;
 // 	    dLabelBonds[connectedLabelID].y= stays the same label id and the same bond id ;
