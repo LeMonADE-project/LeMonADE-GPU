@@ -1,23 +1,14 @@
-#ifndef LEMONADEGPU_UPDATER_GPUCONNECTION_H_
+#ifndef LEMONADEGPU_UPDATER_GPUTENDOMER_H_
 
-#define LEMONADEGPU_UPDATER_GPUCONNECTION_H_
+#define LEMONADEGPU_UPDATER_GPUTENDOMER_H_
 
 #include <LeMonADEGPU/updater/UpdaterGPUScBFM.h>
 #include <LeMonADEGPU/utility/SelectiveLogger.hpp>
 #include <LeMonADEGPU/utility/cudacommon.hpp>
 #include <LeMonADEGPU/core/constants.cuh>
-#include <LeMonADEGPU/utility/GPUConnectionTracker.h>
-#include <LeMonADEGPU/core/kernelConnection.h>
-struct D_MonomerReactivity {
-    typedef uint8_t T_MaxNumLinks;
-    T_Id monID;
-    bool reactivity;
-    T_MaxNumLinks maxNumLinks;
-};
-
 
 template< typename T_UCoordinateCuda >
-class UpdaterGPUScBFM_AA_Connection: public UpdaterGPUScBFM<T_UCoordinateCuda>
+class UpdaterGPUScBFM_Tendomers: public UpdaterGPUScBFM<T_UCoordinateCuda>
 {
 
 public:
@@ -28,8 +19,8 @@ public:
     using T_Coordinates      = UpdaterGPUScBFM< uint8_t >::T_Coordinates;
     using T_Id               = UpdaterGPUScBFM< uint8_t >::T_Id         ;
     using T_Color            = UpdaterGPUScBFM< uint8_t >::T_Color      ;
-    using T_MaxNumLinks = D_MonomerReactivity::T_MaxNumLinks;
-    typedef uint32_t T_ReactiveLattice;
+    using T_Label            = uint8_t                                  ;
+    using T_RingCoordinates  = int2; // this cannot be used on the CPU,or ? 
     using BaseClass::mLog;
 
 protected:
@@ -79,72 +70,57 @@ protected:
     using BaseClass::mPolymerFlags;
     using BaseClass::mLatticeOut;
     using BaseClass::boxCheck;
-//     using BaseClass::checkBonds;
+//     using BaseClass::getNrOfAllMonomers;
 
-    uint32_t ChainEndSpecies ; 
-    size_t nReactiveMonomers;
-    Tracker tracker;
-    Connection connection;
-    //flag to decide which monomer of the AA bond pair should move in which subsubstep
-    MirroredTexture< uint8_t > * AAMonomerFlag;
+//     //flag to decide which monomer of the AA bond pair should move in which subsubstep
+//     MirroredTexture< uint8_t > * AAMonomerFlag;
     
 public:
-    UpdaterGPUScBFM_AA_Connection();
-    ~UpdaterGPUScBFM_AA_Connection();
+    UpdaterGPUScBFM_Tendomers();
+    ~UpdaterGPUScBFM_Tendomers();
 private:
   
-    /**
-     * holds the reactivity and the
-     * @todo I doubt that this must be a mirroredvector...
-     * 	     it is used only on host.
-     */
-    std::vector< D_MonomerReactivity > mMonomerReactivity;
-    //holds the IDS of the chains found by the conenction move 
-//     MirroredVector< T_Id > * mChainEndFlags;
-//     MirroredVector< T_Id > * mChainEndIDS;
-    T_Id * mChainEndFlags;
-    T_Id * mChainEndIDS;
-    //must be a multiple of 4. This is a condition due to the used shared memory... 
-    uint32_t flagArraySize; 
-    //create a lattice with the ids on the edges
-    MirroredTexture< T_Id > * mLatticeIds;
+
+    uint32_t nMonomersPerChain, nTendomers, nCrossLinks, nLabelsPerTendomerArm, functionality, nLabels;
+//     struct LabelInformation { size_t offset, nElements ; };
+
+    std::vector< uint32_t > labelOffset;
+    std::vector< uint32_t > nLabelsPerSpecies;
+//     uint32_t LabelIdOffset;
+    //maybe this could be a normal std::vector....
+//     MirroredVector<T_Label> * mMonomerLabel; 
+    std::vector<uint32_t> vMonomerLabel;
+    //ring id is the vector index and the value is the label ( usually for the tendomer its 6 and 7)
+    std::vector<uint32_t> vLabelValue;
     
-    std::vector< T_Id >  mNewToOldReactiveID;
-    uint32_t crosslinkFunctionality;
+    // stores if it is occupied by a label and the ID of the corresponding chain monomers 
+    MirroredVector< T_Id > * mLatticeLabel; 
+    // https://stackoverflow.com/questions/19777910/how-make-int2-is-working
+    MirroredVector< T_RingCoordinates > * mLabelPosition;
+    //connectivity of the slide ring 
+    MirroredVector< T_RingCoordinates > * mLabelBonds;
 
 public:
+  
+    //setter functions 
+    void    setNTendomers             ( uint32_t nTendomers_            ); 
+    void    setNumCrossLinkers        ( uint32_t nCrossLinks_           );
+    void    setNumMonomersPerChain    ( uint32_t nMonomersPerChain_     );
+    void    setNumLabelsPerTendomerArm( uint32_t nLabelsPerTendomerArm_ );
+    void    setFunctionality          ( uint32_t functionality_         );
+    void    setLabel                  ( uint32_t ID_, uint32_t label_);
+    int32_t getLabel                  ( uint32_t ID_ );
+    
     void initialize();
-//     bool execute();
     void runSimulationOnGPU(const uint32_t nSteps );
+    void launch_MoveLabel(const size_t nBlocks, const size_t nThreads, const size_t iSpecies, const uint64_t seed);
     void doCopyBack();
+    void doCopyBackLabels();
     void checkSystem() const  ;
     void checkBonds() const ;
-    void checkReactiveLatticeOccupation() ; 
     void cleanup();
     void destruct();
     
-    
-    
-    void setNrOfReactiveMonomers ( T_Id nReactiveMonomers_);
-    void setReactiveGroup ( T_Id monID_, bool reactivity_, T_MaxNumLinks maxNumLinks_ );
-    void initializeReactiveLattice();
-    void launch_CheckReactiveSpecies(    
-    const size_t nBlocks, const size_t nThreads, 
-    const size_t iSpecies, const size_t iOffsetLatticeTmp, 
-    const uint64_t seed, uint32_t AASpeciesFlag);
-    
-    void launch_CheckConnection(
-	  const size_t nBlocks , const size_t nThreads, 
-	  const size_t iSpecies, const uint64_t seed);
-    void launch_initializeReactiveLattice(
-	  const size_t nBlocks , const size_t nThreads, const T_Id iSpecies );
-    void launch_resetReactiveLattice(
-	  const size_t nBlocks , const size_t nThreads, const T_Id iSpecies );
-//     void launch_CheckConnection(
-// 	  const size_t nBlocks, const size_t nThreads, 
-// 	  const size_t iSpecies, const uint64_t seed);
-    void launch_ApplyConnection(
-	  const size_t nBlocks , const size_t   nThreads, 
-	  const size_t MonomerSpecies);
+
 };
 #endif

@@ -25,6 +25,14 @@ __device__ __host__ int16_t inline  linearizeBondVectorIndex
 	( ( y & int16_t(7) /* 0b111 */ ) << 3 ) +
 	( ( z & int16_t(7) /* 0b111 */ ) << 6 );
 }
+
+/**
+ * @brief simple class to decide about acceptable bonds
+ * @details in the standard construction of the program this operator returns true for a bond which is NOT valid 
+ * and the values for dx,dy,dz range from [-4:3]. Other values cannot be handled and thus cann cause serious errors!
+ * @todo add a selectiveLogger to the class which performs a check for the range if the "check" case is activated 
+ */
+
 class BondVectorSet
 {
 public:
@@ -34,17 +42,18 @@ public:
   
   __device__ __host__ inline   bool operator()(int dx, int dy, int dz) const 
   {
+    //if check activated-> check if dx,dy,dz are in the correct range [-4:3]
     #ifdef __CUDA_ACC__
       return dpForbiddenBonds[linearizeBondVectorIndex(dx,dy,dz)];
     #else
       return mForbiddenBonds[linearizeBondVectorIndex(dx,dy,dz)];
     #endif
   }
-  
 
   void initBondTable();
 private:   
   bool mForbiddenBonds[512];  
+  
 };
 
 

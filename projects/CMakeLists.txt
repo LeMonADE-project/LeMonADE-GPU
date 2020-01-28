@@ -1,8 +1,11 @@
 add_subdirectory(pscbfm)
 # add_subdirectory(pscbfmGPR)
 add_subdirectory(GPUInfo)
-add_subdirectory(pscbfmConnection)
 
-add_subdirectory(pscbfmReversibleConnection)
+add_subdirectory(pscbfmConnectionAB)
+add_subdirectory(pscbfmReversibleABConnection)
+
 add_subdirectory(pscbfmConnectionAA)
 add_subdirectory(pscbfmReversibleAAConnection)
+
+add_subdirectory(pscbfmTendomer)

@@ -252,10 +252,10 @@ void UpdaterGPUScBFM_AB_Connection< T_UCoordinateCuda >::launch_CheckConnection(
       mNeighborsSortedSizes->gpu + mviSubGroupOffsets[ iSpeciesChain ], 
       mnElementsInGroup[ iSpeciesCrossLink ],                       
       seed, 
-      mGlobalIterator,                                         
+      hGlobalIterator,                                         
       met
   );
-  mGlobalIterator++;
+  hGlobalIterator++;
   //reset vectors 
   thrust::sequence(thrust::device, mCrossLinkIDS, mCrossLinkIDS+flagArraySize,0 );
 //   Connection connection(nReactiveMonomersCrossLinks);
