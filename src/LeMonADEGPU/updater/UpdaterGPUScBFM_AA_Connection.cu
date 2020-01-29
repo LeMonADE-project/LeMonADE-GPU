@@ -392,6 +392,7 @@ template< typename T_UCoordinateCuda >
 UpdaterGPUScBFM_AA_Connection<T_UCoordinateCuda>::~UpdaterGPUScBFM_AA_Connection()
 {
   this->destruct();    
+  destruct();
 }
 
 template< typename T_UCoordinateCuda >

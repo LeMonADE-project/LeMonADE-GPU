@@ -183,7 +183,8 @@ void UpdaterGPUScBFM_AA_Breaking<T_UCoordinateCuda>::destruct(){
 template< typename T_UCoordinateCuda > 
 UpdaterGPUScBFM_AA_Breaking<T_UCoordinateCuda>::~UpdaterGPUScBFM_AA_Breaking()
 {
-  this->destruct();    
+  this->destruct();   
+  destruct();
 }
 
 template< typename T_UCoordinateCuda >

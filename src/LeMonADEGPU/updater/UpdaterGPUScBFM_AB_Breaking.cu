@@ -156,6 +156,7 @@ template< typename T_UCoordinateCuda >
 UpdaterGPUScBFM_AB_Breaking<T_UCoordinateCuda>::~UpdaterGPUScBFM_AB_Breaking()
 {
   this->destruct();    
+  destruct(); 
 }
 
 template< typename T_UCoordinateCuda >

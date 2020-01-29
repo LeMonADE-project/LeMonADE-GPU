@@ -219,10 +219,9 @@ template< typename T_UCoordinateCuda >
 void UpdaterGPUScBFM_Tendomers<T_UCoordinateCuda>::destruct(){
       
     DeleteMirroredObject deletePointer;
-//     deletePointer( mLatticeLabel    , "mLatticeLabel"    );
-//     deletePointer( mLabelPosition , "mLabelPosition" );
-//     deletePointer( mLabelBonds      , "mLabelBonds"      );
-
+    deletePointer( mLatticeLabel    , "mLatticeLabel"    );
+    deletePointer( mLabelPosition , "mLabelPosition" );
+    deletePointer( mLabelBonds      , "mLabelBonds"      );
     if ( deletePointer.nBytesFreed > 0 )
     {
         mLog( "Info" )
@@ -235,6 +234,7 @@ template< typename T_UCoordinateCuda >
 UpdaterGPUScBFM_Tendomers<T_UCoordinateCuda>::~UpdaterGPUScBFM_Tendomers()
 {
   this->destruct();    
+  destruct();
 }
 
 template< typename T_UCoordinateCuda >
