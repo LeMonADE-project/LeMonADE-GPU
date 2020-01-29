@@ -162,8 +162,8 @@ UpdaterGPUScBFM_AB_Breaking<T_UCoordinateCuda>::~UpdaterGPUScBFM_AB_Breaking()
 template< typename T_UCoordinateCuda >
 void UpdaterGPUScBFM_AB_Breaking<T_UCoordinateCuda>::cleanup()
 {
-    BaseClass::destruct();
     this->destruct();    
+    destruct();   
     cudaDeviceSynchronize();
     cudaProfilerStop();
     

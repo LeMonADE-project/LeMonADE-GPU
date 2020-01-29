@@ -392,8 +392,8 @@ UpdaterGPUScBFM_AB_Connection<T_UCoordinateCuda>::~UpdaterGPUScBFM_AB_Connection
 template< typename T_UCoordinateCuda >
 void UpdaterGPUScBFM_AB_Connection<T_UCoordinateCuda>::cleanup()
 {
-    BaseClass::destruct();
     this->destruct();    
+    destruct();
     cudaDeviceSynchronize();
     cudaProfilerStop();
     

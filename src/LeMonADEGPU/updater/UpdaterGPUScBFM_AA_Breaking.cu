@@ -191,8 +191,8 @@ template< typename T_UCoordinateCuda >
 void UpdaterGPUScBFM_AA_Breaking<T_UCoordinateCuda>::cleanup()
 {
     tracker.dumpReactions();
-    BaseClass::destruct();
     this->destruct();    
+    destruct();  
     cudaDeviceSynchronize();
     cudaProfilerStop();
     

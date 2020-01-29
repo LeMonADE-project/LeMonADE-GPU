@@ -240,8 +240,8 @@ UpdaterGPUScBFM_Tendomers<T_UCoordinateCuda>::~UpdaterGPUScBFM_Tendomers()
 template< typename T_UCoordinateCuda >
 void UpdaterGPUScBFM_Tendomers<T_UCoordinateCuda>::cleanup()
 {
-    BaseClass::destruct();
     this->destruct();    
+    destruct();
     cudaDeviceSynchronize();
     cudaProfilerStop();
     
