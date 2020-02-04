@@ -70,6 +70,7 @@ int main( int argc, char ** argv )
     std::string seedFileName = "";
     int      nSplitColors    = 0;
     bool analyzeON=false;
+    bool diagMovesOn = false; 
     
     try
     {
@@ -89,6 +90,7 @@ int main( int argc, char ** argv )
                 { "gpu"          , required_argument, 0, 'g' },
                 { "help"         , no_argument      , 0, 'h' },
                 { "initial-state", required_argument, 0, 'i' },
+		{ "diagMovesON"  , required_argument, 0, 'd' },
                 { "max-mcs"      , required_argument, 0, 'm' },
                 { "output"       , required_argument, 0, 'o' },
                 { "rng"          , required_argument, 0, 'r' },
@@ -98,7 +100,7 @@ int main( int argc, char ** argv )
             };
             /* getopt_long stores the option index here. */
             int option_index = 0;
-            int c = getopt_long( argc, argv, "c:e:g:hi:m:o:r:a:s:", long_options, &option_index );
+            int c = getopt_long( argc, argv, "c:e:g:hi:dm:o:r:a:s:", long_options, &option_index );
 
             if ( c == -1 )
                 break;
@@ -110,6 +112,7 @@ int main( int argc, char ** argv )
                 case 'h': printHelp(); return 0;
                 case 'g': iGpuToUse     = std::atoi  ( optarg ); break;
                 case 'i': infile        = std::string( optarg ); break;
+		case 'd': diagMovesOn   = true                 ; break;
                 case 'm': max_mcs       = std::atol  ( optarg ); break;
                 case 'o': outfile       = std::string( optarg ); break;
                 case 'r': iRngToUse     = std::atoi  ( optarg ); break;
@@ -121,7 +124,7 @@ int main( int argc, char ** argv )
                     return 1;
             }
         }
-
+	std::cout << "Diagonal moves are turned " << diagMovesOn <<std::endl; 
         /* seed the globally available random number generators */
         RandomNumberGenerators rng;
 //         if ( ! seedFileName.empty() )
@@ -144,8 +147,8 @@ int main( int argc, char ** argv )
         */
 //         typedef LOKI_TYPELIST_4( FeatureMoleculesIO, FeatureAttributes<>,
 //                                  FeatureExcludedVolumeSc<>, FeatureConnectionSc ) Features;
-        typedef LOKI_TYPELIST_4( FeatureMoleculesIOUnsaveCheck, FeatureAttributes<>,
-                                 FeatureExcludedVolumeSc<>, FeatureConnectionSc ) Features;
+        typedef LOKI_TYPELIST_4( FeatureMoleculesIOUnsaveCheck, FeatureAttributes<>, FeatureExcludedVolumeSc<>, FeatureConnectionSc ) Features;
+// 	typedef LOKI_TYPELIST_3( FeatureMoleculesIOUnsaveCheck, FeatureAttributes<>, FeatureConnectionSc ) Features;
 				 
         typedef ConfigureSystem< VectorInt3, Features, 8 > Config;
         typedef Ingredients< Config > Ing;
@@ -159,11 +162,12 @@ int main( int argc, char ** argv )
          * it on the heap, i.e.:
          *   GPUScBFM<Ing> gpuBfm( myIngredients, save_interval, iGpuToUse );
          */
-        auto const pUpdaterGpu = new GPUScBFM<Ing>( myIngredients, save_interval );
+        auto const pUpdaterGpu = new GPUScBFM<Ing>( myIngredients, save_interval, diagMovesOn);
         pUpdaterGpu->setGpu( iGpuToUse );
         pUpdaterGpu->activateLogging( "Error"     );
         //pUpdaterGpu->activateLogging( "Stats"      );
         pUpdaterGpu->activateLogging( "Info"      );
+// 	pUpdaterGpu->activateLogging( "Check"      );
         if ( nSplitColors > 0 )
             pUpdaterGpu->setSplitColors( nSplitColors );
 

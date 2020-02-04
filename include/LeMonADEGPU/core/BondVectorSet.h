@@ -39,11 +39,22 @@ public:
 
 
   inline void addBondVector( int dx, int dy, int dz, bool bondForbidden ){mForbiddenBonds[ linearizeBondVectorIndex(dx,dy,dz) ] = bondForbidden;};
-  
-  template <bool isSave=true >
+
+  /**  
+   * @brief checks if the bond is forbidden and returns true if so 
+   * @details If differenceGreaterFour is turned true, the difference in each 
+   * direction is checked if it exceeds the absolute of 4 which is not allowed.
+   * @param dx difference in x direction
+   * @param dy difference in y direction
+   * @param dz difference in z direction
+   * @param differenceGreaterFour is a template parameter with default false
+   * 
+   */
+  template <bool differenceGreaterFour=false >
   __device__ __host__ inline   bool operator()(int dx, int dy, int dz) const 
   {
-    if (isSave == true ) 
+
+    if ( differenceGreaterFour == true ) 
     {
       if(dx*dx > 9) return true; 
       if(dy*dy > 9) return true; 

@@ -317,12 +317,7 @@ protected:
     int            miGpuToUse;
     cudaDeviceProp mCudaProps;
     uint8_t mnSplitColors;
-    
-
-public: 
-  void setMethod(Method& met_){met=met_;}
-  Method getMethod(){ return met;}
-
+    bool diagMovesOn;
  
 public:
     UpdaterGPUScBFM();
@@ -363,13 +358,13 @@ protected:
     void doCopyBack();
     void doCopyBackConnectivity(); 
     void doCopyBackMonomerPositions();
-    void launch_CheckSpecies          (const size_t nBlocks, const size_t nThreads, const size_t iSpecies, const size_t iOffsetLatticeTmp, const uint64_t seed);
-    void launch_CheckReactiveSpecies  (const size_t nBlocks, const size_t nThreads, const size_t iSpecies, const size_t iOffsetLatticeTmp, const uint64_t seed, uint32_t AASpeciesFlag, cudaTextureObject_t const texAllowedToMoveInSpecies );
+    void launch_CheckSpecies          (const size_t nBlocks, const size_t nThreads, const size_t iSpecies, const size_t iOffsetLatticeTmp, const uint64_t seed );
+    void launch_CheckReactiveSpecies  (const size_t nBlocks, const size_t nThreads, const size_t iSpecies, const size_t iOffsetLatticeTmp, const uint64_t seed, uint32_t AASpeciesFlag, cudaTextureObject_t const texAllowedToMoveInSpecies);
     void launch_PerformSpecies        (const size_t nBlocks, const size_t nThreads, const size_t iSpecies, cudaTextureObject_t texLatticeTmp );
     void launch_PerformSpeciesAndApply(const size_t nBlocks, const size_t nThreads, const size_t iSpecies, cudaTextureObject_t texLatticeTmp );
     void launch_ZeroArraySpecies      (const size_t nBlocks, const size_t nThreads, const size_t iSpecies );
     void launch_CountFilteredCheck    (const size_t nBlocks, const size_t nThreads, const size_t iSpecies, cudaTextureObject_t texLatticeTmp, unsigned long long int * dpFiltered , const size_t iOffsetLatticeTmp);
-    void launch_countFilteredPerform  (const size_t nBlocks, const size_t nThreads, const size_t iSpecies, cudaTextureObject_t texLatticeTmp, unsigned long long int * dpFiltered);
+    void launch_countFilteredPerform  (const size_t nBlocks, const size_t nThreads, const size_t iSpecies, cudaTextureObject_t texLatticeTmp, unsigned long long int * dpFiltered );
 
 public:
     void initialize();
@@ -385,6 +380,8 @@ public:
     void setMonomerCoordinates( T_Id i, T_Coordinate x, T_Coordinate y, T_Coordinate z );
     void setConnectivity      ( T_Id monoidx1, T_Id monoidx2 );
     void setLatticeSize       ( T_BoxSize boxX, T_BoxSize boxY, T_BoxSize boxZ );
+    void setDiagonalMovesOn   ( bool diagMovesOn_ ); 
+    void setMethod(Method& met_){met=met_;}
     /* how often to double the initial number of colors */
     inline void setSplitColors( uint8_t const rnSplitColors ){ mnSplitColors = rnSplitColors; };
     void runSimulationOnGPU  ( uint32_t nrMCS_per_Call );
@@ -397,7 +394,7 @@ public:
     int32_t getMonomerPositionInX( T_Id i );
     int32_t getMonomerPositionInY( T_Id i );
     int32_t getMonomerPositionInZ( T_Id i );
-
+    Method getMethod(){ return met;}
     void setPeriodicity( bool isPeriodicX, bool isPeriodicY, bool isPeriodicZ );
     inline void    setAge( int64_t rAge ){ mAge = rAge; }
     inline int64_t getAge( void ) const{ return mAge; }

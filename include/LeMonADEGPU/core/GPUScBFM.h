@@ -63,6 +63,7 @@ private:
     uint64_t mnStepsBetweenSortings;
     bool mSetStepsBetweenSortings;
     uint8_t mnSplitColors;
+    bool mDiagMovesOn; 
 
 protected:
     inline T_IngredientsType & getIngredients() { return mIngredients; }
@@ -79,6 +80,7 @@ public:
     (
         T_IngredientsType & rIngredients,
         uint32_t            rnSteps     ,
+	bool                mDiagMovesOn_ = false,
         int                 riGpuToUse = 0
     )
     : mIngredients( rIngredients                   ),
@@ -87,6 +89,7 @@ public:
       mnSteps     ( rnSteps                        ),
       mLog        ( __FILENAME__                   ),
       mSetStepsBetweenSortings( false ),
+      mDiagMovesOn(mDiagMovesOn_),
       mnSplitColors( 0 )
     {
         mLog.deactivate( "Check"     );
@@ -181,9 +184,11 @@ public:
             /* !!! The negation is confusing, again there should be a better way to copy the bond set */
             mUpdaterGpu.copyBondSet( dx, dy, dz, ! mIngredients.getBondset().isValid( VectorInt3( dx, dy, dz ) ) );
         }
+        mLog( "Info" ) << "[" << __FILENAME__ << "::initialize] set move type (either standard or diagonal moves)\n";
+        mUpdaterGpu.setDiagonalMovesOn(mDiagMovesOn);
 
 	Method met;
- 	met.modifyCurve().setMode(0);
+ 	met.modifyCurve().setMode(2);
  	met.modifyCurve().setBox(mIngredients.getBoxX(),mIngredients.getBoxY(),mIngredients.getBoxZ());
 	met.modifyPacking().setBitPackingOn(true);
 	met.modifyPacking().setNBufferedTmpLatticeOn(true);

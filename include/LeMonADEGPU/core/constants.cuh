@@ -7,13 +7,13 @@
  *   DZTable_d = { 0,0,0,0,-1,1 }
  * I.e. a table of three random directional 3D vectors \vec{dr} = (dx,dy,dz)
  */
-__device__ __constant__ uint32_t DXTable_d[6]; //0:-x; 1:+x; 2:-y; 3:+y; 4:-z; 5+z
-__device__ __constant__ uint32_t DYTable_d[6]; //0:-x; 1:+x; 2:-y; 3:+y; 4:-z; 5+z
-__device__ __constant__ uint32_t DZTable_d[6]; //0:-x; 1:+x; 2:-y; 3:+y; 4:-z; 5+z
+__device__ __constant__ uint32_t DXTable_d[18]; //0:-x; 1:+x; 2:-y; 3:+y; 4:-z; 5+z
+__device__ __constant__ uint32_t DYTable_d[18]; //0:-x; 1:+x; 2:-y; 3:+y; 4:-z; 5+z
+__device__ __constant__ uint32_t DZTable_d[18]; //0:-x; 1:+x; 2:-y; 3:+y; 4:-z; 5+z
 /* stores 2*dx in order to save the multiply with 2 operation ... */
-__device__ __constant__ uint32_t DXTable2_d[6];
-__device__ __constant__ uint32_t DYTable2_d[6];
-__device__ __constant__ uint32_t DZTable2_d[6];
+__device__ __constant__ uint32_t DXTable2_d[18];
+__device__ __constant__ uint32_t DYTable2_d[18];
+__device__ __constant__ uint32_t DZTable2_d[18];
 /**
  * If intCUDA is different from uint32_t, then this second table prevents
  * expensive type conversions, but both tables are still needed, the
