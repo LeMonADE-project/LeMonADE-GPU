@@ -629,12 +629,21 @@ void UpdaterGPUScBFM_Tendomers< T_UCoordinateCuda >::runSimulationOnGPU
             auto const useCudaMemset = chooseThreads.useCudaMemset(iSpecies);
             chooseThreads.addRecord(iSpecies, mStream);
 
-	    launch_CheckSpecies(nBlocks, nThreads, iSpecies, iOffsetLatticeTmp, seed);
-
-	    if ( useCudaMemset )
-		launch_PerformSpeciesAndApply(nBlocks, nThreads, iSpecies, texLatticeTmp);
-	    else
-		launch_PerformSpecies(nBlocks,nThreads,iSpecies,texLatticeTmp);
+	    if (!diagMovesOn)  
+	    {
+		this-> template launch_CheckSpecies<6>(nBlocks, nThreads, iSpecies, iOffsetLatticeTmp, seed);
+		if ( useCudaMemset )
+		    launch_PerformSpeciesAndApply(nBlocks, nThreads, iSpecies, texLatticeTmp);
+		else
+		    launch_PerformSpecies(nBlocks,nThreads,iSpecies,texLatticeTmp);
+	    }else 
+	    {
+		this-> template launch_CheckSpecies<18>(nBlocks, nThreads, iSpecies, iOffsetLatticeTmp, seed);
+		if ( useCudaMemset )
+		    launch_PerformSpeciesAndApply(nBlocks, nThreads, iSpecies, texLatticeTmp);
+		else
+		    launch_PerformSpecies(nBlocks,nThreads,iSpecies,texLatticeTmp);
+	    }
 
 	    if ( useCudaMemset )
 	    {

@@ -285,13 +285,21 @@ void UpdaterGPUScBFM_AA_Breaking< T_UCoordinateCuda >::runSimulationOnGPU
 	    if (iSpecies != ChainEndSpecies )
 	    {
 
-	      launch_CheckSpecies(nBlocks, nThreads, iSpecies, iOffsetLatticeTmp, seed);
-
-	      if ( useCudaMemset )
-		  launch_PerformSpeciesAndApply(nBlocks, nThreads, iSpecies, texLatticeTmp);
-	      else
-		  launch_PerformSpecies(nBlocks,nThreads,iSpecies,texLatticeTmp);
-
+	    if (!diagMovesOn)  
+	    {
+		this-> template launch_CheckSpecies<6>(nBlocks, nThreads, iSpecies, iOffsetLatticeTmp, seed);
+		if ( useCudaMemset )
+		    launch_PerformSpeciesAndApply(nBlocks, nThreads, iSpecies, texLatticeTmp);
+		else
+		    launch_PerformSpecies(nBlocks,nThreads,iSpecies,texLatticeTmp);
+	    }else 
+	    {
+		this-> template launch_CheckSpecies<18>(nBlocks, nThreads, iSpecies, iOffsetLatticeTmp, seed);
+		if ( useCudaMemset )
+		    launch_PerformSpeciesAndApply(nBlocks, nThreads, iSpecies, texLatticeTmp);
+		else
+		    launch_PerformSpecies(nBlocks,nThreads,iSpecies,texLatticeTmp);
+	    }
 	      if ( useCudaMemset ){
 		  if(met.getPacking().getNBufferedTmpLatticeOn()){
 		      /* we only need to delete when buffers will wrap around and
@@ -312,14 +320,21 @@ void UpdaterGPUScBFM_AA_Breaking< T_UCoordinateCuda >::runSimulationOnGPU
             {
 	      for(uint32_t n=0; n < 2; n++)
 	      {
-
-	      
-		launch_CheckReactiveSpecies(nBlocks, nThreads, iSpecies, iOffsetLatticeTmp, seed, n, AAMonomerFlag->texture );
-		if ( useCudaMemset )
-		    launch_PerformSpeciesAndApply(nBlocks, nThreads, iSpecies, texLatticeTmp);
-		else
-		    launch_PerformSpecies(nBlocks,nThreads,iSpecies,texLatticeTmp);
-
+		if (!diagMovesOn)  
+		{
+		    this-> template launch_CheckReactiveSpecies<6>(nBlocks, nThreads, iSpecies, iOffsetLatticeTmp, seed, n, AAMonomerFlag->texture );
+		    if ( useCudaMemset )
+			launch_PerformSpeciesAndApply(nBlocks, nThreads, iSpecies, texLatticeTmp);
+		    else
+			launch_PerformSpecies(nBlocks,nThreads,iSpecies,texLatticeTmp);
+		}else 
+		{
+		    this-> template launch_CheckReactiveSpecies<18>(nBlocks, nThreads, iSpecies, iOffsetLatticeTmp, seed, n, AAMonomerFlag->texture );
+		    if ( useCudaMemset )
+			launch_PerformSpeciesAndApply(nBlocks, nThreads, iSpecies, texLatticeTmp);
+		    else
+			launch_PerformSpecies(nBlocks,nThreads,iSpecies,texLatticeTmp);
+		}
 		if ( useCudaMemset ){
 		    if(met.getPacking().getNBufferedTmpLatticeOn()){
 			/* we only need to delete when buffers will wrap around and

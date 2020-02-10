@@ -41,8 +41,7 @@ protected:
     using BaseClass::mLatticeTmp;
     using BaseClass::mvtLatticeTmp;
     using BaseClass::randomNumbers;
-    using BaseClass::launch_CheckSpecies;
-    using BaseClass::launch_CheckReactiveSpecies;
+//     using BaseClass::launch_CheckReactiveSpecies;
     using BaseClass::launch_PerformSpeciesAndApply;
     using BaseClass::launch_PerformSpecies;
     using BaseClass::launch_ZeroArraySpecies;
@@ -63,7 +62,7 @@ protected:
     using BaseClass::nReactiveMonomers;
     using BaseClass::tracker;
     using BaseClass::AAMonomerFlag;
-
+    using BaseClass::diagMovesOn;
 
     
 public:

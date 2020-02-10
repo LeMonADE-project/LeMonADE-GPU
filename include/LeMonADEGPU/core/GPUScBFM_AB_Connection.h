@@ -61,7 +61,7 @@ private:
     uint64_t mnStepsBetweenSortings;
     bool mSetStepsBetweenSortings;
     uint8_t mnSplitColors;
-
+    bool mDiagMovesOn; 
 protected:
     inline T_IngredientsType & getIngredients() { return mIngredients; }
 
@@ -77,6 +77,7 @@ public:
     (
         T_IngredientsType & rIngredients,
         uint32_t            rnSteps     ,
+     	bool                mDiagMovesOn_ = false,
         int                 riGpuToUse = 0
     )
     : mIngredients( rIngredients                   ),
@@ -85,6 +86,7 @@ public:
       mnSteps     ( rnSteps                        ),
       mLog        ( __FILENAME__                   ),
       mSetStepsBetweenSortings( false ),
+      mDiagMovesOn(mDiagMovesOn_),
       mnSplitColors( 0 )
     {
         mLog.deactivate( "Check"     );
@@ -190,7 +192,11 @@ public:
 	  }
 	}
 	mUpdaterGpu.setNrOfReactiveMonomers(nReactiveMonomers, nReactiveMonomersCrossLinks, nReactiveMonomersChains);
-
+        
+	mLog( "Info" ) << "[" << __FILENAME__ << "::initialize] set move type (either standard or diagonal moves)\n";
+        mUpdaterGpu.setDiagonalMovesOn(mDiagMovesOn);
+	
+	
 	Method met;
  	met.modifyCurve().setMode(0);
  	met.modifyCurve().setBox(mIngredients.getBoxX(),mIngredients.getBoxY(),mIngredients.getBoxZ());

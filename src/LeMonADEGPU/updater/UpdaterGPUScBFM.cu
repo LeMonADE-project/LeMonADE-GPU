@@ -772,7 +772,8 @@ __global__ void kernelTreatOverflows
 } // end anonymous namespace with typedefs for kernels
 
 
-template< typename T_UCoordinateCuda> template< int MoveSize>
+template< typename T_UCoordinateCuda> 
+template< int MoveSize>
 void UpdaterGPUScBFM< T_UCoordinateCuda >::launch_CheckSpecies(
     const size_t nBlocks, const size_t nThreads, 
     const size_t iSpecies, const size_t iOffsetLatticeTmp, 
@@ -798,14 +799,14 @@ void UpdaterGPUScBFM< T_UCoordinateCuda >::launch_CheckSpecies(
   hGlobalIterator++;
 }
 
-template< typename T_UCoordinateCuda> template< int MoveSize >
+template< typename T_UCoordinateCuda> 
+template< int MoveSize >
 void UpdaterGPUScBFM< T_UCoordinateCuda >::launch_CheckReactiveSpecies(
     const size_t nBlocks, const size_t nThreads, 
     const size_t iSpecies, const size_t iOffsetLatticeTmp, 
     const uint64_t seed, uint32_t AASpeciesFlag,
     cudaTextureObject_t const texAllowedToMoveInSpecies )
 {
-
     kernelSimulationScBFMCheckReactiveSpecies< T_UCoordinateCuda, MoveSize > 
     <<< nBlocks, nThreads, 0, mStream >>>(                
 	mPolymerSystemSorted->gpu,                                     
@@ -827,6 +828,8 @@ void UpdaterGPUScBFM< T_UCoordinateCuda >::launch_CheckReactiveSpecies(
     );
   hGlobalIterator++;
 }
+
+
 
 template< typename T_UCoordinateCuda> 
 void UpdaterGPUScBFM< T_UCoordinateCuda >::launch_countFilteredPerform(
@@ -2606,7 +2609,6 @@ void UpdaterGPUScBFM< T_UCoordinateCuda >::runSimulationOnGPU
 	    if (!diagMovesOn)  
 	    {
 		launch_CheckSpecies<6>(nBlocks, nThreads, iSpecies, iOffsetLatticeTmp, seed);
-
 		/** The counting kernel can come after the Check-kernel, because the
 		* Check-kernel only modifies the polymer flags which it does not
 		* read itself. It actually wouldn't work else, because the count
@@ -2994,3 +2996,18 @@ template class UpdaterGPUScBFM< uint16_t >;
 template class UpdaterGPUScBFM< uint32_t >;
 template class UpdaterGPUScBFM<  int16_t >;
 template class UpdaterGPUScBFM<  int32_t >;
+
+template void UpdaterGPUScBFM< uint8_t  >::launch_CheckReactiveSpecies<6>(const size_t , const size_t , const size_t , const size_t , const uint64_t , uint32_t , cudaTextureObject_t const );
+template void UpdaterGPUScBFM< uint16_t >::launch_CheckReactiveSpecies<6>(const size_t , const size_t , const size_t , const size_t , const uint64_t , uint32_t , cudaTextureObject_t const );
+template void UpdaterGPUScBFM< uint32_t >::launch_CheckReactiveSpecies<6>(const size_t , const size_t , const size_t , const size_t , const uint64_t , uint32_t , cudaTextureObject_t const );
+template void UpdaterGPUScBFM<  int16_t >::launch_CheckReactiveSpecies<6>(const size_t , const size_t , const size_t , const size_t , const uint64_t , uint32_t , cudaTextureObject_t const );
+template void UpdaterGPUScBFM<  int32_t >::launch_CheckReactiveSpecies<6>(const size_t , const size_t , const size_t , const size_t , const uint64_t , uint32_t , cudaTextureObject_t const );
+
+template void UpdaterGPUScBFM< uint8_t  >::launch_CheckReactiveSpecies<18>(const size_t , const size_t , const size_t , const size_t , const uint64_t , uint32_t , cudaTextureObject_t const );
+template void UpdaterGPUScBFM< uint16_t >::launch_CheckReactiveSpecies<18>(const size_t , const size_t , const size_t , const size_t , const uint64_t , uint32_t , cudaTextureObject_t const );
+template void UpdaterGPUScBFM< uint32_t >::launch_CheckReactiveSpecies<18>(const size_t , const size_t , const size_t , const size_t , const uint64_t , uint32_t , cudaTextureObject_t const );
+template void UpdaterGPUScBFM<  int16_t >::launch_CheckReactiveSpecies<18>(const size_t , const size_t , const size_t , const size_t , const uint64_t , uint32_t , cudaTextureObject_t const );
+template void UpdaterGPUScBFM<  int32_t >::launch_CheckReactiveSpecies<18>(const size_t , const size_t , const size_t , const size_t , const uint64_t , uint32_t , cudaTextureObject_t const );
+
+
+

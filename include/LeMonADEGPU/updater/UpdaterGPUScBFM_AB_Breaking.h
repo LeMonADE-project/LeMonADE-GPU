@@ -41,7 +41,6 @@ protected:
     using BaseClass::mLatticeTmp;
     using BaseClass::mvtLatticeTmp;
     using BaseClass::randomNumbers;
-    using BaseClass::launch_CheckSpecies;
     using BaseClass::launch_PerformSpeciesAndApply;
     using BaseClass::launch_PerformSpecies;
     using BaseClass::launch_ZeroArraySpecies;
@@ -62,7 +61,7 @@ protected:
     using BaseClass::CrossLinkSpecies;
     using BaseClass::ChainEndSpecies;
     using BaseClass::tracker;
-
+    using BaseClass::diagMovesOn;
     
 public:
     UpdaterGPUScBFM_AB_Breaking();

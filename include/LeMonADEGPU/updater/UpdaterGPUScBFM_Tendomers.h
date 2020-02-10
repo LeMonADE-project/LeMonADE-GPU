@@ -52,8 +52,6 @@ protected:
     using BaseClass::mLatticeTmp;
     using BaseClass::mvtLatticeTmp;
     using BaseClass::randomNumbers;
-    using BaseClass::launch_CheckSpecies;
-    using BaseClass::launch_CheckReactiveSpecies;
     using BaseClass::launch_PerformSpeciesAndApply;
     using BaseClass::launch_PerformSpecies;
     using BaseClass::launch_ZeroArraySpecies;
@@ -70,10 +68,7 @@ protected:
     using BaseClass::mPolymerFlags;
     using BaseClass::mLatticeOut;
     using BaseClass::boxCheck;
-//     using BaseClass::getNrOfAllMonomers;
-
-//     //flag to decide which monomer of the AA bond pair should move in which subsubstep
-//     MirroredTexture< uint8_t > * AAMonomerFlag;
+    using BaseClass::diagMovesOn;
     
 public:
     UpdaterGPUScBFM_Tendomers();
@@ -86,9 +81,7 @@ private:
 
     std::vector< uint32_t > labelOffset;
     std::vector< uint32_t > nLabelsPerSpecies;
-//     uint32_t LabelIdOffset;
     //maybe this could be a normal std::vector....
-//     MirroredVector<T_Label> * mMonomerLabel; 
     std::vector<uint32_t> vMonomerLabel;
     //ring id is the vector index and the value is the label ( usually for the tendomer its 6 and 7)
     std::vector<uint32_t> vLabelValue;
@@ -121,6 +114,5 @@ public:
     void cleanup();
     void destruct();
     
-
 };
 #endif

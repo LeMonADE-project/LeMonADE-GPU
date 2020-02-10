@@ -368,6 +368,7 @@ protected:
     void launch_countFilteredPerform  (const size_t nBlocks, const size_t nThreads, const size_t iSpecies, cudaTextureObject_t texLatticeTmp, unsigned long long int * dpFiltered );
 
 public:
+
     void initialize();
     inline bool execute(){ return true; }
     void cleanup();

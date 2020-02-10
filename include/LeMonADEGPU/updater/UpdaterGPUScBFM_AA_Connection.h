@@ -61,8 +61,6 @@ protected:
     using BaseClass::mLatticeTmp;
     using BaseClass::mvtLatticeTmp;
     using BaseClass::randomNumbers;
-    using BaseClass::launch_CheckSpecies;
-    using BaseClass::launch_CheckReactiveSpecies;
     using BaseClass::launch_PerformSpeciesAndApply;
     using BaseClass::launch_PerformSpecies;
     using BaseClass::launch_ZeroArraySpecies;
@@ -79,7 +77,7 @@ protected:
     using BaseClass::mPolymerFlags;
     using BaseClass::mLatticeOut;
     using BaseClass::boxCheck;
-//     using BaseClass::checkBonds;
+    using BaseClass::diagMovesOn;
 
     uint32_t ChainEndSpecies ; 
     size_t nReactiveMonomers;
@@ -100,8 +98,6 @@ private:
      */
     std::vector< D_MonomerReactivity > mMonomerReactivity;
     //holds the IDS of the chains found by the conenction move 
-//     MirroredVector< T_Id > * mChainEndFlags;
-//     MirroredVector< T_Id > * mChainEndIDS;
     T_Id * mChainEndFlags;
     T_Id * mChainEndIDS;
     //must be a multiple of 4. This is a condition due to the used shared memory... 
@@ -114,7 +110,6 @@ private:
 
 public:
     void initialize();
-//     bool execute();
     void runSimulationOnGPU(const uint32_t nSteps );
     void doCopyBack();
     void checkSystem() const  ;
@@ -122,16 +117,10 @@ public:
     void checkReactiveLatticeOccupation() ; 
     void cleanup();
     void destruct();
-    
-    
-    
+
     void setNrOfReactiveMonomers ( T_Id nReactiveMonomers_);
     void setReactiveGroup ( T_Id monID_, bool reactivity_, T_MaxNumLinks maxNumLinks_ );
     void initializeReactiveLattice();
-    void launch_CheckReactiveSpecies(    
-    const size_t nBlocks, const size_t nThreads, 
-    const size_t iSpecies, const size_t iOffsetLatticeTmp, 
-    const uint64_t seed, uint32_t AASpeciesFlag);
     
     void launch_CheckConnection(
 	  const size_t nBlocks , const size_t nThreads, 
@@ -140,9 +129,6 @@ public:
 	  const size_t nBlocks , const size_t nThreads, const T_Id iSpecies );
     void launch_resetReactiveLattice(
 	  const size_t nBlocks , const size_t nThreads, const T_Id iSpecies );
-//     void launch_CheckConnection(
-// 	  const size_t nBlocks, const size_t nThreads, 
-// 	  const size_t iSpecies, const uint64_t seed);
     void launch_ApplyConnection(
 	  const size_t nBlocks , const size_t   nThreads, 
 	  const size_t MonomerSpecies);
