@@ -359,13 +359,13 @@ protected:
     void doCopyBackConnectivity(); 
     void doCopyBackMonomerPositions();
     
-    template< typename move, int MoveSize > void launch_CheckSpecies          (const size_t nBlocks, const size_t nThreads, const size_t iSpecies, const size_t iOffsetLatticeTmp, const uint64_t seed );
-    template< typename move, int MoveSize > void launch_CheckReactiveSpecies  (const size_t nBlocks, const size_t nThreads, const size_t iSpecies, const size_t iOffsetLatticeTmp, const uint64_t seed, uint32_t AASpeciesFlag, cudaTextureObject_t const texAllowedToMoveInSpecies);
-    template< typename move > void launch_PerformSpecies        (const size_t nBlocks, const size_t nThreads, const size_t iSpecies, cudaTextureObject_t texLatticeTmp );
-    template< typename move > void launch_PerformSpeciesAndApply(const size_t nBlocks, const size_t nThreads, const size_t iSpecies, cudaTextureObject_t texLatticeTmp );
-			      void launch_ZeroArraySpecies      (const size_t nBlocks, const size_t nThreads, const size_t iSpecies );
-    template< typename move > void launch_CountFilteredCheck    (const size_t nBlocks, const size_t nThreads, const size_t iSpecies, cudaTextureObject_t texLatticeTmp, unsigned long long int * dpFiltered , const size_t iOffsetLatticeTmp);
-    template< typename move > void launch_countFilteredPerform  (const size_t nBlocks, const size_t nThreads, const size_t iSpecies, cudaTextureObject_t texLatticeTmp, unsigned long long int * dpFiltered );
+    template< int MoveSize > void launch_CheckSpecies          (const size_t nBlocks, const size_t nThreads, const size_t iSpecies, const size_t iOffsetLatticeTmp, const uint64_t seed );
+    template< int MoveSize > void launch_CheckReactiveSpecies  (const size_t nBlocks, const size_t nThreads, const size_t iSpecies, const size_t iOffsetLatticeTmp, const uint64_t seed, uint32_t AASpeciesFlag, cudaTextureObject_t const texAllowedToMoveInSpecies);
+    void launch_PerformSpecies        (const size_t nBlocks, const size_t nThreads, const size_t iSpecies, cudaTextureObject_t texLatticeTmp );
+    void launch_PerformSpeciesAndApply(const size_t nBlocks, const size_t nThreads, const size_t iSpecies, cudaTextureObject_t texLatticeTmp );
+    void launch_ZeroArraySpecies      (const size_t nBlocks, const size_t nThreads, const size_t iSpecies );
+    void launch_CountFilteredCheck    (const size_t nBlocks, const size_t nThreads, const size_t iSpecies, cudaTextureObject_t texLatticeTmp, unsigned long long int * dpFiltered , const size_t iOffsetLatticeTmp);
+    void launch_countFilteredPerform  (const size_t nBlocks, const size_t nThreads, const size_t iSpecies, cudaTextureObject_t texLatticeTmp, unsigned long long int * dpFiltered );
 
 public:
     void initialize();
