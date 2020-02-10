@@ -99,8 +99,18 @@ __device__ getBitPackedTextureFunction functor = &BitPacking::bitPackedTextureGe
  *         would be a problem with the excluded volume condition.
  * @todo replace CALL_MEMBER_FN macro with template 
  */
-
+class MoveBase
+{
+};
+class MoveStandard : public MoveBase
+{
+};
+class MoveDiagonal : public MoveBase
+{
+};
+ 
 #define CALL_MEMBER_FN(object,ptrToMember)  ((object).*(ptrToMember))
+template< class MoveBase  >
 __device__ inline bool checkFront
 (
     cudaTextureObject_t const & texLattice,
@@ -111,6 +121,22 @@ __device__ inline bool checkFront
     Method		const & met       ,
     getBitPackedTextureFunction func = &BitPacking::bitPackedTextureGetStandard, 
     T_Id              * const   iOldPos = NULL
+)
+{ return true; 
+}
+template<  >
+__device__ inline bool checkFront<MoveStandard>
+(
+    cudaTextureObject_t const & texLattice,
+    uint32_t            const & x0        ,
+    uint32_t            const & y0        ,
+    uint32_t            const & z0        ,
+    T_Flags             const & axis      ,
+    Method		const & met       ,
+//     getBitPackedTextureFunction func = &BitPacking::bitPackedTextureGetStandard, 
+    getBitPackedTextureFunction func , 
+//     T_Id              * const   iOldPos = NULL
+    T_Id              * const   iOldPos
 )
 {
    
@@ -131,7 +157,7 @@ __device__ inline bool checkFront
     if ( iOldPos != NULL )
         *iOldPos = x0Abs + y0Abs + z0Abs;
 
-    uint32_t is[15];
+    uint32_t is[9];
     switch ( axis >> 1 )
     {
 	case 0: is[7] = met.getCurve().linearizeBoxVectorIndexX( x0 + dx + dx );
@@ -183,27 +209,77 @@ __device__ inline bool checkFront
 		*   +------> x
 		* @endverbatim
 		*/
+    }
+    return  CALL_MEMBER_FN(met.getPacking(), func)( texLattice, is[ 0 ] ) +
+	    CALL_MEMBER_FN(met.getPacking(), func)( texLattice, is[ 1 ] ) +
+	    CALL_MEMBER_FN(met.getPacking(), func)( texLattice, is[ 2 ] ) +
+	    CALL_MEMBER_FN(met.getPacking(), func)( texLattice, is[ 3 ] ) +
+	    CALL_MEMBER_FN(met.getPacking(), func)( texLattice, is[ 4 ] ) +
+	    CALL_MEMBER_FN(met.getPacking(), func)( texLattice, is[ 5 ] ) +
+	    CALL_MEMBER_FN(met.getPacking(), func)( texLattice, is[ 6 ] ) +
+	    CALL_MEMBER_FN(met.getPacking(), func)( texLattice, is[ 7 ] ) +
+	    CALL_MEMBER_FN(met.getPacking(), func)( texLattice, is[ 8 ] ) ;
+}
+
+template<  >
+__device__ inline bool checkFront<MoveDiagonal>
+(
+    cudaTextureObject_t const & texLattice,
+    uint32_t            const & x0        ,
+    uint32_t            const & y0        ,
+    uint32_t            const & z0        ,
+    T_Flags             const & axis      ,
+    Method		const & met       ,
+//     getBitPackedTextureFunction func = &BitPacking::bitPackedTextureGetStandard, 
+    getBitPackedTextureFunction func , 
+    T_Id              * const   iOldPos 
+//     T_Id              * const   iOldPos = NULL
+)
+{
+   if (  ( axis >> 1 ) < 3 ) return checkFront<MoveStandard>(texLattice, x0,y0,z0,axis,met, func, iOldPos); 
+   else {
+    auto const x0MOne = met.getCurve().linearizeBoxVectorIndexX( x0 - uint32_t(1) );
+    auto const x0Abs  = met.getCurve().linearizeBoxVectorIndexX( x0               );
+    auto const x0POne = met.getCurve().linearizeBoxVectorIndexX( x0 + uint32_t(1) );
+    auto const y0MOne = met.getCurve().linearizeBoxVectorIndexY( y0 - uint32_t(1) );
+    auto const y0Abs  = met.getCurve().linearizeBoxVectorIndexY( y0               );
+    auto const y0POne = met.getCurve().linearizeBoxVectorIndexY( y0 + uint32_t(1) );
+    auto const z0MOne = met.getCurve().linearizeBoxVectorIndexZ( z0 - uint32_t(1) );
+    auto const z0Abs  = met.getCurve().linearizeBoxVectorIndexZ( z0               );
+    auto const z0POne = met.getCurve().linearizeBoxVectorIndexZ( z0 + uint32_t(1) );
+
+    auto const dx = DXTable_d[ axis ];   // 2*axis-1
+    auto const dy = DYTable_d[ axis ];   // 2*(axis&1)-1
+    auto const dz = DZTable_d[ axis ];   // 2*(axis&1)-1   
+    
+    if ( iOldPos != NULL )
+        *iOldPos = x0Abs + y0Abs + z0Abs;
+
+    uint32_t is[15];
+    switch ( axis >> 1 )
+    {
+	
 	case 3: //+x-+y
 	case 4: //-x-+y
 	    {
-	    auto const x0PDX = met.getCurve().linearizeBoxVectorIndexX( x0 + dx );
-	    auto const y0PDY = met.getCurve().linearizeBoxVectorIndexY( y0 + dy );
-	    auto const x0PDXPDX = met.getCurve().linearizeBoxVectorIndexX( x0 + dx + dx );
-	    auto const y0PDYPDY = met.getCurve().linearizeBoxVectorIndexY( y0 + dy + dy );
-// 	    is[2]  = met.getCurve().linearizeBoxVectorIndexY( y0 + dy + dy );
-// 	    is[14] = met.getCurve().linearizeBoxVectorIndexX( x0 + dx + dx ); 
-// 	    
-// 	    is[5]   = is[2] + met.getCurve().linearizeBoxVectorIndexX( x0 + dx ); 
-// 	    is[8]   = is[2] + is[14];
-// 	    is[11]  = is[14] + met.getCurve().linearizeBoxVectorIndexY( y0 + dy );
-// 	    is[2]  += x0Abs; 
-// 	    is[14] += y0Abs;
+// 	    auto const x0PDX = met.getCurve().linearizeBoxVectorIndexX( x0 + dx );
+// 	    auto const y0PDY = met.getCurve().linearizeBoxVectorIndexY( y0 + dy );
+// 	    auto const x0PDXPDX = met.getCurve().linearizeBoxVectorIndexX( x0 + dx + dx );
+// 	    auto const y0PDYPDY = met.getCurve().linearizeBoxVectorIndexY( y0 + dy + dy );
+	    is[2]  = met.getCurve().linearizeBoxVectorIndexY( y0 + dy + dy );
+	    is[14] = met.getCurve().linearizeBoxVectorIndexX( x0 + dx + dx ); 
 	    
-	    is[2]  = y0PDYPDY + x0Abs   ;
-	    is[5]  = y0PDYPDY + x0PDX   ;
-	    is[8]  = y0PDYPDY + x0PDXPDX;
-	    is[11] = x0PDXPDX + y0PDY   ;
-	    is[14] = x0PDXPDX + y0Abs   ;
+	    is[5]   = is[2] + met.getCurve().linearizeBoxVectorIndexX( x0 + dx ); 
+	    is[8]   = is[2] + is[14];
+	    is[11]  = is[14] + met.getCurve().linearizeBoxVectorIndexY( y0 + dy );
+	    is[2]  += x0Abs; 
+	    is[14] += y0Abs;
+	    
+// 	    is[2]  = y0PDYPDY + x0Abs   ;
+// 	    is[5]  = y0PDYPDY + x0PDX   ;
+// 	    is[8]  = y0PDYPDY + x0PDXPDX;
+// 	    is[11] = x0PDXPDX + y0PDY   ;
+// 	    is[14] = x0PDXPDX + y0Abs   ;
 	    
 	    is[0]  =  is[2]  + z0MOne; is[1]  =  is[2]  + z0Abs; is[2]  +=          z0POne;
 	    is[3]  =  is[5]  + z0MOne; is[4]  =  is[5]  + z0Abs; is[5]  +=          z0POne; 
@@ -246,15 +322,26 @@ __device__ inline bool checkFront
 	case 5: //+y-+z
 	case 6: //-y-+z
 	    {
-	    auto const y0PDY = met.getCurve().linearizeBoxVectorIndexY( y0 + dy );
-	    auto const z0PDZ = met.getCurve().linearizeBoxVectorIndexZ( z0 + dz );
-	    auto const y0PDYPDY = met.getCurve().linearizeBoxVectorIndexY( y0 + dy + dy );
-	    auto const z0PDZPDZ = met.getCurve().linearizeBoxVectorIndexZ( z0 + dz + dz );
-	    is[2]  = z0PDZPDZ + y0Abs   ;
-	    is[5]  = z0PDZPDZ + y0PDY   ;
-	    is[8]  = z0PDZPDZ + y0PDYPDY;
-	    is[11] = y0PDYPDY + z0PDZ   ;
-	    is[14] = y0PDYPDY  + z0Abs  ;
+// 	    auto const y0PDY = met.getCurve().linearizeBoxVectorIndexY( y0 + dy );
+// 	    auto const z0PDZ = met.getCurve().linearizeBoxVectorIndexZ( z0 + dz );
+// 	    auto const y0PDYPDY = met.getCurve().linearizeBoxVectorIndexY( y0 + dy + dy );
+// 	    auto const z0PDZPDZ = met.getCurve().linearizeBoxVectorIndexZ( z0 + dz + dz );
+// 	    is[2]  = z0PDZPDZ + y0Abs   ;
+// 	    is[5]  = z0PDZPDZ + y0PDY   ;
+// 	    is[8]  = z0PDZPDZ + y0PDYPDY;
+// 	    is[11] = y0PDYPDY + z0PDZ   ;
+// 	    is[14] = y0PDYPDY  + z0Abs  ;
+	    
+	    is[2]  = met.getCurve().linearizeBoxVectorIndexY( z0 + dz + dz );
+	    is[14] = met.getCurve().linearizeBoxVectorIndexX( y0 + dy + dy ); 
+	    
+	    is[5]   = is[2] + met.getCurve().linearizeBoxVectorIndexX( y0 + dy ); 
+	    is[8]   = is[2] + is[14];
+	    is[11]  = is[14] + met.getCurve().linearizeBoxVectorIndexY( z0 + dz );
+	    is[2]  += y0Abs; 
+	    is[14] += z0Abs;
+	    
+	    
 	    is[0]  =  is[2]  + x0MOne; is[1]  =  is[2]  + x0Abs; is[2]  +=          x0POne;
 	    is[3]  =  is[5]  + x0MOne; is[4]  =  is[5]  + x0Abs; is[5]  +=          x0POne;
 	    is[6]  =  is[8]  + x0MOne; is[7]  =  is[8]  + x0Abs; is[8]  +=          x0POne;
@@ -265,15 +352,23 @@ __device__ inline bool checkFront
 	case 7: //+z-+x
 	case 8: //-z-+x
 	    {
-	    auto const x0PDX = met.getCurve().linearizeBoxVectorIndexX( x0 + dx );
-	    auto const z0PDZ = met.getCurve().linearizeBoxVectorIndexZ( z0 + dz );
-	    auto const x0PDXPDX = met.getCurve().linearizeBoxVectorIndexX( x0 + dx + dx );
-	    auto const z0PDZPDZ = met.getCurve().linearizeBoxVectorIndexZ( z0 + dz + dz );
-	    is[2]  = x0PDXPDX + z0Abs   ;
-	    is[5]  = x0PDXPDX + z0PDZ   ;
-	    is[8]  = x0PDXPDX + z0PDZPDZ;
-	    is[11] = z0PDZPDZ + x0PDX   ;
-	    is[14] = z0PDZPDZ + x0Abs   ;
+// 	    auto const x0PDX = met.getCurve().linearizeBoxVectorIndexX( x0 + dx );
+// 	    auto const z0PDZ = met.getCurve().linearizeBoxVectorIndexZ( z0 + dz );
+// 	    auto const x0PDXPDX = met.getCurve().linearizeBoxVectorIndexX( x0 + dx + dx );
+// 	    auto const z0PDZPDZ = met.getCurve().linearizeBoxVectorIndexZ( z0 + dz + dz );
+// 	    is[2]  = x0PDXPDX + z0Abs   ;
+// 	    is[5]  = x0PDXPDX + z0PDZ   ;
+// 	    is[8]  = x0PDXPDX + z0PDZPDZ;
+// 	    is[11] = z0PDZPDZ + x0PDX   ;
+// 	    is[14] = z0PDZPDZ + x0Abs   ;
+	    is[2]  = met.getCurve().linearizeBoxVectorIndexY( x0 + dx + dx );
+	    is[14] = met.getCurve().linearizeBoxVectorIndexX( z0 + dz + dz ); 
+	    
+	    is[5]   = is[2] + met.getCurve().linearizeBoxVectorIndexX( z0 + dz ); 
+	    is[8]   = is[2] + is[14];
+	    is[11]  = is[14] + met.getCurve().linearizeBoxVectorIndexY( x0 + dx );
+	    is[2]  += z0Abs; 
+	    is[14] += x0Abs;
 	    is[0]  =  is[2]  + y0MOne; is[1]  =  is[2]  + y0Abs; is[2]  +=          y0POne;
 	    is[3]  =  is[5]  + y0MOne; is[4]  =  is[5]  + y0Abs; is[5]  +=          y0POne;
 	    is[6]  =  is[8]  + y0MOne; is[7]  =  is[8]  + y0Abs; is[8]  +=          y0POne;
@@ -282,43 +377,25 @@ __device__ inline bool checkFront
 	    }
 	    break;
     }
-    switch ( axis >> 1 )
-    {
-    case 0:
-    case 1:
-    case 2:
-	  return  CALL_MEMBER_FN(met.getPacking(), func)( texLattice, is[ 0 ] ) +
-		  CALL_MEMBER_FN(met.getPacking(), func)( texLattice, is[ 1 ] ) +
-		  CALL_MEMBER_FN(met.getPacking(), func)( texLattice, is[ 2 ] ) +
-		  CALL_MEMBER_FN(met.getPacking(), func)( texLattice, is[ 3 ] ) +
-		  CALL_MEMBER_FN(met.getPacking(), func)( texLattice, is[ 4 ] ) +
-		  CALL_MEMBER_FN(met.getPacking(), func)( texLattice, is[ 5 ] ) +
-		  CALL_MEMBER_FN(met.getPacking(), func)( texLattice, is[ 6 ] ) +
-		  CALL_MEMBER_FN(met.getPacking(), func)( texLattice, is[ 7 ] ) +
-		  CALL_MEMBER_FN(met.getPacking(), func)( texLattice, is[ 8 ] ) ;
-    case 3:
-    case 4:
-    case 5:
-    case 6:
-    case 7:
-    case 8:
-	  return  CALL_MEMBER_FN(met.getPacking(), func)( texLattice, is[  0 ] ) +
-		  CALL_MEMBER_FN(met.getPacking(), func)( texLattice, is[  1 ] ) +
-		  CALL_MEMBER_FN(met.getPacking(), func)( texLattice, is[  2 ] ) +
-		  CALL_MEMBER_FN(met.getPacking(), func)( texLattice, is[  3 ] ) +
-		  CALL_MEMBER_FN(met.getPacking(), func)( texLattice, is[  4 ] ) +
-		  CALL_MEMBER_FN(met.getPacking(), func)( texLattice, is[  5 ] ) +
-		  CALL_MEMBER_FN(met.getPacking(), func)( texLattice, is[  6 ] ) +
-		  CALL_MEMBER_FN(met.getPacking(), func)( texLattice, is[  7 ] ) +
-		  CALL_MEMBER_FN(met.getPacking(), func)( texLattice, is[  8 ] ) +
-		  CALL_MEMBER_FN(met.getPacking(), func)( texLattice, is[  9 ] ) +
-		  CALL_MEMBER_FN(met.getPacking(), func)( texLattice, is[ 10 ] ) +
-		  CALL_MEMBER_FN(met.getPacking(), func)( texLattice, is[ 11 ] ) +
-		  CALL_MEMBER_FN(met.getPacking(), func)( texLattice, is[ 12 ] ) +
-		  CALL_MEMBER_FN(met.getPacking(), func)( texLattice, is[ 13 ] ) +
-		  CALL_MEMBER_FN(met.getPacking(), func)( texLattice, is[ 14 ] ) ; 
+    return  CALL_MEMBER_FN(met.getPacking(), func)( texLattice, is[  0 ] ) +
+	    CALL_MEMBER_FN(met.getPacking(), func)( texLattice, is[  1 ] ) +
+	    CALL_MEMBER_FN(met.getPacking(), func)( texLattice, is[  2 ] ) +
+	    CALL_MEMBER_FN(met.getPacking(), func)( texLattice, is[  3 ] ) +
+	    CALL_MEMBER_FN(met.getPacking(), func)( texLattice, is[  4 ] ) +
+	    CALL_MEMBER_FN(met.getPacking(), func)( texLattice, is[  5 ] ) +
+	    CALL_MEMBER_FN(met.getPacking(), func)( texLattice, is[  6 ] ) +
+	    CALL_MEMBER_FN(met.getPacking(), func)( texLattice, is[  7 ] ) +
+	    CALL_MEMBER_FN(met.getPacking(), func)( texLattice, is[  8 ] ) +
+	    CALL_MEMBER_FN(met.getPacking(), func)( texLattice, is[  9 ] ) +
+	    CALL_MEMBER_FN(met.getPacking(), func)( texLattice, is[ 10 ] ) +
+	    CALL_MEMBER_FN(met.getPacking(), func)( texLattice, is[ 11 ] ) +
+	    CALL_MEMBER_FN(met.getPacking(), func)( texLattice, is[ 12 ] ) +
+	    CALL_MEMBER_FN(met.getPacking(), func)( texLattice, is[ 13 ] ) +
+	    CALL_MEMBER_FN(met.getPacking(), func)( texLattice, is[ 14 ] ) ; 
     }
 }
+
+
 
 /**
  * @brief checks all bonds of the current monomer
@@ -395,7 +472,7 @@ namespace {
  *       Why are there three kernels instead of just one
  *        -> for global synchronization
  */
-template< typename T_UCoordinateCuda , uint32_t moveSize = 6  >
+template< typename T_UCoordinateCuda, typename move, int moveSize >
 __global__ void kernelSimulationScBFMCheckSpecies
 (
     typename CudaVec4< T_UCoordinateCuda >::value_type
@@ -439,7 +516,7 @@ __global__ void kernelSimulationScBFMCheckSpecies
         };
 	if (    bCheck(r1.x,r1.y,r1.z) && 
 	      ! checkNeighboringBonds<T_UCoordinateCuda>(dpNeighborsSizes, iMonomer, dpNeighbors, rNeighborsPitchElements, dpPolymerSystem, r1, checkBondVector ) && 
-	      ! checkFront( texLatticeRefOut, r0.x, r0.y, r0.z, direction, met, &BitPacking::bitPackedTextureGetStandard ) )
+	      ! checkFront<move>( texLatticeRefOut, r0.x, r0.y, r0.z, direction, met, &BitPacking::bitPackedTextureGetStandard ) )
 	{
 	    /* everything fits so perform move on temporary lattice */
 	    /* can I do this ??? dpPolymerSystem is the device pointer to the read-only
@@ -453,7 +530,7 @@ __global__ void kernelSimulationScBFMCheckSpecies
         dpPolymerFlags[ iMonomer ] = direction;
     }
 }
-template< typename T_UCoordinateCuda, uint32_t moveSize = 6  >
+template< typename T_UCoordinateCuda, typename move, int moveSize >
 __global__ void kernelSimulationScBFMCheckReactiveSpecies
 (
     typename CudaVec4< T_UCoordinateCuda >::value_type
@@ -504,7 +581,7 @@ __global__ void kernelSimulationScBFMCheckReactiveSpecies
 	  };
 	  if (    boxCheck(r1.x,r1.y,r1.z) &&
 		! checkNeighboringBonds<T_UCoordinateCuda>(dpNeighborsSizes, iMonomer, dpNeighbors, rNeighborsPitchElements, dpPolymerSystem, r1, checkBondVector ) &&
-		! checkFront( texLatticeRefOut, r0.x, r0.y, r0.z, direction, met, &BitPacking::bitPackedTextureGetStandard ) 
+		! checkFront<move>( texLatticeRefOut, r0.x, r0.y, r0.z, direction, met, &BitPacking::bitPackedTextureGetStandard ) 
 	     )
 	  {
 	      /* everything fits so perform move on temporary lattice */
@@ -522,7 +599,7 @@ __global__ void kernelSimulationScBFMCheckReactiveSpecies
 /*
 colordiff <( sed -n 931,1028p ../src/pscbfm/UpdaterGPUScBFM.cu ) <( sed -n 1031,1090p ../src/pscbfm/UpdaterGPUScBFM.cu )
 */
-template< typename T_UCoordinateCuda >
+template< typename T_UCoordinateCuda, typename move   >
 __global__ void kernelCountFilteredCheck
 (
     typename CudaVec4< T_UCoordinateCuda >::value_type
@@ -554,7 +631,7 @@ __global__ void kernelCountFilteredCheck
             T_UCoordinateCuda( r0.z + DZTable_d[ direction ] )
         };
 	if ( bCheck(r1.x,r1.y,r1.z) &&
-	     checkFront( texLatticeRefOut, r0.x, r0.y, r0.z, direction, met, &BitPacking::bitPackedTextureGetStandard  ) )
+	     checkFront<move>( texLatticeRefOut, r0.x, r0.y, r0.z, direction, met, &BitPacking::bitPackedTextureGetStandard  ) )
 	{
 	    atomicAdd( dpFiltered+2, 1ull );
 	    if ( ! checkNeighboringBonds<T_UCoordinateCuda>(dpNeighborsSizes, iMonomer, dpNeighbors, rNeighborsPitchElements, dpPolymerSystem, r1, checkBondVector ) ) /* this is the more real relative use-case where invalid bonds are already filtered out */
@@ -570,7 +647,7 @@ __global__ void kernelCountFilteredCheck
  * temporarily parallel executed moves saved in texLatticeTmp. If so,
  * do the move in dpLattice. (Still not applied in dpPolymerSystem!)
  */
-template< typename T_UCoordinateCuda >
+template< typename T_UCoordinateCuda, typename move   >
 __global__ void kernelSimulationScBFMPerformSpecies
 (
     typename CudaVec4< T_UCoordinateCuda >::value_type
@@ -594,7 +671,7 @@ __global__ void kernelSimulationScBFMPerformSpecies
         auto const direction = properties & T_Flags(31); // 7=0b111 31=0b11111
         uint32_t iOldPos;
 	//if check Front is true (there is a monomer) : go to next monomer in the grid 
-        if ( checkFront( texLatticeTmp, r0.x, r0.y, r0.z, direction, met,  &BitPacking::bitPackedTextureGet, &iOldPos ) )
+        if ( checkFront<move>( texLatticeTmp, r0.x, r0.y, r0.z, direction, met,  &BitPacking::bitPackedTextureGet, &iOldPos ) )
 	  continue;
 
         /* If possible, perform move now on normal lattice */
@@ -611,7 +688,7 @@ __global__ void kernelSimulationScBFMPerformSpecies
     }
 }
 
-template< typename T_UCoordinateCuda >
+template< typename T_UCoordinateCuda, typename move   >
 __global__ void kernelSimulationScBFMPerformSpeciesAndApply
 (
     typename CudaVec4< T_UCoordinateCuda >::value_type
@@ -633,7 +710,7 @@ __global__ void kernelSimulationScBFMPerformSpeciesAndApply
         auto const r0 = dpPolymerSystem[ iMonomer ];
         auto const direction = properties & T_Flags(31); // 7=0b111 31=0b11111
         uint32_t iOldPos;
-        if ( checkFront( texLatticeTmp, r0.x, r0.y, r0.z, direction, met, &BitPacking::bitPackedTextureGet, &iOldPos ) )
+        if ( checkFront<move>( texLatticeTmp, r0.x, r0.y, r0.z, direction, met, &BitPacking::bitPackedTextureGet, &iOldPos ) )
             continue;
 
         /* @todo this is slower on Kepler when using DXTableUintCuda_d
@@ -652,7 +729,7 @@ __global__ void kernelSimulationScBFMPerformSpeciesAndApply
     }
 }
 
-template< typename T_UCoordinateCuda >
+template< typename T_UCoordinateCuda, typename move   >
 __global__ void kernelCountFilteredPerform
 (
     typename CudaVec4< T_UCoordinateCuda >::value_type
@@ -674,7 +751,7 @@ __global__ void kernelCountFilteredPerform
 
         auto const r0 = dpPolymerSystem[ iMonomer ];
         auto const direction = properties & T_Flags(31); // 7=0b111
-        if ( checkFront( texLatticeTmp, r0.x, r0.y, r0.z, direction, met, &BitPacking::bitPackedTextureGet, NULL ) )
+        if ( checkFront<move>( texLatticeTmp, r0.x, r0.y, r0.z, direction, met, &BitPacking::bitPackedTextureGet, NULL ) )
             atomicAdd( dpFiltered+4, size_t(1) );
     }
 }
@@ -796,16 +873,16 @@ __global__ void kernelTreatOverflows
 } // end anonymous namespace with typedefs for kernels
 
 
-template< typename T_UCoordinateCuda  >
+template< typename T_UCoordinateCuda> template< typename move, int MoveSize>
 void UpdaterGPUScBFM< T_UCoordinateCuda >::launch_CheckSpecies(
     const size_t nBlocks, const size_t nThreads, 
     const size_t iSpecies, const size_t iOffsetLatticeTmp, 
     const uint64_t seed)
 {
-  if( ! diagMovesOn )
-  {
+//   if( ! diagMovesOn )
+//   {
 //     std::cout << "UpdaterGPUScBFM< T_UCoordinateCuda >::launch_CheckSpecies without diagonal moves."<< std::endl;
-    kernelSimulationScBFMCheckSpecies< T_UCoordinateCuda, 6 > 
+    kernelSimulationScBFMCheckSpecies< T_UCoordinateCuda, move, MoveSize > 
     <<< nBlocks, nThreads, 0, mStream >>>(                
 	mPolymerSystemSorted->gpu,                                     
 	mPolymerFlags->gpu + mviSubGroupOffsets[ iSpecies ],           
@@ -822,39 +899,39 @@ void UpdaterGPUScBFM< T_UCoordinateCuda >::launch_CheckSpecies(
 	met,
 	checkBondVector
     );
-  }else {
-//     std::cout << "UpdaterGPUScBFM< T_UCoordinateCuda >::launch_CheckSpecies with diagonal moves."<< std::endl;
-//     std::cout << "species: "<< iSpecies <<  std::endl;
-    kernelSimulationScBFMCheckSpecies< T_UCoordinateCuda, 18 > 
-    <<< nBlocks, nThreads, 0, mStream >>>(                
-	mPolymerSystemSorted->gpu,                                     
-	mPolymerFlags->gpu + mviSubGroupOffsets[ iSpecies ],           
-	mviSubGroupOffsets[ iSpecies ],                                
-	mLatticeTmp->gpu + iOffsetLatticeTmp,                          
-	mNeighborsSorted->gpu + mNeighborsSortedInfo.getMatrixOffsetElements( iSpecies ), 
-	mNeighborsSortedInfo.getMatrixPitchElements( iSpecies ),       
-	mNeighborsSortedSizes->gpu + mviSubGroupOffsets[ iSpecies ],   
-	mnElementsInGroup[ iSpecies ],                                 
-	seed, 
-	hGlobalIterator,                                         
-	mLatticeOut->texture,
-	boxCheck, 
-	met,
-	checkBondVector
-      );
-  }
+//   }else {
+// //     std::cout << "UpdaterGPUScBFM< T_UCoordinateCuda >::launch_CheckSpecies with diagonal moves."<< std::endl;
+// //     std::cout << "species: "<< iSpecies <<  std::endl;
+//     kernelSimulationScBFMCheckSpecies< T_UCoordinateCuda, 18, MoveDiagonal > 
+//     <<< nBlocks, nThreads, 0, mStream >>>(                
+// 	mPolymerSystemSorted->gpu,                                     
+// 	mPolymerFlags->gpu + mviSubGroupOffsets[ iSpecies ],           
+// 	mviSubGroupOffsets[ iSpecies ],                                
+// 	mLatticeTmp->gpu + iOffsetLatticeTmp,                          
+// 	mNeighborsSorted->gpu + mNeighborsSortedInfo.getMatrixOffsetElements( iSpecies ), 
+// 	mNeighborsSortedInfo.getMatrixPitchElements( iSpecies ),       
+// 	mNeighborsSortedSizes->gpu + mviSubGroupOffsets[ iSpecies ],   
+// 	mnElementsInGroup[ iSpecies ],                                 
+// 	seed, 
+// 	hGlobalIterator,                                         
+// 	mLatticeOut->texture,
+// 	boxCheck, 
+// 	met,
+// 	checkBondVector
+//       );
+//   }
   hGlobalIterator++;
 }
 
-template< typename T_UCoordinateCuda  >
+template< typename T_UCoordinateCuda> template< typename move, int MoveSize >
 void UpdaterGPUScBFM< T_UCoordinateCuda >::launch_CheckReactiveSpecies(
     const size_t nBlocks, const size_t nThreads, 
     const size_t iSpecies, const size_t iOffsetLatticeTmp, 
     const uint64_t seed, uint32_t AASpeciesFlag,
     cudaTextureObject_t const texAllowedToMoveInSpecies )
 {
-  if( ! diagMovesOn )
-    kernelSimulationScBFMCheckReactiveSpecies< T_UCoordinateCuda, 6 > 
+//   if( ! diagMovesOn )
+    kernelSimulationScBFMCheckReactiveSpecies< T_UCoordinateCuda, move, MoveSize > 
     <<< nBlocks, nThreads, 0, mStream >>>(                
 	mPolymerSystemSorted->gpu,                                     
 	mPolymerFlags->gpu + mviSubGroupOffsets[ iSpecies ],           
@@ -873,36 +950,37 @@ void UpdaterGPUScBFM< T_UCoordinateCuda >::launch_CheckReactiveSpecies(
 	texAllowedToMoveInSpecies,
 	AASpeciesFlag
     );
-  else 
-    kernelSimulationScBFMCheckReactiveSpecies< T_UCoordinateCuda, 18 > 
-    <<< nBlocks, nThreads, 0, mStream >>>(                
-	mPolymerSystemSorted->gpu,                                     
-	mPolymerFlags->gpu + mviSubGroupOffsets[ iSpecies ],           
-	mviSubGroupOffsets[ iSpecies ],                                
-	mLatticeTmp->gpu + iOffsetLatticeTmp,                          
-	mNeighborsSorted->gpu + mNeighborsSortedInfo.getMatrixOffsetElements( iSpecies ), 
-	mNeighborsSortedInfo.getMatrixPitchElements( iSpecies ),       
-	mNeighborsSortedSizes->gpu + mviSubGroupOffsets[ iSpecies ],   
-	mnElementsInGroup[ iSpecies ],                                 
-	seed, 
-	hGlobalIterator,                                         
-	mLatticeOut->texture,
-	boxCheck, 
-	met,
-	checkBondVector,
-	texAllowedToMoveInSpecies,
-	AASpeciesFlag
-    );
+//   else 
+//     kernelSimulationScBFMCheckReactiveSpecies< T_UCoordinateCuda, 18, MoveDiagonal > 
+//     <<< nBlocks, nThreads, 0, mStream >>>(                
+// 	mPolymerSystemSorted->gpu,                                     
+// 	mPolymerFlags->gpu + mviSubGroupOffsets[ iSpecies ],           
+// 	mviSubGroupOffsets[ iSpecies ],                                
+// 	mLatticeTmp->gpu + iOffsetLatticeTmp,                          
+// 	mNeighborsSorted->gpu + mNeighborsSortedInfo.getMatrixOffsetElements( iSpecies ), 
+// 	mNeighborsSortedInfo.getMatrixPitchElements( iSpecies ),       
+// 	mNeighborsSortedSizes->gpu + mviSubGroupOffsets[ iSpecies ],   
+// 	mnElementsInGroup[ iSpecies ],                                 
+// 	seed, 
+// 	hGlobalIterator,                                         
+// 	mLatticeOut->texture,
+// 	boxCheck, 
+// 	met,
+// 	checkBondVector,
+// 	texAllowedToMoveInSpecies,
+// 	AASpeciesFlag
+//     );
   hGlobalIterator++;
 }
 
-template< typename T_UCoordinateCuda  >
+template< typename T_UCoordinateCuda> template< typename move >
 void UpdaterGPUScBFM< T_UCoordinateCuda >::launch_countFilteredPerform(
     const size_t nBlocks, const size_t nThreads, 
     const size_t iSpecies, cudaTextureObject_t texLatticeTmp, 
     unsigned long long int * dpFiltered )
 {
-    kernelCountFilteredPerform< T_UCoordinateCuda >
+//   if( ! diagMovesOn )
+    kernelCountFilteredPerform< T_UCoordinateCuda, move >
     <<< nBlocks, nThreads, 0, mStream >>>(
         mPolymerSystemSorted->gpu + mviSubGroupOffsets[ iSpecies ],
         mPolymerFlags->gpu + mviSubGroupOffsets[ iSpecies ],
@@ -912,15 +990,27 @@ void UpdaterGPUScBFM< T_UCoordinateCuda >::launch_countFilteredPerform(
         dpFiltered,
         met
     );
+//   else 
+//     kernelCountFilteredPerform< T_UCoordinateCuda, 18, MoveDiagonal >
+//     <<< nBlocks, nThreads, 0, mStream >>>(
+//         mPolymerSystemSorted->gpu + mviSubGroupOffsets[ iSpecies ],
+//         mPolymerFlags->gpu + mviSubGroupOffsets[ iSpecies ],
+//         mLatticeOut->gpu,
+//         mnElementsInGroup[ iSpecies ],
+//         texLatticeTmp,
+//         dpFiltered,
+//         met
+//     );
 }
 
-template< typename T_UCoordinateCuda  >
+template< typename T_UCoordinateCuda> template< typename move >
 void UpdaterGPUScBFM< T_UCoordinateCuda >::launch_CountFilteredCheck(
     const size_t nBlocks, const size_t nThreads, 
     const size_t iSpecies, cudaTextureObject_t texLatticeTmp, 
     unsigned long long int * dpFiltered, const size_t iOffsetLatticeTmp )
 {
-    kernelCountFilteredCheck< T_UCoordinateCuda >
+//     if( ! diagMovesOn )
+    kernelCountFilteredCheck< T_UCoordinateCuda, move >
     <<< nBlocks, nThreads, 0, mStream >>>(                 
     mPolymerSystemSorted->gpu,                         
     mPolymerFlags->gpu + mviSubGroupOffsets[ iSpecies ],
@@ -936,14 +1026,32 @@ void UpdaterGPUScBFM< T_UCoordinateCuda >::launch_CountFilteredCheck(
     met,
     checkBondVector
     );
+//     else 
+//     kernelCountFilteredCheck< T_UCoordinateCuda, 18, MoveDiagonal >
+//     <<< nBlocks, nThreads, 0, mStream >>>(                 
+//     mPolymerSystemSorted->gpu,                         
+//     mPolymerFlags->gpu + mviSubGroupOffsets[ iSpecies ],
+//     mviSubGroupOffsets[ iSpecies ],                     
+//     mLatticeTmp->gpu + iOffsetLatticeTmp,               
+//     mNeighborsSorted->gpu + mNeighborsSortedInfo.getMatrixOffsetElements( iSpecies ), 
+//     mNeighborsSortedInfo.getMatrixPitchElements( iSpecies ),   
+//     mNeighborsSortedSizes->gpu + mviSubGroupOffsets[ iSpecies ], 
+//     mnElementsInGroup[ iSpecies ],                             
+//     mLatticeOut->texture,                                     
+//     dpFiltered,
+//     boxCheck,
+//     met,
+//     checkBondVector
+//     );
 }
 
-template< typename T_UCoordinateCuda  >
+template< typename T_UCoordinateCuda> template< typename move >
 void UpdaterGPUScBFM< T_UCoordinateCuda >::launch_PerformSpecies(
     const size_t nBlocks, const size_t nThreads, 
     const size_t iSpecies, cudaTextureObject_t texLatticeTmp )
 {
-    kernelSimulationScBFMPerformSpecies< T_UCoordinateCuda >
+//     if( ! diagMovesOn )
+    kernelSimulationScBFMPerformSpecies< T_UCoordinateCuda, move >
     <<< nBlocks, nThreads, 0, mStream >>>(
         mPolymerSystemSorted->gpu + mviSubGroupOffsets[ iSpecies ],
         mPolymerFlags->gpu + mviSubGroupOffsets[ iSpecies ],
@@ -951,14 +1059,24 @@ void UpdaterGPUScBFM< T_UCoordinateCuda >::launch_PerformSpecies(
         mnElementsInGroup[ iSpecies ],
         texLatticeTmp, met 
     );
+//     else 
+//     kernelSimulationScBFMPerformSpecies< T_UCoordinateCuda, 18, MoveDiagonal  >
+//     <<< nBlocks, nThreads, 0, mStream >>>(
+//         mPolymerSystemSorted->gpu + mviSubGroupOffsets[ iSpecies ],
+//         mPolymerFlags->gpu + mviSubGroupOffsets[ iSpecies ],
+//         mLatticeOut->gpu,
+//         mnElementsInGroup[ iSpecies ],
+//         texLatticeTmp, met 
+//     );
 }
 
-template< typename T_UCoordinateCuda  >
+template< typename T_UCoordinateCuda> template< typename move >
 void UpdaterGPUScBFM< T_UCoordinateCuda >::launch_PerformSpeciesAndApply(
     const size_t nBlocks, const size_t nThreads, 
     const size_t iSpecies, cudaTextureObject_t texLatticeTmp )
 {
-    kernelSimulationScBFMPerformSpeciesAndApply< T_UCoordinateCuda >
+//     if( ! diagMovesOn )
+    kernelSimulationScBFMPerformSpeciesAndApply< T_UCoordinateCuda, move >
     <<< nBlocks, nThreads, 0, mStream >>>(
        mPolymerSystemSorted->gpu + mviSubGroupOffsets[ iSpecies ],
         mPolymerFlags->gpu + mviSubGroupOffsets[ iSpecies ],
@@ -966,6 +1084,15 @@ void UpdaterGPUScBFM< T_UCoordinateCuda >::launch_PerformSpeciesAndApply(
         mnElementsInGroup[ iSpecies ],
         texLatticeTmp, met 
     );
+//     else 
+//     kernelSimulationScBFMPerformSpeciesAndApply< T_UCoordinateCuda, 18, MoveDiagonal >
+//     <<< nBlocks, nThreads, 0, mStream >>>(
+//        mPolymerSystemSorted->gpu + mviSubGroupOffsets[ iSpecies ],
+//         mPolymerFlags->gpu + mviSubGroupOffsets[ iSpecies ],
+//         mLatticeOut->gpu,
+//         mnElementsInGroup[ iSpecies ],
+//         texLatticeTmp, met 
+//     );
 }
 
 template< typename T_UCoordinateCuda  >
@@ -2667,26 +2794,48 @@ void UpdaterGPUScBFM< T_UCoordinateCuda >::runSimulationOnGPU
             if ( iStep < 3 )
                 mLog( "Info" ) << "Calling Check-Kernel for species " << iSpecies << " for uint32_t * " << (void*) mNeighborsSorted->gpu << " + " << mNeighborsSortedInfo.getMatrixOffsetElements( iSpecies ) << " = " << (void*)( mNeighborsSorted->gpu + mNeighborsSortedInfo.getMatrixOffsetElements( iSpecies ) ) << " with pitch " << mNeighborsSortedInfo.getMatrixPitchElements( iSpecies ) << "\n";
             */
+	    if (!diagMovesOn)  
+	    {
+		launch_CheckSpecies<MoveStandard,6>(nBlocks, nThreads, iSpecies, iOffsetLatticeTmp, seed);
 
-	    launch_CheckSpecies(nBlocks, nThreads, iSpecies, iOffsetLatticeTmp, seed);
+		/** The counting kernel can come after the Check-kernel, because the
+		* Check-kernel only modifies the polymer flags which it does not
+		* read itself. It actually wouldn't work else, because the count
+		* kernel needs to query the drawn direction 
+		* @todo find the bug !!!
+		*/
+		//somehow it does not work with the boxCheck method. 
+    // 	    launch_CountFilteredCheck(nBlocks,nThreads,iSpecies, texLatticeTmp, dpFiltered, iOffsetLatticeTmp);
 
-	    /** The counting kernel can come after the Check-kernel, because the
-             * Check-kernel only modifies the polymer flags which it does not
-             * read itself. It actually wouldn't work else, because the count
-             * kernel needs to query the drawn direction 
-	     * @todo find the bug !!!
-	     */
-	    //somehow it does not work with the boxCheck method. 
-// 	    launch_CountFilteredCheck(nBlocks,nThreads,iSpecies, texLatticeTmp, dpFiltered, iOffsetLatticeTmp);
+		if ( mLog.isActive( "Stats" ) )
+		    launch_countFilteredPerform<MoveStandard>(nBlocks,nThreads, iSpecies, texLatticeTmp, dpFiltered);
 
-	    if ( mLog.isActive( "Stats" ) )
-		launch_countFilteredPerform(nBlocks,nThreads, iSpecies, texLatticeTmp, dpFiltered);
+		if ( useCudaMemset )
+		    launch_PerformSpeciesAndApply<MoveStandard>(nBlocks, nThreads, iSpecies, texLatticeTmp);
+		else
+		    launch_PerformSpecies<MoveStandard>(nBlocks,nThreads,iSpecies,texLatticeTmp);
+	    }else 
+	    {
+		launch_CheckSpecies<MoveDiagonal,18>(nBlocks, nThreads, iSpecies, iOffsetLatticeTmp, seed);
 
-	    if ( useCudaMemset )
-		launch_PerformSpeciesAndApply(nBlocks, nThreads, iSpecies, texLatticeTmp);
-	    else
-		launch_PerformSpecies(nBlocks,nThreads,iSpecies,texLatticeTmp);
+		/** The counting kernel can come after the Check-kernel, because the
+		* Check-kernel only modifies the polymer flags which it does not
+		* read itself. It actually wouldn't work else, because the count
+		* kernel needs to query the drawn direction 
+		* @todo find the bug !!!
+		*/
+		//somehow it does not work with the boxCheck method. 
+    // 	    launch_CountFilteredCheck(nBlocks,nThreads,iSpecies, texLatticeTmp, dpFiltered, iOffsetLatticeTmp);
 
+		if ( mLog.isActive( "Stats" ) )
+		    launch_countFilteredPerform<MoveDiagonal>(nBlocks,nThreads, iSpecies, texLatticeTmp, dpFiltered);
+
+		if ( useCudaMemset )
+		    launch_PerformSpeciesAndApply<MoveDiagonal>(nBlocks, nThreads, iSpecies, texLatticeTmp);
+		else
+		    launch_PerformSpecies<MoveDiagonal>(nBlocks,nThreads,iSpecies,texLatticeTmp);
+	    }
+	    
 	    if ( useCudaMemset ){
 		if(met.getPacking().getNBufferedTmpLatticeOn()){
 		    /* we only need to delete when buffers will wrap around and
