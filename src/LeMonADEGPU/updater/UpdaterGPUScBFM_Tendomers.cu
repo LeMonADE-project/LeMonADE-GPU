@@ -467,7 +467,36 @@ void UpdaterGPUScBFM_Tendomers<T_UCoordinateCuda>::initialize()
   mLatticeLabel->pushAsync();
   mLabelBonds->pushAsync();
   mLabelPosition->pushAsync();
-//   CUDA_ERROR( cudaStreamSynchronize( mStream ) );
+
+  if ( monomericMoveType == 2 )
+  {
+    moveType = new  MirroredTexture< uint8_t > (  mnAllMonomers );
+    auto nTenomderMonomers(nMonomersPerChain*nTendomers*2);
+    bool elasticChain(false);
+    for (auto j=0; j < mnAllMonomers ; j++)
+    {
+      auto ID (miToiNew->host[j]); 
+      if (j < nTenomderMonomers)
+      { if (j % nMonomersPerChain == 0 ) elasticChain = true;  
+	if (   elasticChain 
+	    && vMonomerLabel[j] > 0 
+	    && vMonomerLabel[j] != std::numeric_limits<uint32_t>::max()  ) //only for the slip link
+	{
+	  elasticChain = false; 
+	  moveType->host[ID]=0;
+	  continue;
+	}
+	if ( elasticChain )
+	  moveType->host[ID]=0; //elastic chain monomer plus the slip link move with standard moves 
+	else 
+	  moveType->host[ID]=1; //pending chain monomers can use the diagonal moves 
+      }
+      else 
+	moveType->host[ID]=0; //the crosslinker always should use standard moves
+    } 
+    moveType -> pushAsync();
+  }
+  
   
 }
 template< typename T_UCoordinateCuda >
@@ -542,6 +571,7 @@ void UpdaterGPUScBFM_Tendomers<T_UCoordinateCuda>::setFunctionality          ( u
 
 template< typename T_UCoordinateCuda >
 void UpdaterGPUScBFM_Tendomers<T_UCoordinateCuda>::setLabel( uint32_t ID_, uint32_t label_){vMonomerLabel[ID_]=label_;}
+
 template< typename T_UCoordinateCuda >
 int32_t UpdaterGPUScBFM_Tendomers<T_UCoordinateCuda>::getLabel( uint32_t ID_)
 { 
@@ -550,6 +580,10 @@ int32_t UpdaterGPUScBFM_Tendomers<T_UCoordinateCuda>::getLabel( uint32_t ID_)
     label=0;
   return label;
 }
+
+template< typename T_UCoordinateCuda >
+void UpdaterGPUScBFM_Tendomers<T_UCoordinateCuda>::setMoveType( int monomericMoveType_ ){ monomericMoveType = monomericMoveType_; }
+
 
 template< typename T_UCoordinateCuda  >
 void UpdaterGPUScBFM_Tendomers< T_UCoordinateCuda >::runSimulationOnGPU
@@ -629,21 +663,24 @@ void UpdaterGPUScBFM_Tendomers< T_UCoordinateCuda >::runSimulationOnGPU
             auto const useCudaMemset = chooseThreads.useCudaMemset(iSpecies);
             chooseThreads.addRecord(iSpecies, mStream);
 
-	    if (!diagMovesOn)  
-	    {
-		this-> template launch_CheckSpecies<6>(nBlocks, nThreads, iSpecies, iOffsetLatticeTmp, seed);
-		if ( useCudaMemset )
-		    launch_PerformSpeciesAndApply(nBlocks, nThreads, iSpecies, texLatticeTmp);
-		else
-		    launch_PerformSpecies(nBlocks,nThreads,iSpecies,texLatticeTmp);
-	    }else 
-	    {
-		this-> template launch_CheckSpecies<18>(nBlocks, nThreads, iSpecies, iOffsetLatticeTmp, seed);
-		if ( useCudaMemset )
-		    launch_PerformSpeciesAndApply(nBlocks, nThreads, iSpecies, texLatticeTmp);
-		else
-		    launch_PerformSpecies(nBlocks,nThreads,iSpecies,texLatticeTmp);
-	    }
+            switch ( monomericMoveType )
+            {
+            case 0: this-> template launch_CheckSpecies<6>(nBlocks, nThreads, iSpecies, iOffsetLatticeTmp, seed);
+		    if ( useCudaMemset )
+			launch_PerformSpeciesAndApply(nBlocks, nThreads, iSpecies, texLatticeTmp);
+		    else
+			launch_PerformSpecies(nBlocks,nThreads,iSpecies,texLatticeTmp);
+	    case 1: this-> template launch_CheckSpecies<18>(nBlocks, nThreads, iSpecies, iOffsetLatticeTmp, seed);
+		    if ( useCudaMemset )
+			launch_PerformSpeciesAndApply(nBlocks, nThreads, iSpecies, texLatticeTmp);
+		    else
+			launch_PerformSpecies(nBlocks,nThreads,iSpecies,texLatticeTmp);
+	    case 2: this-> template launch_CheckSpecies<18>(nBlocks, nThreads, iSpecies, iOffsetLatticeTmp, seed);
+		    if ( useCudaMemset )
+			launch_PerformSpeciesAndApply(nBlocks, nThreads, iSpecies, texLatticeTmp);
+		    else
+			launch_PerformSpecies(nBlocks,nThreads,iSpecies,texLatticeTmp);
+            }
 
 	    if ( useCudaMemset )
 	    {
@@ -662,11 +699,6 @@ void UpdaterGPUScBFM_Tendomers< T_UCoordinateCuda >::runSimulationOnGPU
 	    else
 		launch_ZeroArraySpecies(nBlocks,nThreads,iSpecies);
         } // iSubstep
-//         mLog( "Check") << "Check after moving the positions\n";
-//         doCopyBack();
-// 	checkSystem(); // no-op if "Check"-level deactivated
-
-
     } // iStep
 
     std::clock_t const t1 = std::clock();
@@ -677,7 +709,6 @@ void UpdaterGPUScBFM_Tendomers< T_UCoordinateCuda >::runSimulationOnGPU
     << nMonteCarloSteps * ( mnAllMonomers / dt )  << "     runtime[s]:" << dt << "\n";
     doCopyBack();
     checkSystem(); // no-op if "Check"-level deactivated
-    
 }
 
 template< typename T_UCoordinateCuda >

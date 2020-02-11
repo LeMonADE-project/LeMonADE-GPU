@@ -48,6 +48,10 @@ void printHelp( void )
         << "        Save after every <integer> Monte-Carlo steps to the output file.\n"
         << "    -o, --output <file path>\n"
         << "        All intermediate steps at each save-interval will be appended to this file even if it already exists\n"
+	<< "    -d, --diagonal <integer> \n"
+        << "        0: use standard moves for all monomers \n"
+	<< "        1: use diagonal moves for all monomers \n"
+	<< "        2: use standard moves for all monomers in the elastic chain and diagonal moves for the pending chain \n"
         << "    -v, --version\n"
         ;
     std::cout << msg.str();
@@ -65,7 +69,7 @@ int main( int argc, char ** argv )
     int      iGpuToUse       = 0;
     int      iRngToUse       = -1;
     std::string seedFileName = "";
-        
+    int diagonalMoves        = 0; 
     try
     {
 
@@ -87,11 +91,12 @@ int main( int argc, char ** argv )
                 { "output"       , required_argument, 0, 'o' },
                 { "rng"          , required_argument, 0, 'r' },
                 { "save-interval", required_argument, 0, 's' },
+		{ "diagonal", required_argument, 0, 'd' },
                 { 0, 0, 0, 0 }    // signal end of list
             };
             /* getopt_long stores the option index here. */
             int option_index = 0;
-            int c = getopt_long( argc, argv, "e:g:hi:m:o:r:s:", long_options, &option_index );
+            int c = getopt_long( argc, argv, "e:g:hi:m:o:r:s:d:", long_options, &option_index );
 
             if ( c == -1 )
                 break;
@@ -106,6 +111,7 @@ int main( int argc, char ** argv )
                 case 'o': outfile       = std::string( optarg ); break;
                 case 'r': iRngToUse     = std::atoi  ( optarg ); break;
                 case 's': save_interval = std::atol  ( optarg ); break;
+		case 'd': diagonalMoves = std::atoi  ( optarg ); break;
                     break;
                 default:
                     std::cerr << "Unknown option encountered: " << optarg << "\n";

@@ -64,7 +64,7 @@ private:
     uint64_t mnStepsBetweenSortings;
     bool mSetStepsBetweenSortings;
     uint8_t mnSplitColors;
-    bool mDiagMovesOn; 
+    int mDiagMovesOn; 
     
 protected:
     inline T_IngredientsType & getIngredients() { return mIngredients; }
@@ -81,7 +81,7 @@ public:
     (
         T_IngredientsType & rIngredients,
         uint32_t            rnSteps     ,
-	bool                mDiagMovesOn_ = false,
+	int                 mDiagMovesOn_ = 0,
         int                 riGpuToUse = 0
     )
     : mIngredients( rIngredients                   ),
@@ -190,8 +190,8 @@ public:
         for ( size_t i = 0u; i < mIngredients.getMolecules().size(); ++i )
 	  mUpdaterGpu.setLabel( i, mIngredients.getMolecules()[i].getLabel() );
 	
-	mLog( "Info" ) << "[" << __FILENAME__ << "::initialize] set move type (either standard or diagonal moves)\n";
-        mUpdaterGpu.setDiagonalMovesOn(mDiagMovesOn);
+	mLog( "Info" ) << "[" << __FILENAME__ << "::initialize] set move type (either standard, diagonal moves or partial diagonal moves for pending chain)\n";
+        mUpdaterGpu.setMoveType(mDiagMovesOn);
         
 	Method met;
  	met.modifyCurve().setMode(0);

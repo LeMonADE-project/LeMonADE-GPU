@@ -68,7 +68,6 @@ protected:
     using BaseClass::mPolymerFlags;
     using BaseClass::mLatticeOut;
     using BaseClass::boxCheck;
-    using BaseClass::diagMovesOn;
     
 public:
     UpdaterGPUScBFM_Tendomers();
@@ -92,6 +91,10 @@ private:
     MirroredVector< T_RingCoordinates > * mLabelPosition;
     //connectivity of the slide ring 
     MirroredVector< T_RingCoordinates > * mLabelBonds;
+    //can be either 0:standard moves for all monomers, 1: diagonal moves for all monomers, 2: diagonal moves for pending chain and standard moves for elastic chain monomers
+    int monomericMoveType;
+    //stores if the monomer can use diagonal moves or not
+    MirroredTexture<  uint8_t > * moveType;
 
 public:
   
@@ -102,6 +105,8 @@ public:
     void    setNumLabelsPerTendomerArm( uint32_t nLabelsPerTendomerArm_ );
     void    setFunctionality          ( uint32_t functionality_         );
     void    setLabel                  ( uint32_t ID_, uint32_t label_);
+    void    setMoveType               ( int      monomericMoveType_ );
+    
     int32_t getLabel                  ( uint32_t ID_ );
     
     void initialize();
