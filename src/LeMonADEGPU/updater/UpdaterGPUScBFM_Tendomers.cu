@@ -193,8 +193,9 @@ template< typename T_UCoordinateCuda >
 UpdaterGPUScBFM_Tendomers<T_UCoordinateCuda>::UpdaterGPUScBFM_Tendomers():
 BaseClass             (      ),
 mLatticeLabel         ( NULL ),
-mLabelPosition      ( NULL ),
+mLabelPosition        ( NULL ),
 mLabelBonds           ( NULL ),
+moveType              ( NULL ),
 nMonomersPerChain     ( 0    ),
 nTendomers            ( 0    ),
 nCrossLinks           ( 0    ),
@@ -219,9 +220,10 @@ template< typename T_UCoordinateCuda >
 void UpdaterGPUScBFM_Tendomers<T_UCoordinateCuda>::destruct(){
       
     DeleteMirroredObject deletePointer;
-    deletePointer( mLatticeLabel    , "mLatticeLabel"    );
+    deletePointer( mLatticeLabel  , "mLatticeLabel"  );
     deletePointer( mLabelPosition , "mLabelPosition" );
-    deletePointer( mLabelBonds      , "mLabelBonds"      );
+    deletePointer( mLabelBonds    , "mLabelBonds"    );
+    deletePointer( moveType       , "moveType"       );
     if ( deletePointer.nBytesFreed > 0 )
     {
         mLog( "Info" )
@@ -467,10 +469,10 @@ void UpdaterGPUScBFM_Tendomers<T_UCoordinateCuda>::initialize()
   mLatticeLabel->pushAsync();
   mLabelBonds->pushAsync();
   mLabelPosition->pushAsync();
-
+  // move type for the partial usage of diagonal moves 
+  moveType = new  MirroredTexture< uint8_t > (  this-> mnMonomersPadded  );
   if ( monomericMoveType == 2 )
   {
-    moveType = new  MirroredTexture< uint8_t > (  mnAllMonomers );
     auto nTenomderMonomers(nMonomersPerChain*nTendomers*2);
     bool elasticChain(false);
     for (auto j=0; j < mnAllMonomers ; j++)
@@ -494,10 +496,8 @@ void UpdaterGPUScBFM_Tendomers<T_UCoordinateCuda>::initialize()
       else 
 	moveType->host[ID]=0; //the crosslinker always should use standard moves
     } 
-    moveType -> pushAsync();
   }
-  
-  
+  moveType -> pushAsync();
 }
 template< typename T_UCoordinateCuda >
 void UpdaterGPUScBFM_Tendomers<T_UCoordinateCuda>::setNTendomers             ( uint32_t nTendomers_            )
@@ -582,7 +582,11 @@ int32_t UpdaterGPUScBFM_Tendomers<T_UCoordinateCuda>::getLabel( uint32_t ID_)
 }
 
 template< typename T_UCoordinateCuda >
-void UpdaterGPUScBFM_Tendomers<T_UCoordinateCuda>::setMoveType( int monomericMoveType_ ){ monomericMoveType = monomericMoveType_; }
+void UpdaterGPUScBFM_Tendomers<T_UCoordinateCuda>::setMoveType( int monomericMoveType_ )
+{ 
+  monomericMoveType = monomericMoveType_; 
+  mLog( "Stats" ) << "UpdaterGPUScBFM_Tendomers<T_UCoordinateCuda>::setMoveType to " << monomericMoveType << "\n";
+}
 
 
 template< typename T_UCoordinateCuda  >
@@ -624,21 +628,17 @@ void UpdaterGPUScBFM_Tendomers< T_UCoordinateCuda >::runSimulationOnGPU
                     cudaMemcpyDeviceToDevice, mStream ) );
             }
         }
-                //move labels 
+	//move labels 
         for ( uint32_t iSubStep = 0; iSubStep < labelOffset.size(); ++iSubStep ) 
 	{
             /* randomly choose which monomer group to advance */
-//             auto const iSpecies = randomNumbers.r250_rand32() % (labelOffset.size());
-            auto const iSpecies = iSubStep;
+            auto const iSpecies = randomNumbers.r250_rand32() % (labelOffset.size());
             auto const nThreads = 128;
             auto const nBlocks  = ceilDiv( nLabelsPerSpecies[iSpecies], nThreads );
             auto const seed     = randomNumbers.r250_rand32();
 	    //move label 
 	    launch_MoveLabel(nBlocks, nThreads, iSpecies, seed);
         } // iSubstep
-//         mLog( "Check") << "Check after moving the labels\n";
-//         doCopyBack();
-// 	checkSystem(); // no-op if "Check"-level deactivated
         /* one Monte-Carlo step:
          *  - tries to move on average all particles one time
          *  - each particle could be touched, not just one group */
@@ -663,6 +663,7 @@ void UpdaterGPUScBFM_Tendomers< T_UCoordinateCuda >::runSimulationOnGPU
             auto const useCudaMemset = chooseThreads.useCudaMemset(iSpecies);
             chooseThreads.addRecord(iSpecies, mStream);
 
+            
             switch ( monomericMoveType )
             {
             case 0: this-> template launch_CheckSpecies<6>(nBlocks, nThreads, iSpecies, iOffsetLatticeTmp, seed);
@@ -670,16 +671,19 @@ void UpdaterGPUScBFM_Tendomers< T_UCoordinateCuda >::runSimulationOnGPU
 			launch_PerformSpeciesAndApply(nBlocks, nThreads, iSpecies, texLatticeTmp);
 		    else
 			launch_PerformSpecies(nBlocks,nThreads,iSpecies,texLatticeTmp);
+		    break;
 	    case 1: this-> template launch_CheckSpecies<18>(nBlocks, nThreads, iSpecies, iOffsetLatticeTmp, seed);
 		    if ( useCudaMemset )
 			launch_PerformSpeciesAndApply(nBlocks, nThreads, iSpecies, texLatticeTmp);
 		    else
 			launch_PerformSpecies(nBlocks,nThreads,iSpecies,texLatticeTmp);
-	    case 2: this-> template launch_CheckSpecies<18>(nBlocks, nThreads, iSpecies, iOffsetLatticeTmp, seed);
+		    break;
+	    case 2: this-> launch_CheckSpeciesWithMonomericMoveType(nBlocks, nThreads, iSpecies, iOffsetLatticeTmp, seed, moveType -> texture);
 		    if ( useCudaMemset )
 			launch_PerformSpeciesAndApply(nBlocks, nThreads, iSpecies, texLatticeTmp);
 		    else
 			launch_PerformSpecies(nBlocks,nThreads,iSpecies,texLatticeTmp);
+		    break;
             }
 
 	    if ( useCudaMemset )
@@ -796,7 +800,7 @@ void UpdaterGPUScBFM_Tendomers< T_UCoordinateCuda >::checkSystem() const
 {
     if ( ! mLog.isActive( "Check" ) )
         return;
-    BaseClass::checkLatticeOccupation();
+    this -> checkLatticeOccupation();
 //     for (auto i = 0; i < mnAllMonomers; i++)
 //     {
 //       if (mGroupIds[i] == 0 ) 

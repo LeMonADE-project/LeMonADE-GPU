@@ -104,8 +104,8 @@ public:
     void    setNumMonomersPerChain    ( uint32_t nMonomersPerChain_     );
     void    setNumLabelsPerTendomerArm( uint32_t nLabelsPerTendomerArm_ );
     void    setFunctionality          ( uint32_t functionality_         );
-    void    setLabel                  ( uint32_t ID_, uint32_t label_);
-    void    setMoveType               ( int      monomericMoveType_ );
+    void    setLabel                  ( uint32_t ID_, uint32_t label_   );
+    void    setMoveType               ( int      monomericMoveType_     );
     
     int32_t getLabel                  ( uint32_t ID_ );
     

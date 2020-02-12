@@ -706,7 +706,7 @@ void UpdaterGPUScBFM_AB_Connection< T_UCoordinateCuda >::checkSystem() const
 {
     if ( ! mLog.isActive( "Check" ) )
         return;
-    BaseClass::checkLatticeOccupation();
+    this -> checkLatticeOccupation();
 //     BaseClass::checkBonds();
     for (auto i = 0; i < nReactiveMonomers; i++)
     {

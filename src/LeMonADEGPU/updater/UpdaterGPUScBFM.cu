@@ -184,21 +184,21 @@ __device__ inline bool checkFront
 		*/
 	case 3: //+x-+y
 	case 4: //-x-+y
-	    is[2]  = met.getCurve().linearizeBoxVectorIndexY( y0 + dy + dy );
-	    is[14] = met.getCurve().linearizeBoxVectorIndexX( x0 + dx + dx ); 
-	    
-	    is[5]   = is[2] + met.getCurve().linearizeBoxVectorIndexX( x0 + dx ); 
-	    is[8]   = is[2] + is[14];
-	    is[11]  = is[14] + met.getCurve().linearizeBoxVectorIndexY( y0 + dy );
-	    is[2]  += x0Abs; 
-	    is[14] += y0Abs;
+		is[2]  = met.getCurve().linearizeBoxVectorIndexY( y0 + dy + dy );
+		is[14] = met.getCurve().linearizeBoxVectorIndexX( x0 + dx + dx ); 
+		
+		is[5]   = is[2] + met.getCurve().linearizeBoxVectorIndexX( x0 + dx ); 
+		is[8]   = is[2] + is[14];
+		is[11]  = is[14] + met.getCurve().linearizeBoxVectorIndexY( y0 + dy );
+		is[2]  += x0Abs; 
+		is[14] += y0Abs;
 
-	    is[0]  =  is[2]  + z0MOne; is[1]  =  is[2]  + z0Abs; is[2]  +=          z0POne;
-	    is[3]  =  is[5]  + z0MOne; is[4]  =  is[5]  + z0Abs; is[5]  +=          z0POne; 
-	    is[6]  =  is[8]  + z0MOne; is[7]  =  is[8]  + z0Abs; is[8]  +=          z0POne;
-	    is[9]  =  is[11] + z0MOne; is[10] =  is[11] + z0Abs; is[11] +=          z0POne;
-	    is[12] =  is[14] + z0MOne; is[13] =  is[14] + z0Abs; is[14] +=          z0POne;
-	    break;
+		is[0]  =  is[2]  + z0MOne; is[1]  =  is[2]  + z0Abs; is[2]  +=          z0POne;
+		is[3]  =  is[5]  + z0MOne; is[4]  =  is[5]  + z0Abs; is[5]  +=          z0POne; 
+		is[6]  =  is[8]  + z0MOne; is[7]  =  is[8]  + z0Abs; is[8]  +=          z0POne;
+		is[9]  =  is[11] + z0MOne; is[10] =  is[11] + z0Abs; is[11] +=          z0POne;
+		is[12] =  is[14] + z0MOne; is[13] =  is[14] + z0Abs; is[14] +=          z0POne;
+		break;
 	    		/**
 		* @verbatim
 		*     .    .    .
@@ -232,40 +232,40 @@ __device__ inline bool checkFront
 		*/
 	case 5: //+y-+z
 	case 6: //-y-+z
-	    is[2]  = met.getCurve().linearizeBoxVectorIndexY( z0 + dz + dz );
-	    is[14] = met.getCurve().linearizeBoxVectorIndexX( y0 + dy + dy ); 
-	    
-	    is[5]   = is[2] + met.getCurve().linearizeBoxVectorIndexX( y0 + dy ); 
-	    is[8]   = is[2] + is[14];
-	    is[11]  = is[14] + met.getCurve().linearizeBoxVectorIndexY( z0 + dz );
-	    is[2]  += y0Abs; 
-	    is[14] += z0Abs;
-	    
-	    is[0]  =  is[2]  + x0MOne; is[1]  =  is[2]  + x0Abs; is[2]  +=          x0POne;
-	    is[3]  =  is[5]  + x0MOne; is[4]  =  is[5]  + x0Abs; is[5]  +=          x0POne;
-	    is[6]  =  is[8]  + x0MOne; is[7]  =  is[8]  + x0Abs; is[8]  +=          x0POne;
-	    is[9]  =  is[11] + x0MOne; is[10] =  is[11] + x0Abs; is[11] +=          x0POne;
-	    is[12] =  is[14] + x0MOne; is[13] =  is[14] + x0Abs; is[14] +=          x0POne;
-	    break;
+		is[2]  = met.getCurve().linearizeBoxVectorIndexZ( z0 + dz + dz );
+		is[14] = met.getCurve().linearizeBoxVectorIndexY( y0 + dy + dy ); 
+		
+		is[5]   = is[2] + met.getCurve().linearizeBoxVectorIndexY( y0 + dy ); 
+		is[8]   = is[2] + is[14];
+		is[11]  = is[14] + met.getCurve().linearizeBoxVectorIndexZ( z0 + dz );
+		is[2]  += y0Abs; 
+		is[14] += z0Abs;
+		
+		is[0]  =  is[2]  + x0MOne; is[1]  =  is[2]  + x0Abs; is[2]  +=          x0POne;
+		is[3]  =  is[5]  + x0MOne; is[4]  =  is[5]  + x0Abs; is[5]  +=          x0POne;
+		is[6]  =  is[8]  + x0MOne; is[7]  =  is[8]  + x0Abs; is[8]  +=          x0POne;
+		is[9]  =  is[11] + x0MOne; is[10] =  is[11] + x0Abs; is[11] +=          x0POne;
+		is[12] =  is[14] + x0MOne; is[13] =  is[14] + x0Abs; is[14] +=          x0POne;
+		break;
 	case 7: //+z-+x
 	case 8: //-z-+x
-	    is[2]  = met.getCurve().linearizeBoxVectorIndexY( x0 + dx + dx );
-	    is[14] = met.getCurve().linearizeBoxVectorIndexX( z0 + dz + dz ); 
-	    
-	    is[5]   = is[2] + met.getCurve().linearizeBoxVectorIndexX( z0 + dz ); 
-	    is[8]   = is[2] + is[14];
-	    is[11]  = is[14] + met.getCurve().linearizeBoxVectorIndexY( x0 + dx );
-	    is[2]  += z0Abs; 
-	    is[14] += x0Abs;
+		is[2]  = met.getCurve().linearizeBoxVectorIndexX( x0 + dx + dx );
+		is[14] = met.getCurve().linearizeBoxVectorIndexZ( z0 + dz + dz ); 
+		
+		is[5]   = is[2] + met.getCurve().linearizeBoxVectorIndexZ( z0 + dz ); 
+		is[8]   = is[2] + is[14];
+		is[11]  = is[14] + met.getCurve().linearizeBoxVectorIndexX( x0 + dx );
+		is[2]  += z0Abs; 
+		is[14] += x0Abs;
 
-	    is[0]  =  is[2]  + y0MOne; is[1]  =  is[2]  + y0Abs; is[2]  +=          y0POne;
-	    is[3]  =  is[5]  + y0MOne; is[4]  =  is[5]  + y0Abs; is[5]  +=          y0POne;
-	    is[6]  =  is[8]  + y0MOne; is[7]  =  is[8]  + y0Abs; is[8]  +=          y0POne;
-	    is[9]  =  is[11] + y0MOne; is[10] =  is[11] + y0Abs; is[11] +=          y0POne;
-	    is[12] =  is[14] + y0MOne; is[13] =  is[14] + y0Abs; is[14] +=          y0POne;
-	    break;
+		is[0]  =  is[2]  + y0MOne; is[1]  =  is[2]  + y0Abs; is[2]  +=          y0POne;
+		is[3]  =  is[5]  + y0MOne; is[4]  =  is[5]  + y0Abs; is[5]  +=          y0POne;
+		is[6]  =  is[8]  + y0MOne; is[7]  =  is[8]  + y0Abs; is[8]  +=          y0POne;
+		is[9]  =  is[11] + y0MOne; is[10] =  is[11] + y0Abs; is[11] +=          y0POne;
+		is[12] =  is[14] + y0MOne; is[13] =  is[14] + y0Abs; is[14] +=          y0POne;
+		break;
     }
-    switch ( axis << 1 )
+    switch ( axis >> 1 )
     {
     case 0: 
     case 1:
@@ -429,6 +429,69 @@ __global__ void kernelSimulationScBFMCheckSpecies
         dpPolymerFlags[ iMonomer ] = direction;
     }
 }
+
+template< typename T_UCoordinateCuda >
+__global__ void kernelSimulationScBFMCheckSpeciesMonomericMoveType
+(
+    typename CudaVec4< T_UCoordinateCuda >::value_type
+                const * const __restrict__ dpPolymerSystem         ,
+    T_Flags           * const              dpPolymerFlags          ,
+    uint32_t            const              iOffset                 ,
+    T_Lattice         * const __restrict__ dpLatticeTmp            ,
+    T_Id        const * const              dpNeighbors             ,
+    uint32_t            const              rNeighborsPitchElements ,
+    uint8_t     const * const              dpNeighborsSizes        ,
+    T_Id                const              nMonomers               ,
+    uint64_t            const              rSeed                   ,
+    uint64_t            const              rGlobalIteration        ,
+    cudaTextureObject_t const              texLatticeRefOut        ,
+    BoxCheck                               bCheck                  , 
+    Method              const              met                     ,
+    BondVectorSet       const              checkBondVector         ,
+    cudaTextureObject_t const              texMonomericMoveType	  
+)
+{
+    uint32_t rn;
+    int iGrid = 0;
+    for ( auto iMonomer = blockIdx.x * blockDim.x + threadIdx.x;
+          iMonomer < nMonomers; iMonomer += gridDim.x * blockDim.x, ++iGrid )
+    {
+        auto const r0 = dpPolymerSystem[ iOffset + iMonomer ];
+        /* upcast int3 to int4 in preparation to use PTX SIMD instructions */
+        //int4 const r0 = { r0Raw.x, r0Raw.y, r0Raw.z, 0 }; // not faster nor slower
+        //select random direction. Own implementation of an rng :S? But I think it at least# was initialized using the LeMonADE RNG ...
+        if ( iGrid % 1 == 0 ) // 12 = floor( log(2^32) / log(6) )
+        {
+	  Saru rng(rGlobalIteration,iMonomer,rSeed);
+	  rn =rng.rng32();
+        }
+        
+        int direction =  (tex1Dfetch<uint8_t>( texMonomericMoveType, iOffset + iMonomer) == 0) ? rn % 6 : rn % 18 ;
+	
+         /* select random direction. Do this with bitmasking instead of lookup ??? */
+        typename CudaVec4< T_UCoordinateCuda >::value_type const r1 = {
+            T_UCoordinateCuda( r0.x + DXTable_d[ direction ] ),
+            T_UCoordinateCuda( r0.y + DYTable_d[ direction ] ),
+            T_UCoordinateCuda( r0.z + DZTable_d[ direction ] )
+        };
+	if (    bCheck(r1.x,r1.y,r1.z) && 
+	      ! checkNeighboringBonds<T_UCoordinateCuda>(dpNeighborsSizes, iMonomer, dpNeighbors, rNeighborsPitchElements, dpPolymerSystem, r1, checkBondVector ) && 
+	      ! checkFront( texLatticeRefOut, r0.x, r0.y, r0.z, direction, met, &BitPacking::bitPackedTextureGetStandard ) 
+// 	      && tex1Dfetch<uint8_t>( texMonomericMoveType, iOffset + iMonomer) == 0  // for testing only allow elastic chain to move
+	  )
+	{
+	    /* everything fits so perform move on temporary lattice */
+	    /* can I do this ??? dpPolymerSystem is the device pointer to the read-only
+	      * texture used above. Won't this result in read-after-write race-conditions?
+	      * Then again the written / changed bits are never used in the above code ... */
+	    direction += T_Flags(32) /* can-move-flag */;
+	    met.getPacking().bitPackedSet(dpLatticeTmp, met.getCurve().linearizeBoxVectorIndex( r1.x, r1.y, r1.z ));
+	}
+
+        dpPolymerFlags[ iMonomer ] = direction;
+    }
+}
+
 template< typename T_UCoordinateCuda, int moveSize >
 __global__ void kernelSimulationScBFMCheckReactiveSpecies
 (
@@ -797,6 +860,34 @@ void UpdaterGPUScBFM< T_UCoordinateCuda >::launch_CheckSpecies(
 	checkBondVector
     );
   hGlobalIterator++;
+}
+
+template< typename T_UCoordinateCuda> 
+void UpdaterGPUScBFM< T_UCoordinateCuda >::launch_CheckSpeciesWithMonomericMoveType(
+    const size_t nBlocks, const size_t nThreads, 
+    const size_t iSpecies, const size_t iOffsetLatticeTmp, 
+    const uint64_t seed, cudaTextureObject_t const texMonomericMoveType )
+{
+    kernelSimulationScBFMCheckSpeciesMonomericMoveType< T_UCoordinateCuda > 
+    <<< nBlocks, nThreads, 0, mStream >>>(                
+	mPolymerSystemSorted->gpu,                                     
+	mPolymerFlags->gpu + mviSubGroupOffsets[ iSpecies ],           
+	mviSubGroupOffsets[ iSpecies ],                                
+	mLatticeTmp->gpu + iOffsetLatticeTmp,                          
+	mNeighborsSorted->gpu + mNeighborsSortedInfo.getMatrixOffsetElements( iSpecies ), 
+	mNeighborsSortedInfo.getMatrixPitchElements( iSpecies ),       
+	mNeighborsSortedSizes->gpu + mviSubGroupOffsets[ iSpecies ],   
+	mnElementsInGroup[ iSpecies ],                                 
+	seed, 
+	hGlobalIterator,                                         
+	mLatticeOut->texture,
+	boxCheck, 
+	met,
+	checkBondVector,
+	texMonomericMoveType
+    );
+  hGlobalIterator++;
+
 }
 
 template< typename T_UCoordinateCuda> 
@@ -2928,8 +3019,6 @@ uint32_t UpdaterGPUScBFM< T_UCoordinateCuda >::getNeighborIdx(uint32_t MonID, ui
 {
   return  mNeighbors->host[ MonID ].neighborIds[BondID]; 
 }
-
-// __global__ void 
 
 template< typename T_UCoordinateCuda >
 void UpdaterGPUScBFM< T_UCoordinateCuda >::doCopyBackConnectivity()

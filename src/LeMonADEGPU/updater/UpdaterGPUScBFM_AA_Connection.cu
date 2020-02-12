@@ -823,7 +823,7 @@ void UpdaterGPUScBFM_AA_Connection< T_UCoordinateCuda >::checkSystem() const
 {
     if ( ! mLog.isActive( "Check" ) )
         return;
-    BaseClass::checkLatticeOccupation();
+    this -> checkLatticeOccupation();
     for (auto i = 0; i < mnAllMonomers; i++)
     {
       if (mGroupIds[i] == 0 )
