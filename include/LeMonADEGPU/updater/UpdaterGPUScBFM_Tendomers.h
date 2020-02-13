@@ -68,6 +68,7 @@ protected:
     using BaseClass::mPolymerFlags;
     using BaseClass::mLatticeOut;
     using BaseClass::boxCheck;
+   
     
 public:
     UpdaterGPUScBFM_Tendomers();
@@ -110,6 +111,7 @@ public:
     int32_t getLabel                  ( uint32_t ID_ );
     
     void initialize();
+//     using BaseClass::runSimulationOnGPU;
     void runSimulationOnGPU(const uint32_t nSteps );
     void launch_MoveLabel(const size_t nBlocks, const size_t nThreads, const size_t iSpecies, const uint64_t seed);
     void doCopyBack();

@@ -156,7 +156,7 @@ int main( int argc, char ** argv )
          * it on the heap, i.e.:
          *   GPUScBFM_AB_Type<Ing> gpuBfm( myIngredients, save_interval, iGpuToUse );
          */
-        auto const pUpdaterGpu = new GPUScBFM_Tendomers<Ing>( myIngredients, save_interval );
+        auto const pUpdaterGpu = new GPUScBFM_Tendomers<Ing>( myIngredients, save_interval, diagonalMoves );
         pUpdaterGpu->setGpu( iGpuToUse );
         pUpdaterGpu->activateLogging( "Error"     );
         pUpdaterGpu->activateLogging( "Stats"      );

@@ -469,7 +469,6 @@ void UpdaterGPUScBFM_Tendomers<T_UCoordinateCuda>::initialize()
   mLatticeLabel->pushAsync();
   mLabelBonds->pushAsync();
   mLabelPosition->pushAsync();
-  // move type for the partial usage of diagonal moves 
   moveType = new  MirroredTexture< uint8_t > (  this-> mnMonomersPadded  );
   if ( monomericMoveType == 2 )
   {
@@ -496,8 +495,10 @@ void UpdaterGPUScBFM_Tendomers<T_UCoordinateCuda>::initialize()
       else 
 	moveType->host[ID]=0; //the crosslinker always should use standard moves
     } 
+    moveType -> pushAsync();
   }
-  moveType -> pushAsync();
+  
+  
 }
 template< typename T_UCoordinateCuda >
 void UpdaterGPUScBFM_Tendomers<T_UCoordinateCuda>::setNTendomers             ( uint32_t nTendomers_            )
@@ -714,7 +715,7 @@ void UpdaterGPUScBFM_Tendomers< T_UCoordinateCuda >::runSimulationOnGPU
     doCopyBack();
     checkSystem(); // no-op if "Check"-level deactivated
 }
-
+// 
 template< typename T_UCoordinateCuda >
 void UpdaterGPUScBFM_Tendomers< T_UCoordinateCuda >::doCopyBackLabels()
 {

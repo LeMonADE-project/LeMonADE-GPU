@@ -326,7 +326,7 @@ BondVectorSet       const              checkBondVector
   {
       auto const iGlobalNeighbor = dpNeighbors[ iNeighbor * rNeighborsPitchElements + iMonomer ];
       auto const data2 = dpPolymerSystem[ iGlobalNeighbor ];
-      if ( checkBondVector.operator()<false>( data2.x - r1.x, data2.y - r1.y, data2.z - r1.z ) )
+      if ( checkBondVector.operator()<true>( data2.x - r1.x, data2.y - r1.y, data2.z - r1.z ) )
       {
 	return true; 
       }
@@ -467,7 +467,7 @@ __global__ void kernelSimulationScBFMCheckSpeciesMonomericMoveType
         }
         
         int direction =  (tex1Dfetch<uint8_t>( texMonomericMoveType, iOffset + iMonomer) == 0) ? rn % 6 : rn % 18 ;
-	
+// 	printf("ID=%d tag=%d ", iMonomer,tex1Dfetch<uint8_t>( texMonomericMoveType, iOffset + iMonomer));
          /* select random direction. Do this with bitmasking instead of lookup ??? */
         typename CudaVec4< T_UCoordinateCuda >::value_type const r1 = {
             T_UCoordinateCuda( r0.x + DXTable_d[ direction ] ),
@@ -477,7 +477,7 @@ __global__ void kernelSimulationScBFMCheckSpeciesMonomericMoveType
 	if (    bCheck(r1.x,r1.y,r1.z) && 
 	      ! checkNeighboringBonds<T_UCoordinateCuda>(dpNeighborsSizes, iMonomer, dpNeighbors, rNeighborsPitchElements, dpPolymerSystem, r1, checkBondVector ) && 
 	      ! checkFront( texLatticeRefOut, r0.x, r0.y, r0.z, direction, met, &BitPacking::bitPackedTextureGetStandard ) 
-// 	      && tex1Dfetch<uint8_t>( texMonomericMoveType, iOffset + iMonomer) == 0  // for testing only allow elastic chain to move
+	      && tex1Dfetch<uint8_t>( texMonomericMoveType, iOffset + iMonomer) == 1  // for testing only allow elastic chain to move
 	  )
 	{
 	    /* everything fits so perform move on temporary lattice */
@@ -2402,7 +2402,7 @@ void UpdaterGPUScBFM< T_UCoordinateCuda >::checkLatticeOccupation() const
 {
    /* note that std::vector< bool > already uses bitpacking!
      * We'd have to watch out when erasing that array with memset! */
-    std::vector< uint8_t > lattice( mBoxX * mBoxY * mBoxZ, 0 );
+    std::vector< uint32_t > lattice( mBoxX * mBoxY * mBoxZ, 0 );
 
     /**
      * Test for excluded volume by setting all lattice points and count the
@@ -2417,6 +2417,7 @@ void UpdaterGPUScBFM< T_UCoordinateCuda >::checkLatticeOccupation() const
     uint32_t counter(0);
     for ( T_Id i = 0; i < mnAllMonomers; i++, counter++  )
     {
+	
         int32_t const & x = mPolymerSystem->host[i].x;
         int32_t const & y = mPolymerSystem->host[i].y;
         int32_t const & z = mPolymerSystem->host[i].z;
@@ -2443,7 +2444,7 @@ void UpdaterGPUScBFM< T_UCoordinateCuda >::checkLatticeOccupation() const
 	auto vec(met.getCurve().linearizeBoxVectorIndex( x  , y  , z   ));
 	if (lattice[ vec ] != 0 )
 	  std::cout << "Lattice already occupied with id " << (uint32_t)lattice[vec] -1<< " current id " << i  <<std::endl ;
-        lattice[ vec ] = i+1; /* 0 */
+        lattice[ vec ] = i+1;  /* 0 */
          vec=(met.getCurve().linearizeBoxVectorIndex( x+1, y  , z   ));
         if (lattice[ vec ] != 0 )
 	  std::cout << "Lattice already occupied with id " << (uint32_t)lattice[vec] -1<< " current id " << i  <<std::endl ;
@@ -2474,6 +2475,7 @@ void UpdaterGPUScBFM< T_UCoordinateCuda >::checkLatticeOccupation() const
         lattice[ vec ] = i+1; /* 7 */
 
     }
+    std::cout << "Run over " <<counter << "number of monomers "<<"\n";
     /* check total occupied cells inside lattice to ensure that the above
      * transfer went without problems. Note that the number will be smaller
      * if some monomers overlap!
