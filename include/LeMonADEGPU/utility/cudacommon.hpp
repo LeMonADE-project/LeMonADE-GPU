@@ -1636,6 +1636,17 @@ public:
     }
 };
 
+template< typename T >
+std::ostream & operator<<( std::ostream & out, MirroredTexture<T> const & x )
+{
+    out << "( nElements = " << x.nElements << ", "
+        << "nBytes = " << x.nBytes << ","
+        << "sizeof(T) = " << sizeof(T) << ","
+        << "host = " << x.host << ","
+        << "gpu = " << x.gpu << " )";
+    return out;
+}
+
 #endif // __CUDACC__
 
 
