@@ -2402,7 +2402,7 @@ void UpdaterGPUScBFM< T_UCoordinateCuda >::checkLatticeOccupation() const
 {
    /* note that std::vector< bool > already uses bitpacking!
      * We'd have to watch out when erasing that array with memset! */
-    std::vector< uint32_t > lattice( mBoxX * mBoxY * mBoxZ, 0 );
+    std::vector< T_Id > lattice( mBoxX * mBoxY * mBoxZ, 0 );
 
     /**
      * Test for excluded volume by setting all lattice points and count the
