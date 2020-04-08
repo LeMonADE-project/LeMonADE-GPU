@@ -34,6 +34,7 @@
 #include <LeMonADEGPU/utility/GPUConnectionTracker.h>
 
 using T_Flags            = UpdaterGPUScBFM_AB_Connection< uint8_t >::T_Flags      ;
+using T_Id               = UpdaterGPUScBFM_AB_Connection< uint8_t >::T_Id      ;
 __device__ __constant__ uint32_t dcCrossLinkMaxNumLinks     ;  // functionality of cross links 
 __device__ __constant__ uint32_t dcChainMaxNumLinks =  2    ;  // functionality of chain ends 
 /**

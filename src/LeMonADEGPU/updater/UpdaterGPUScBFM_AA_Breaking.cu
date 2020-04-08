@@ -33,6 +33,7 @@
 #include <LeMonADEGPU/utility/GPUConnectionTracker.h>
 #include <math.h>
 
+using T_Id               = UpdaterGPUScBFM< uint8_t >::T_Id         ;
 __device__ __constant__ double dcBreakingProbability     ;  // functionality of cross links 
 __global__ void kernel_BreakConnections
 (

@@ -35,6 +35,7 @@
 
 using T_Flags            = UpdaterGPUScBFM_AA_Connection< uint8_t >::T_Flags      ;
 using T_Lattice          = UpdaterGPUScBFM< uint8_t >::T_Lattice    ;
+using T_Id               = UpdaterGPUScBFM< uint8_t >::T_Id         ;
 using getBitPackedTextureFunction = UpdaterGPUScBFM<uint8_t>::getBitPackedTextureFunction;
 __device__ getBitPackedTextureFunction functor = &BitPacking::bitPackedTextureGetStandard;
 __device__ __constant__ uint32_t dcChainMaxNumLinks =  2    ;  // functionality of chain ends 
