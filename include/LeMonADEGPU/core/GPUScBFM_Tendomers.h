@@ -16,7 +16,6 @@
 
 #define USE_UINT8_POSITIONS
 
-
 /**
  * Why is this abstraction layer being used, instead of just incorporating
  * the GPU updated into this class?
@@ -194,7 +193,7 @@ public:
         mUpdaterGpu.setMoveType(mDiagMovesOn);
         
 	Method met;
- 	met.modifyCurve().setMode(2);
+ 	met.modifyCurve().setMode(0);
  	met.modifyCurve().setBox(mIngredients.getBoxX(),mIngredients.getBoxY(),mIngredients.getBoxZ());
 	met.modifyPacking().setBitPackingOn(true);
 	met.modifyPacking().setNBufferedTmpLatticeOn(true);
