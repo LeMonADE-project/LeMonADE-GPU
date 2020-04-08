@@ -79,20 +79,12 @@ public:
      */
     //type for size of the simulation box
     using T_BoxSize          = uint64_t; // uint32_t // should be unsigned!
+    
     //type for coordinate for the host 
     using T_Coordinate       = int32_t; // int64_t // should be signed!
-    /**
-     * @brief type for the coordinate for the device 
-     * @todo choose automatically depending on box size -> 
-     * 	     template parameter -> need to template all kernels and then 
-     * 	     basically make a large if for int8 vs. int16 limiting box size 
-     * 	     to 65536 which is more than enough at least for 3D ...
-     */
-    using T_CoordinateCuda   = typename std::make_signed< int8_t >::type; // int16_t, but only if box size <= 256 :S 
     //type for vector of coordinates on host 
     using T_Coordinates      = typename CudaVec4< T_Coordinate      >::value_type;
-    //type for vector of coordinates on device 
-    using T_CoordinatesCuda  = typename CudaVec4< T_CoordinateCuda  >::value_type;
+    
     //type for unsigned coordinates on the device 
     using T_UCoordinatesCuda = typename CudaVec4< T_UCoordinateCuda >::value_type;
 
