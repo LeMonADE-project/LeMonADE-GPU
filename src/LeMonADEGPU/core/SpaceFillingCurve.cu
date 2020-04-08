@@ -37,17 +37,17 @@ along with LeMonADE.  If not, see <http://www.gnu.org/licenses/>.
  *@brief abstract template function for the space filling curve 
  */
 /*****************************************************************************/
- __constant__ uint32_t dcBoxX     ;  // lattice size in X
- __constant__ uint32_t dcBoxY     ;  // lattice size in Y
- __constant__ uint32_t dcBoxZ     ;  // lattice size in Z
- __constant__ uint32_t dcBoxXM1   ;  // lattice size in X-1
- __constant__ uint32_t dcBoxYM1   ;  // lattice size in Y-1
- __constant__ uint32_t dcBoxZM1   ;  // lattice size in Z-1
- __constant__ uint32_t dcBoxXLog2 ;  // lattice shift in X
- __constant__ uint32_t dcBoxXYLog2;  // lattice shift in X*Y
+ __constant__ size_t dcBoxX     ;  // lattice size in X
+ __constant__ size_t dcBoxY     ;  // lattice size in Y
+ __constant__ size_t dcBoxZ     ;  // lattice size in Z
+ __constant__ size_t dcBoxXM1   ;  // lattice size in X-1
+ __constant__ size_t dcBoxYM1   ;  // lattice size in Y-1
+ __constant__ size_t dcBoxZM1   ;  // lattice size in Z-1
+ __constant__ size_t dcBoxXLog2 ;  // lattice shift in X
+ __constant__ size_t dcBoxXYLog2;  // lattice shift in X*Y
 __global__ void CheckBoxDimensionsSpaceFilling()
 {
-printf("CheckBoxDimensionsSpaceFilling: %d %d %d %d %d %d  %d %d",dcBoxX,dcBoxY, dcBoxZ,dcBoxXM1, dcBoxYM1,dcBoxZM1, dcBoxXLog2, dcBoxXYLog2 );
+printf("CheckBoxDimensionsSpaceFilling: %lu %lu %lu %lu %lu %lu %lu %lu\n",dcBoxX,dcBoxY, dcBoxZ,dcBoxXM1, dcBoxYM1,dcBoxZM1, dcBoxXLog2, dcBoxXYLog2 );
 }
   SpaceFillingCurve::SpaceFillingCurve(){};
   template <class IngredientsType >
@@ -58,13 +58,13 @@ printf("CheckBoxDimensionsSpaceFilling: %d %d %d %d %d %d  %d %d",dcBoxX,dcBoxY,
     lP2Curve.initialize(ing);
   }
   
-  SpaceFillingCurve::SpaceFillingCurve(uint32_t mBoxX_, uint32_t mBoxY_, uint32_t mBoxZ_)
+  SpaceFillingCurve::SpaceFillingCurve(uint64_t mBoxX_, uint64_t mBoxY_, uint64_t mBoxZ_)
   {
     zCurve.initialize(mBoxX_,mBoxY_,mBoxZ_);
     lCurve.initialize(mBoxX_,mBoxY_,mBoxZ_);
     lP2Curve.initialize(mBoxX_,mBoxY_,mBoxZ_);
-    uint32_t mBoxXLog2  = 0; auto dummy = mBoxX_ ; while ( dummy >>= 1 ) ++mBoxXLog2;
-    uint32_t mBoxXYLog2 = 0; dummy = mBoxX_*mBoxY_; while ( dummy >>= 1 ) ++mBoxXYLog2;
+    uint64_t mBoxXLog2  = 0; auto dummy = mBoxX_ ; while ( dummy >>= 1 ) ++mBoxXLog2;
+    uint64_t mBoxXYLog2 = 0; dummy = mBoxX_*mBoxY_; while ( dummy >>= 1 ) ++mBoxXYLog2;
     { decltype( dcBoxX      ) x = mBoxX_     ; CUDA_ERROR( cudaMemcpyToSymbol( dcBoxX     , &x, sizeof(x) ) ); }
     { decltype( dcBoxY      ) x = mBoxY_     ; CUDA_ERROR( cudaMemcpyToSymbol( dcBoxY     , &x, sizeof(x) ) ); }
     { decltype( dcBoxZ      ) x = mBoxZ_     ; CUDA_ERROR( cudaMemcpyToSymbol( dcBoxZ     , &x, sizeof(x) ) ); }
@@ -76,21 +76,21 @@ printf("CheckBoxDimensionsSpaceFilling: %d %d %d %d %d %d  %d %d",dcBoxX,dcBoxY,
     CheckBoxDimensionsSpaceFilling<<<1,1>>>();
   }
 
-  void SpaceFillingCurve::setBox(uint32_t mBoxX_, uint32_t mBoxY_, uint32_t mBoxZ_)
+  void SpaceFillingCurve::setBox(uint64_t mBoxX_, uint64_t mBoxY_, uint64_t mBoxZ_)
   {
     zCurve.initialize(mBoxX_,mBoxY_,mBoxZ_);
     lCurve.initialize(mBoxX_,mBoxY_,mBoxZ_);
     lP2Curve.initialize(mBoxX_,mBoxY_,mBoxZ_);
-        uint32_t mBoxXLog2  = 0; auto dummy = mBoxX_ ; while ( dummy >>= 1 ) ++mBoxXLog2;
-    uint32_t mBoxXYLog2 = 0; dummy = mBoxX_*mBoxY_; while ( dummy >>= 1 ) ++mBoxXYLog2;
+    uint64_t mBoxXLog2  = 0; auto dummy = mBoxX_ ; while ( dummy >>= 1 ) ++mBoxXLog2;
+    uint64_t mBoxXYLog2 = 0; dummy = mBoxX_*mBoxY_; while ( dummy >>= 1 ) ++mBoxXYLog2;
     { decltype( dcBoxX      ) x = mBoxX_     ; CUDA_ERROR( cudaMemcpyToSymbol( dcBoxX     , &x, sizeof(x) ) ); }
     { decltype( dcBoxY      ) x = mBoxY_     ; CUDA_ERROR( cudaMemcpyToSymbol( dcBoxY     , &x, sizeof(x) ) ); }
     { decltype( dcBoxZ      ) x = mBoxZ_     ; CUDA_ERROR( cudaMemcpyToSymbol( dcBoxZ     , &x, sizeof(x) ) ); }
     { decltype( dcBoxXM1    ) x = mBoxX_-1   ; CUDA_ERROR( cudaMemcpyToSymbol( dcBoxXM1   , &x, sizeof(x) ) ); }
     { decltype( dcBoxYM1    ) x = mBoxY_-1   ; CUDA_ERROR( cudaMemcpyToSymbol( dcBoxYM1   , &x, sizeof(x) ) ); }
     { decltype( dcBoxZM1    ) x = mBoxZ_-1   ; CUDA_ERROR( cudaMemcpyToSymbol( dcBoxZM1   , &x, sizeof(x) ) ); }
-    { decltype( dcBoxXLog2  ) x = mBoxXLog2 ; CUDA_ERROR( cudaMemcpyToSymbol( dcBoxXLog2 , &x, sizeof(x) ) ); }
-    { decltype( dcBoxXYLog2 ) x = mBoxXYLog2; CUDA_ERROR( cudaMemcpyToSymbol( dcBoxXYLog2, &x, sizeof(x) ) ); }
+    { decltype( dcBoxXLog2  ) x = mBoxXLog2  ; CUDA_ERROR( cudaMemcpyToSymbol( dcBoxXLog2 , &x, sizeof(x) ) ); }
+    { decltype( dcBoxXYLog2 ) x = mBoxXYLog2 ; CUDA_ERROR( cudaMemcpyToSymbol( dcBoxXYLog2, &x, sizeof(x) ) ); }
     CheckBoxDimensionsSpaceFilling<<<1,1>>>();
   }
 
@@ -98,7 +98,7 @@ printf("CheckBoxDimensionsSpaceFilling: %d %d %d %d %d %d  %d %d",dcBoxX,dcBoxY,
   void SpaceFillingCurve::setMode( int mode_) { mode=mode_; }
  /*
  
-typedef uint32_t T_Id  ;  
+typedef size_t T_Id  ;  
 template <class specializedCurve>
 template< typename T >
 __host__ __device__   T_Id AbstractSpaceFillingCurve<specializedCurve>::linearizeBoxVectorIndex
