@@ -64,8 +64,8 @@ int main( int argc, char ** argv )
 
     std::string infile; /* BFM file containing positions of monomers and their connections */
     std::string outfile      = "outfile.bfm"; /* at save_interval steps the current state of the simulation will be written to this file */
-    uint32_t max_mcs         = 0; /* how many Monte-Carlo steps to simulate */
-    uint32_t save_interval   = 0;
+    double max_mcs         = 0; /* how many Monte-Carlo steps to simulate */
+    double save_interval   = 0;
     int      iGpuToUse       = 0;
     int      iRngToUse       = -1;
     std::string seedFileName = "";
@@ -141,8 +141,10 @@ int main( int argc, char ** argv )
         */
 //         typedef LOKI_TYPELIST_4( FeatureMoleculesIO, FeatureAttributes<>,
 //                                  FeatureExcludedVolumeSc<>, FeatureConnectionSc ) Features;
-        typedef LOKI_TYPELIST_5( FeatureMoleculesIOUnsaveCheck, FeatureAttributes<>,
-                                 FeatureExcludedVolumeSc<>, FeatureConnectionSc, FeatureLabel ) Features;
+//         typedef LOKI_TYPELIST_5( FeatureMoleculesIOUnsaveCheck, FeatureAttributes<>,
+//                                  FeatureExcludedVolumeSc<>, FeatureConnectionSc, FeatureLabel ) Features;
+        typedef LOKI_TYPELIST_4( FeatureMoleculesIOUnsaveCheck, FeatureAttributes<>,
+                                 FeatureExcludedVolumeSc<>, FeatureLabel ) Features;
 				 
         typedef ConfigureSystem< VectorInt3, Features, 8 > Config;
         typedef Ingredients< Config > Ing;
@@ -161,7 +163,7 @@ int main( int argc, char ** argv )
         pUpdaterGpu->activateLogging( "Error"     );
         pUpdaterGpu->activateLogging( "Stats"      );
         pUpdaterGpu->activateLogging( "Info"      );
-	pUpdaterGpu->activateLogging( "Check"      );
+// 	pUpdaterGpu->activateLogging( "Check"      );
 
         TaskManager taskmanager;
         taskmanager.addUpdater( new UpdaterReadBfmFile<Ing>( infile, myIngredients,UpdaterReadBfmFile<Ing>::READ_LAST_CONFIG_SAVE ), 0 );
@@ -181,7 +183,6 @@ int main( int argc, char ** argv )
 
         auto const tTasks0 = hrclock::now();
         taskmanager.run( max_mcs / save_interval );
-
         auto const tTasks1 = hrclock::now();
         std::stringstream sBuffered;
         sBuffered << "tTaskLoop = " << std::chrono::duration<double>( tTasks1 - tTasks0 ).count() << "s\n";
