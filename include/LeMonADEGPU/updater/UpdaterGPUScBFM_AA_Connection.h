@@ -9,6 +9,7 @@
 #include <LeMonADEGPU/utility/GPUConnectionTracker.h>
 #include <LeMonADEGPU/core/kernelConnection.h>
 struct D_MonomerReactivity {
+    using T_Id               = UpdaterGPUScBFM< uint8_t >::T_Id         ;
     typedef uint8_t T_MaxNumLinks;
     T_Id monID;
     bool reactivity;

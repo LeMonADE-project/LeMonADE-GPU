@@ -9,6 +9,7 @@
 #include <LeMonADEGPU/utility/GPUConnectionTracker.h>
 #include <LeMonADEGPU/core/kernelConnection.h>
 struct D_MonomerReactivity {
+    using T_Id               = UpdaterGPUScBFM< uint8_t >::T_Id         ;
     typedef uint8_t T_MaxNumLinks;
     T_Id monID;
     bool reactivity;
@@ -27,6 +28,8 @@ public:
     using T_Coordinate       = UpdaterGPUScBFM< uint8_t >::T_Coordinate ;
     using T_Coordinates      = UpdaterGPUScBFM< uint8_t >::T_Coordinates;
     using T_Id               = UpdaterGPUScBFM< uint8_t >::T_Id         ;
+    
+    
     using T_MaxNumLinks = D_MonomerReactivity::T_MaxNumLinks;
     typedef uint32_t T_ReactiveLattice;
     using BaseClass::mLog;
