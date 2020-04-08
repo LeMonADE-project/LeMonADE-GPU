@@ -1688,7 +1688,14 @@ void UpdaterGPUScBFM< T_UCoordinateCuda >::initializeSortedNeighbors( void )
 	      {
 		  if ( i < 5 || std::abs( (long long int) i - mviSubGroupOffsets[ mviSubGroupOffsets.size()-1 ] ) < 5 )
 		  {
-		      mLog( "Info" ) << "Currently at index " << i << ": Writing into mNeighborsSorted->host[ " << mNeighborsSortedInfo.getMatrixOffsetElements( iSpecies ) << " + " << j << " * " << pitch << " + " << i << "-" << mviSubGroupOffsets[ iSpecies ] << "] the value of old neighbor located at miToiNew->host[ mNeighbors[ miNewToi->host[i]=" << miNewToi->host[i] << " ] = miToiNew->host[ " << mNeighbors->host[ miNewToi->host[i] ].neighborIds[j] << " ] = " << miToiNew->host[ mNeighbors->host[ miNewToi->host[i] ].neighborIds[j] ] << " \n";
+		      mLog( "Info" ) << "Currently at index " << i << ": Writing into mNeighborsSorted->host[ " 
+                                     << mNeighborsSortedInfo.getMatrixOffsetElements( iSpecies ) << " + " << j 
+                                     << " * " << pitch << " + " << i << "-" << mviSubGroupOffsets[ iSpecies ] 
+                                     << "] the value of old neighbor located at miToiNew->host[ mNeighbors[ " 
+                                     << "miNewToi->host[i]=" << miNewToi->host[i] << " ] = miToiNew->host[ " 
+                                     << mNeighbors->host[ miNewToi->host[i] ].neighborIds[j] << " ] = " 
+                                     << miToiNew->host[ mNeighbors->host[ miNewToi->host[i] ].neighborIds[j] ] 
+                                     << " \n";
 		  }
 		  auto const iNeighborSorted = mNeighborsSortedInfo.getMatrixOffsetElements( iSpecies )
 					    + j * pitch + iMonomer;
@@ -1741,6 +1748,7 @@ void UpdaterGPUScBFM< T_UCoordinateCuda >::initializeSortedNeighbors( void )
 template< typename T_UCoordinateCuda >
 void UpdaterGPUScBFM< T_UCoordinateCuda >::initializeSortedMonomerPositions( void )
 {
+    mLog( "Info" ) << "UpdaterGPUScBFM< T_UCoordinateCuda >::initializeSortedMonomerPositions.start \n"; 
     /* sort groups into new array and save index mappings */
     if ( mPolymerSystemSorted             == NULL )mPolymerSystemSorted             = new MirroredVector< T_UCoordinatesCuda >( mnMonomersPadded, mStream );
     if ( mPolymerSystemSortedOld          == NULL )mPolymerSystemSortedOld          = new MirroredVector< T_UCoordinatesCuda >( mnMonomersPadded, mStream );
@@ -1811,11 +1819,13 @@ void UpdaterGPUScBFM< T_UCoordinateCuda >::initializeSortedMonomerPositions( voi
       mPolymerSystemSorted            ->pushAsync();
       mviPolymerSystemSortedVirtualBox->pushAsync();
     }
+    mLog( "Info" ) << "UpdaterGPUScBFM< T_UCoordinateCuda >::initializeSortedMonomerPositions.done \n";
 }
 
 template< typename T_UCoordinateCuda >
 void UpdaterGPUScBFM< T_UCoordinateCuda >::initializeLattices( void )
 {
+    mLog( "Info" ) << "UpdaterGPUScBFM< T_UCoordinateCuda >::initializeLattices.start \n"; 
     if ( mLatticeOut != NULL || mLatticeTmp != NULL )
     {
         std::stringstream msg;
@@ -1833,7 +1843,7 @@ void UpdaterGPUScBFM< T_UCoordinateCuda >::initializeLattices( void )
     
     if( met.getPacking().getNBufferedTmpLatticeOn())
         nBytesLatticeTmp *= mnLatticeTmpBuffers;
-    
+    mLog ( "Info" ) << "UpdaterGPUScBFM< T_UCoordinateCuda >::initializeLattices create MirroredTextures \n"; 
     mLatticeOut  = new MirroredTexture< T_Lattice >( mBoxX * mBoxY * mBoxZ, mStream );
     mLatticeTmp  = new MirroredTexture< T_Lattice >( nBytesLatticeTmp     , mStream );
     mLatticeTmp2 = new MirroredTexture< T_Lattice >( mBoxX * mBoxY * mBoxZ, mStream );
@@ -1841,6 +1851,7 @@ void UpdaterGPUScBFM< T_UCoordinateCuda >::initializeLattices( void )
     mLatticeTmp2->memsetAsync(0);
     /* populate latticeOut with monomers from mPolymerSystem */
     std::memset( mLatticeOut->host, 0, mLatticeOut->nBytes );
+    mLog ( "Info" ) << "UpdaterGPUScBFM< T_UCoordinateCuda >::initializeLattices start populating lattice \n"; 
     for ( T_Id iMonomer = 0; iMonomer < mnAllMonomers; ++iMonomer )
     {
         mLatticeOut->host[ met.getCurve().linearizeBoxVectorIndex(
@@ -1849,6 +1860,7 @@ void UpdaterGPUScBFM< T_UCoordinateCuda >::initializeLattices( void )
             mPolymerSystem->host[ iMonomer ].z
         ) ] = 1;
     }
+    mLog ( "Info" ) << "UpdaterGPUScBFM< T_UCoordinateCuda >::initializeLattices start populating lattice.done \n"; 
     mLatticeOut->pushAsync();
 
     mLog( "Info" )
@@ -1909,6 +1921,7 @@ void UpdaterGPUScBFM< T_UCoordinateCuda >::initializeLattices( void )
             cudaCreateTextureObject( &mvtLatticeTmp.at(i), &mResDesc, &mTexDesc, NULL );
         }
     }
+    mLog( "Info" ) << "UpdaterGPUScBFM< T_UCoordinateCuda >::initializeLattices.done \n";
 }
 
 template< typename T_UCoordinateCuda >
@@ -2084,10 +2097,8 @@ void UpdaterGPUScBFM< T_UCoordinateCuda >::initialize( void )
     mLog( "Info" )
     << "T_BoxSize          = " << getTypeInfoString< T_BoxSize          >() << "\n"
     << "T_Coordinate       = " << getTypeInfoString< T_Coordinate       >() << "\n"
-    << "T_CoordinateCuda   = " << getTypeInfoString< T_CoordinateCuda   >() << "\n"
     << "T_UCoordinateCuda  = " << getTypeInfoString< T_UCoordinateCuda  >() << "\n"
     << "T_Coordinates      = " << getTypeInfoString< T_Coordinates      >() << "\n"
-    << "T_CoordinatesCuda  = " << getTypeInfoString< T_CoordinatesCuda  >() << "\n"
     << "T_UCoordinatesCuda = " << getTypeInfoString< T_UCoordinatesCuda >() << "\n"
     << "T_Color            = " << getTypeInfoString< T_Color            >() << "\n"
     << "T_Flags            = " << getTypeInfoString< T_Flags            >() << "\n"
@@ -2108,16 +2119,17 @@ void UpdaterGPUScBFM< T_UCoordinateCuda >::initialize( void )
         mLog( "Info" ) << " - periodically sorting the monomers inside the array in respect to their spatial position every " << mnStepsBetweenSortings << "-th step to increase cache hit rates\n";
 
     mLog( "Info" ) << "use randomg number generator Saru " << "\n";
-
-    auto constexpr maxBoxSize = ( 1llu << ( CHAR_BIT * sizeof( T_CoordinateCuda ) ) );
+    
+    //I m not sure wether this check is neccesary and/or sufficient!!! 
+    auto constexpr maxBoxSize = ( 1llu << ( CHAR_BIT * sizeof( T_UCoordinateCuda ) ) );
     if ( mBoxX > maxBoxSize || mBoxY > maxBoxSize || mBoxZ > maxBoxSize )
     {
         std::stringstream msg;
         msg << "The box size is limited to " << maxBoxSize << " in each direction"
-            << ", because of the chosen type for T_Coordinate = "
-            << getTypeInfoString< T_Coordinate >() << ", but the chose box size is: ("
+            << ", because of the chosen type for T_UCoordinateCuda = "
+            << getTypeInfoString< T_UCoordinateCuda >() << ", but the chose box size is: ("
             << mBoxX << "," << mBoxY << "," << mBoxZ << ")!\n"
-            << "Please change T_Coordinate to a larger type if you want to simulate this setup.";
+            << "Please change T_UCoordinateCuda to a larger type if you want to simulate this setup.";
         throw std::runtime_error( msg.str() );
     }
 
