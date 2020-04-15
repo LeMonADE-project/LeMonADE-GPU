@@ -69,17 +69,20 @@ void SpaceFillingCurve::setBox(uint64_t mBoxX_, uint64_t mBoxY_, uint64_t mBoxZ_
     uint64_t mBoxXLog2(0), mBoxXYLog2(0);
     switch( mode )
     {
-        case 0: lP2Curve.initialize(mBoxX_,mBoxY_,mBoxZ_);
+        case 2: lP2Curve.initialize(mBoxX_,mBoxY_,mBoxZ_);
                 {auto dummy = mBoxX_ ; while ( dummy >>= 1 ) ++mBoxXLog2;
                 dummy = mBoxX_*mBoxY_; while ( dummy >>= 1 ) ++mBoxXYLog2;}
                 { decltype( dcBoxXLog2  ) x = mBoxXLog2  ; CUDA_ERROR( cudaMemcpyToSymbol( dcBoxXLog2 , &x, sizeof(x) ) ); }
-                { decltype( dcBoxXYLog2 ) x = mBoxXYLog2 ; CUDA_ERROR( cudaMemcpyToSymbol( dcBoxXYLog2, &x, sizeof(x) ) ); } break;
-        case 1: lCurve.initialize(mBoxX_,mBoxY_,mBoxZ_);break;
-        case 2: zCurve.initialize(mBoxX_,mBoxY_,mBoxZ_);
+                { decltype( dcBoxXYLog2 ) x = mBoxXYLog2 ; CUDA_ERROR( cudaMemcpyToSymbol( dcBoxXYLog2, &x, sizeof(x) ) ); } 
+                break;
+        case 1: lCurve.initialize(mBoxX_,mBoxY_,mBoxZ_);
+                break;
+        case 0: zCurve.initialize(mBoxX_,mBoxY_,mBoxZ_);
                 {auto dummy = mBoxX_ ; while ( dummy >>= 1 ) ++mBoxXLog2;
                 dummy = mBoxX_*mBoxY_; while ( dummy >>= 1 ) ++mBoxXYLog2;}
                 { decltype( dcBoxXLog2  ) x = mBoxXLog2  ; CUDA_ERROR( cudaMemcpyToSymbol( dcBoxXLog2 , &x, sizeof(x) ) ); }
-                { decltype( dcBoxXYLog2 ) x = mBoxXYLog2 ; CUDA_ERROR( cudaMemcpyToSymbol( dcBoxXYLog2, &x, sizeof(x) ) ); } break;
+                { decltype( dcBoxXYLog2 ) x = mBoxXYLog2 ; CUDA_ERROR( cudaMemcpyToSymbol( dcBoxXYLog2, &x, sizeof(x) ) ); } 
+                break;
     }
     CheckBoxDimensionsSpaceFilling<<<1,1>>>();
 }
