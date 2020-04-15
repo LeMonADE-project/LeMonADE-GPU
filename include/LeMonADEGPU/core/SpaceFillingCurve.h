@@ -351,29 +351,9 @@ public:
 	            LinearPowOfTwoMode=2
   };
   SpaceFillingCurve();
-//   {};
-  template <class IngredientsType >
-  SpaceFillingCurve(IngredientsType& ing);
-//   {
-//     zCurve.initialize(ing);
-//     lCurve.initialize(ing);
-//     lP2Curve.initialize(ing);
-//   }
-
-  SpaceFillingCurve(uint64_t mBoxX_, uint64_t mBoxY_, uint64_t mBoxZ_);
-//   {
-//     zCurve.initialize(mBoxX_,mBoxY_,mBoxZ_);
-//     lCurve.initialize(mBoxX_,mBoxY_,mBoxZ_);
-//     lP2Curve.initialize(mBoxX_,mBoxY_,mBoxZ_);
-//   }
-
+  SpaceFillingCurve(uint64_t mBoxX_, uint64_t mBoxY_, uint64_t mBoxZ_, int mode_=2 );
   void setBox(uint64_t mBoxX_, uint64_t mBoxY_, uint64_t mBoxZ_);
-//   {
-//     zCurve.initialize(mBoxX_,mBoxY_,mBoxZ_);
-//     lCurve.initialize(mBoxX_,mBoxY_,mBoxZ_);
-//     lP2Curve.initialize(mBoxX_,mBoxY_,mBoxZ_);
-//   }
-  
+ 
 private:
   int mode;
   ZOrderCurve zCurve;
