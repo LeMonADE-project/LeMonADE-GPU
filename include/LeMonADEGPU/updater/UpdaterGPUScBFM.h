@@ -99,7 +99,7 @@ public:
     //lattice entry 
     using T_Lattice = uint8_t ; // untested for something else than uint8_t!
     
-    typedef  T_Lattice (BitPacking::*getBitPackedTextureFunction)(cudaTextureObject_t tex, int i) const ; 
+    typedef  T_Lattice (BitPacking::*getBitPackedTextureFunction)(cudaTextureObject_t tex, int i) const ;  //this is a typedef for a function which is called in the .cu file 
 
     /** @brief tracks the output for certain streams, like: 'stat', 'check', ...
      */
