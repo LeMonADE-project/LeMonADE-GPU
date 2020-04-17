@@ -359,6 +359,11 @@ private:
   ZOrderCurve zCurve;
   LinearCurve lCurve;
   LinearCurvePowOfTwo lP2Curve;
+  
+  inline bool IsPowerOfTwo(uint64_t x)
+  {
+      return (x != 0) && ((x & (x - 1)) == 0);
+  }
 public:  
   int getMode() const ;
 //   {return mode;}

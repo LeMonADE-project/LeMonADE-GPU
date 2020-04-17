@@ -110,9 +110,10 @@ protected:
      * we kinda assume the user to think himself smart enough that he does
      * not want the overflow checking version. This is because the overflow
      * checking is not tested with signed types being used! */
-    static bool constexpr useOverflowChecks =
-        sizeof( T_UCoordinateCuda ) <= 2 &&
-        ! std::is_signed< T_UCoordinateCuda >::value;
+//     static bool constexpr useOverflowChecks =
+//         sizeof( T_UCoordinateCuda ) <= 2 &&
+//         ! std::is_signed< T_UCoordinateCuda >::value;
+    bool useOverflowChecks;
 
     /**
      * @brief up to now there is only the default stream used

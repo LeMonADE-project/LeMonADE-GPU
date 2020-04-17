@@ -307,8 +307,8 @@ void UpdaterGPUScBFM_Tendomers<T_UCoordinateCuda>::initialize()
   { decltype( dcBoxXM1    ) x = mBoxXM1   ; CUDA_ERROR( cudaMemcpyToSymbol( dcBoxXM1   , &x, sizeof(x) ) ); }
   { decltype( dcBoxYM1    ) x = mBoxYM1   ; CUDA_ERROR( cudaMemcpyToSymbol( dcBoxYM1   , &x, sizeof(x) ) ); }
   { decltype( dcBoxZM1    ) x = mBoxZM1   ; CUDA_ERROR( cudaMemcpyToSymbol( dcBoxZM1   , &x, sizeof(x) ) ); }
-  { decltype( dcBoxXLog2  ) x = mBoxXLog2 ; CUDA_ERROR( cudaMemcpyToSymbol( dcBoxXLog2 , &x, sizeof(x) ) ); }
-  { decltype( dcBoxXYLog2 ) x = mBoxXYLog2; CUDA_ERROR( cudaMemcpyToSymbol( dcBoxXYLog2, &x, sizeof(x) ) ); }
+//   { decltype( dcBoxXLog2  ) x = mBoxXLog2 ; CUDA_ERROR( cudaMemcpyToSymbol( dcBoxXLog2 , &x, sizeof(x) ) ); }
+//   { decltype( dcBoxXYLog2 ) x = mBoxXYLog2; CUDA_ERROR( cudaMemcpyToSymbol( dcBoxXYLog2, &x, sizeof(x) ) ); }
   { decltype( nMonomersPerChain      ) x = nMonomersPerChain+2     ; CUDA_ERROR( cudaMemcpyToSymbol( dMonomersPerChainP2     , &x, sizeof(x) ) ); }
   uint32_t tmp_DXTable2[6] = { 0u-2u,2,  0,0,  0,0 };
   uint32_t tmp_DYTable2[6] = {  0,0, 0u-2u,2,  0,0 };
@@ -606,11 +606,6 @@ void UpdaterGPUScBFM_Tendomers< T_UCoordinateCuda >::runSimulationOnGPU
     /* run simulation */
     for ( uint32_t iStep = 0; iStep < nMonteCarloSteps; ++iStep, ++mAge )
     {
-        if ( mUsePeriodicMonomerSorting && ( mAge % mnStepsBetweenSortings == 0 ) )
-        {
-            mLog( "Stats" ) << "Resorting at age / step " << mAge << "\n";
-//             doSpatialSorting();
-        }
         if ( useOverflowChecks )
         {
             /**
@@ -646,13 +641,14 @@ void UpdaterGPUScBFM_Tendomers< T_UCoordinateCuda >::runSimulationOnGPU
         for ( uint32_t iSubStep = 0; iSubStep < nSpecies; ++iSubStep ) 
 	{
             auto const iStepTotal = iStep * nSpecies + iSubStep;
-            auto  iOffsetLatticeTmp = ( iStepTotal % mnLatticeTmpBuffers )
-            * ( mBoxX * mBoxY * mBoxZ * sizeof( mLatticeTmp->gpu[0] ));
+            //remember: mnLatticeTmpBuffers=2
+            auto  iOffsetLatticeTmp = ( iStepTotal % mnLatticeTmpBuffers ) * ( mBoxX * mBoxY * mBoxZ * sizeof( mLatticeTmp->gpu[0] ));
             if (met.getPacking().getBitPackingOn()) 
                 iOffsetLatticeTmp /= CHAR_BIT;
             auto texLatticeTmp = mvtLatticeTmp[ iStepTotal % mnLatticeTmpBuffers ];
 
-            if (met.getPacking().getNBufferedTmpLatticeOn()) {
+            if (met.getPacking().getNBufferedTmpLatticeOn()) 
+            {
                     iOffsetLatticeTmp = 0u;
                     texLatticeTmp = mLatticeTmp->texture;
             }
@@ -686,7 +682,6 @@ void UpdaterGPUScBFM_Tendomers< T_UCoordinateCuda >::runSimulationOnGPU
 			launch_PerformSpecies(nBlocks,nThreads,iSpecies,texLatticeTmp);
 		    break;
             }
-
 	    if ( useCudaMemset )
 	    {
 		if(met.getPacking().getNBufferedTmpLatticeOn()){

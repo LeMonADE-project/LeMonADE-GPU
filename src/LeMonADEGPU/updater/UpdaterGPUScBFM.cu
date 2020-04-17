@@ -57,7 +57,7 @@ using T_Coordinate       = UpdaterGPUScBFM< uint8_t >::T_Coordinate ;
 using T_Coordinates      = UpdaterGPUScBFM< uint8_t >::T_Coordinates;
 using T_Id               = UpdaterGPUScBFM< uint8_t >::T_Id         ;
 using getBitPackedTextureFunction = UpdaterGPUScBFM<uint8_t>::getBitPackedTextureFunction;
-__device__ getBitPackedTextureFunction functor = &BitPacking::bitPackedTextureGetStandard;        
+// __device__ getBitPackedTextureFunction functor = &BitPacking::bitPackedTextureGetStandard;        
 
 // typedef  T_Lattice (BitPacking::*getBitPackedTextureFunction)(cudaTextureObject_t tex, int i) const ; 
 
@@ -1047,8 +1047,8 @@ UpdaterGPUScBFM< T_UCoordinateCuda >::UpdaterGPUScBFM()
    mBoxXM1                          ( 0    ),
    mBoxYM1                          ( 0    ),
    mBoxZM1                          ( 0    ),
-   mBoxXLog2                        ( 0    ),
-   mBoxXYLog2                       ( 0    ),
+//    mBoxXLog2                        ( 0    ),
+//    mBoxXYLog2                       ( 0    ),
    mnSplitColors                    ( 0    ),
    hGlobalIterator                  ( 0    ),
    bSetAutoColoring                 ( true ),
@@ -1463,9 +1463,12 @@ __global__ void kernelSplitMonomerPositions
             continue;
         auto const r = dpPolymerSystem[ iOld ];
         typename CudaVec4< T_UCoordinateCuda >::value_type rlo = {
-            T_UCoordinateCuda( r.x & dcBoxXM1 ),
-            T_UCoordinateCuda( r.y & dcBoxYM1 ),
-            T_UCoordinateCuda( r.z & dcBoxZM1 ),
+            T_UCoordinateCuda( r.x % dcBoxX ),
+            T_UCoordinateCuda( r.y % dcBoxY ),
+            T_UCoordinateCuda( r.z % dcBoxZ ),
+//             T_UCoordinateCuda( r.x & dcBoxXM1 ), // only for power of two boxes 
+//             T_UCoordinateCuda( r.y & dcBoxYM1 ),
+//             T_UCoordinateCuda( r.z & dcBoxZM1 ),
             T_UCoordinateCuda( dpPolymerSystemSorted[ iNew ].w )
         };
         dpPolymerSystemSorted[ iNew ] = rlo;
@@ -1638,10 +1641,17 @@ void UpdaterGPUScBFM< T_UCoordinateCuda >::initializeSortedNeighbors( void )
         mLog( "Info" )
         << "Allocated mNeighborsSorted with "
         << mNeighborsSorted->nElements << " elements in "
-        << mNeighborsSorted->nBytes << "B ("
+        << mNeighborsSorted->nBytes/1024/1024. << "MB ("
         << mNeighborsSortedInfo.getRequiredElements() << ","
         << mNeighborsSortedInfo.getRequiredBytes() << "B)\n";
 
+        mLog( "Info" )
+        << "Allocated mNeighborsSortedSizes with "
+        << mNeighborsSortedSizes->nElements << " elements in "
+        << mNeighborsSortedSizes->nBytes/1024/1024. << "MB \n";//("
+//         << mNeighborsSortedSizes.getRequiredElements() << ","
+//         << mNeighborsSortedSizes.getRequiredBytes() << "B)\n";
+        
         mLog( "Info" ) << "mNeighborsSortedInfo:\n";
         for ( size_t iSpecies = 0u; iSpecies < mnElementsInGroup.size(); ++iSpecies )
         {
@@ -1784,14 +1794,21 @@ void UpdaterGPUScBFM< T_UCoordinateCuda >::initializeSortedMonomerPositions( voi
 	  auto const y = mPolymerSystem->host[i].y;
 	  auto const z = mPolymerSystem->host[i].z;
 
-	  mPolymerSystemSorted->host[ miToiNew->host[i] ].x = x & mBoxXM1;
-	  mPolymerSystemSorted->host[ miToiNew->host[i] ].y = y & mBoxYM1;
-	  mPolymerSystemSorted->host[ miToiNew->host[i] ].z = z & mBoxZM1;
+// 	  mPolymerSystemSorted->host[ miToiNew->host[i] ].x = x & mBoxXM1;
+// 	  mPolymerSystemSorted->host[ miToiNew->host[i] ].y = y & mBoxYM1;
+// 	  mPolymerSystemSorted->host[ miToiNew->host[i] ].z = z & mBoxZM1;
+          mPolymerSystemSorted->host[ miToiNew->host[i] ].x = x % mBoxX;
+	  mPolymerSystemSorted->host[ miToiNew->host[i] ].y = y % mBoxY;
+	  mPolymerSystemSorted->host[ miToiNew->host[i] ].z = z % mBoxZ;
 	  mPolymerSystemSorted->host[ miToiNew->host[i] ].w = mNeighbors->host[i].size;
 
-	  mviPolymerSystemSortedVirtualBox->host[ miToiNew->host[i] ].x = ( x - ( x & mBoxXM1 ) ) / mBoxX;
-	  mviPolymerSystemSortedVirtualBox->host[ miToiNew->host[i] ].y = ( y - ( y & mBoxYM1 ) ) / mBoxY;
-	  mviPolymerSystemSortedVirtualBox->host[ miToiNew->host[i] ].z = ( z - ( z & mBoxZM1 ) ) / mBoxZ;
+// 	  mviPolymerSystemSortedVirtualBox->host[ miToiNew->host[i] ].x = ( x - ( x & mBoxXM1 ) ) / mBoxX;
+// 	  mviPolymerSystemSortedVirtualBox->host[ miToiNew->host[i] ].y = ( y - ( y & mBoxYM1 ) ) / mBoxY;
+// 	  mviPolymerSystemSortedVirtualBox->host[ miToiNew->host[i] ].z = ( z - ( z & mBoxZM1 ) ) / mBoxZ;
+          
+          mviPolymerSystemSortedVirtualBox->host[ miToiNew->host[i] ].x = ( x - ( x % mBoxX ) ) / mBoxX;
+	  mviPolymerSystemSortedVirtualBox->host[ miToiNew->host[i] ].y = ( y - ( y % mBoxY ) ) / mBoxY;
+	  mviPolymerSystemSortedVirtualBox->host[ miToiNew->host[i] ].z = ( z - ( z % mBoxZ ) ) / mBoxZ;
 
 	  auto const pTarget  = &mPolymerSystemSorted            ->host[ miToiNew->host[i] ];
 	  auto const pTarget2 = &mviPolymerSystemSortedVirtualBox->host[ miToiNew->host[i] ];
@@ -1843,12 +1860,24 @@ void UpdaterGPUScBFM< T_UCoordinateCuda >::initializeLattices( void )
     
     if( met.getPacking().getNBufferedTmpLatticeOn())
         nBytesLatticeTmp *= mnLatticeTmpBuffers;
+    
+    size_t  free, total; 
+    cudaMemGetInfo(&free, &total);
+    mLog ( "Info" ) << "UpdaterGPUScBFM< T_UCoordinateCuda >::initializeLattices free mem : "<< free/1024/1024.  << "MB\n" ;  
+    mLog ( "Info" ) << "UpdaterGPUScBFM< T_UCoordinateCuda >::initializeLattices total mem: "<< total/1024/1024. << "MB\n" ;      
     mLog ( "Info" ) << "UpdaterGPUScBFM< T_UCoordinateCuda >::initializeLattices create MirroredTextures \n"; 
+    mLog ( "Info" ) << "UpdaterGPUScBFM< T_UCoordinateCuda >::initializeLattices create mLatticeOut " 
+                    << mBoxX * mBoxY * mBoxZ << " lattice site which corresponds to " 
+                    << mBoxX * mBoxY * mBoxZ*sizeof(T_Lattice)/1024/1024.<< " MB \n";
     mLatticeOut  = new MirroredTexture< T_Lattice >( mBoxX * mBoxY * mBoxZ, mStream );
+    mLog ( "Info" ) << "UpdaterGPUScBFM< T_UCoordinateCuda >::initializeLattices pushed mLatticeOut.done \n"; 
     mLatticeTmp  = new MirroredTexture< T_Lattice >( nBytesLatticeTmp     , mStream );
     mLatticeTmp2 = new MirroredTexture< T_Lattice >( mBoxX * mBoxY * mBoxZ, mStream );
     mLatticeTmp ->memsetAsync(0); // async as it is next needed in runSimulationOnGPU
     mLatticeTmp2->memsetAsync(0);
+    cudaMemGetInfo(&free, &total);
+    mLog ( "Info" ) << "UpdaterGPUScBFM< T_UCoordinateCuda >::initializeLattices free mem : "<< free/1024/1024.  << "MB\n" ;  
+    mLog ( "Info" ) << "UpdaterGPUScBFM< T_UCoordinateCuda >::initializeLattices total mem: "<< total/1024/1024. << "MB\n" ;      
     /* populate latticeOut with monomers from mPolymerSystem */
     std::memset( mLatticeOut->host, 0, mLatticeOut->nBytes );
     mLog ( "Info" ) << "UpdaterGPUScBFM< T_UCoordinateCuda >::initializeLattices start populating lattice \n"; 
@@ -1858,8 +1887,7 @@ void UpdaterGPUScBFM< T_UCoordinateCuda >::initializeLattices( void )
             mPolymerSystem->host[ iMonomer ].x,
             mPolymerSystem->host[ iMonomer ].y,
             mPolymerSystem->host[ iMonomer ].z
-        ) ] = 1;
-    }
+        ) ] = 1;    }
     mLog ( "Info" ) << "UpdaterGPUScBFM< T_UCoordinateCuda >::initializeLattices start populating lattice.done \n"; 
     mLatticeOut->pushAsync();
 
@@ -2142,17 +2170,6 @@ void UpdaterGPUScBFM< T_UCoordinateCuda >::initialize( void )
      */
     if ( mStream == 0 )
         CUDA_ERROR( cudaStreamCreate( &mStream ) );
-
-    { decltype( dcBoxX      ) x = mBoxX     ; CUDA_ERROR( cudaMemcpyToSymbol( dcBoxX     , &x, sizeof(x) ) ); }
-    { decltype( dcBoxY      ) x = mBoxY     ; CUDA_ERROR( cudaMemcpyToSymbol( dcBoxY     , &x, sizeof(x) ) ); }
-    { decltype( dcBoxZ      ) x = mBoxZ     ; CUDA_ERROR( cudaMemcpyToSymbol( dcBoxZ     , &x, sizeof(x) ) ); }
-    { decltype( dcBoxXM1    ) x = mBoxXM1   ; CUDA_ERROR( cudaMemcpyToSymbol( dcBoxXM1   , &x, sizeof(x) ) ); }
-    { decltype( dcBoxYM1    ) x = mBoxYM1   ; CUDA_ERROR( cudaMemcpyToSymbol( dcBoxYM1   , &x, sizeof(x) ) ); }
-    { decltype( dcBoxZM1    ) x = mBoxZM1   ; CUDA_ERROR( cudaMemcpyToSymbol( dcBoxZM1   , &x, sizeof(x) ) ); }
-    { decltype( dcBoxXLog2  ) x = mBoxXLog2 ; CUDA_ERROR( cudaMemcpyToSymbol( dcBoxXLog2 , &x, sizeof(x) ) ); }
-    { decltype( dcBoxXYLog2 ) x = mBoxXYLog2; CUDA_ERROR( cudaMemcpyToSymbol( dcBoxXYLog2, &x, sizeof(x) ) ); }
-
-
     if (met.isONGPUForOverhead()){
         mPolymerSystem->pushAsync();
         mNeighbors    ->pushAsync();
@@ -2169,7 +2186,16 @@ void UpdaterGPUScBFM< T_UCoordinateCuda >::initialize( void )
 //     if ( mAge != 0 )
 //         doSpatialSorting();
     boxCheck.initialize( mIsPeriodicX, mIsPeriodicY, mIsPeriodicZ );
-    
+    /* only do checks for uint8_t and uint16_t, for all signed data types
+     * we kinda assume the user to think himself smart enough that he does
+     * not want the overflow checking version. This is because the overflow
+     * checking is not tested with signed types being used! 
+     * If in one direction periodic boundaries apply, we need to check at
+     * least this direction for overflows.
+     */
+    useOverflowChecks= sizeof( T_UCoordinateCuda ) <= 2 
+                       && ! std::is_signed< T_UCoordinateCuda >::value
+                       &&  (mIsPeriodicX ||  mIsPeriodicY || mIsPeriodicZ)  ;
     /* Saru, IntHash and Philox don't need any particular initialization */
 
     CUDA_ERROR( cudaGetDevice( &miGpuToUse ) );
@@ -2296,23 +2322,31 @@ void UpdaterGPUScBFM< T_UCoordinateCuda >::setLatticeSize
     mBoxXM1 = boxX-1;
     mBoxYM1 = boxY-1;
     mBoxZM1 = boxZ-1;
+    { decltype( dcBoxX      ) x = mBoxX     ; CUDA_ERROR( cudaMemcpyToSymbol( dcBoxX     , &x, sizeof(x) ) ); }
+    { decltype( dcBoxY      ) x = mBoxY     ; CUDA_ERROR( cudaMemcpyToSymbol( dcBoxY     , &x, sizeof(x) ) ); }
+    { decltype( dcBoxZ      ) x = mBoxZ     ; CUDA_ERROR( cudaMemcpyToSymbol( dcBoxZ     , &x, sizeof(x) ) ); }
+    { decltype( dcBoxXM1    ) x = mBoxXM1   ; CUDA_ERROR( cudaMemcpyToSymbol( dcBoxXM1   , &x, sizeof(x) ) ); }
+    { decltype( dcBoxYM1    ) x = mBoxYM1   ; CUDA_ERROR( cudaMemcpyToSymbol( dcBoxYM1   , &x, sizeof(x) ) ); }
+    { decltype( dcBoxZM1    ) x = mBoxZM1   ; CUDA_ERROR( cudaMemcpyToSymbol( dcBoxZM1   , &x, sizeof(x) ) ); }
+//     { decltype( dcBoxXLog2  ) x = mBoxXLog2 ; CUDA_ERROR( cudaMemcpyToSymbol( dcBoxXLog2 , &x, sizeof(x) ) ); }
+//     { decltype( dcBoxXYLog2 ) x = mBoxXYLog2; CUDA_ERROR( cudaMemcpyToSymbol( dcBoxXYLog2, &x, sizeof(x) ) ); }
 
-    /* determine log2 for mBoxX and mBoxX * mBoxY to be used for bitshifting
-     * the indice instead of multiplying ... WHY??? I don't think it is faster,
-     * but much less readable */
-    mBoxXLog2  = 0; auto dummy = mBoxX ; while ( dummy >>= 1 ) ++mBoxXLog2;
-    mBoxXYLog2 = 0; dummy = mBoxX*mBoxY; while ( dummy >>= 1 ) ++mBoxXYLog2;
-    if ( mBoxX != ( 1u << mBoxXLog2 ) || mBoxX * boxY != ( 1u << mBoxXYLog2 ) )
-    {
-        std::stringstream msg;
-        msg << "[" << __FILENAME__ << "::setLatticeSize" << "] "
-            << "Could not determine value for bit shift. "
-            << "Check whether the box size is a power of 2! ( "
-            << "boxX=" << mBoxX << " =? 2^" << mBoxXLog2 << " = " << ( 1 << mBoxXLog2 )
-            << ", boxX*boY=" << mBoxX * mBoxY << " =? 2^" << mBoxXYLog2
-            << " = " << ( 1 << mBoxXYLog2 ) << " )\n";
-        throw std::runtime_error( msg.str() );
-    }
+//     /* determine log2 for mBoxX and mBoxX * mBoxY to be used for bitshifting
+//      * the indice instead of multiplying ... WHY??? I don't think it is faster,
+//      * but much less readable */
+//     mBoxXLog2  = 0; auto dummy = mBoxX ; while ( dummy >>= 1 ) ++mBoxXLog2;
+//     mBoxXYLog2 = 0; dummy = mBoxX*mBoxY; while ( dummy >>= 1 ) ++mBoxXYLog2;
+//     if ( mBoxX != ( 1u << mBoxXLog2 ) || mBoxX * boxY != ( 1u << mBoxXYLog2 ) )
+//     {
+//         std::stringstream msg;
+//         msg << "[" << __FILENAME__ << "::setLatticeSize" << "] "
+//             << "Could not determine value for bit shift. "
+//             << "Check whether the box size is a power of 2! ( "
+//             << "boxX=" << mBoxX << " =? 2^" << mBoxXLog2 << " = " << ( 1 << mBoxXLog2 )
+//             << ", boxX*boY=" << mBoxX * mBoxY << " =? 2^" << mBoxXYLog2
+//             << " = " << ( 1 << mBoxXYLog2 ) << " )\n";
+//         throw std::runtime_error( msg.str() );
+//     }
 }
 
 /**
@@ -2377,7 +2411,7 @@ void UpdaterGPUScBFM< T_UCoordinateCuda >::findAndRemoveOverflows( bool copyToHo
 	  T_Coordinate      iv[3] = { ivtmp.x, ivtmp.y, ivtmp.z };
 
 	  std::vector< T_BoxSize > const boxSizes = { mBoxX, mBoxY, mBoxZ };
-	  auto constexpr boxSizeCudaType = 1ll << ( sizeof( T_UCoordinateCuda ) * CHAR_BIT );
+	  auto constexpr boxSizeCudaType = 1ll << ( sizeof( T_UCoordinateCuda ) * CHAR_BIT ); 
 	  for ( auto iCoord = 0u; iCoord < 3u; ++iCoord )
 	  {
 	      assert( boxSizeCudaType >= boxSizes[ iCoord ] );

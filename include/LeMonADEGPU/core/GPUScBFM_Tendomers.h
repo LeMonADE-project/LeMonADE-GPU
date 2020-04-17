@@ -139,8 +139,6 @@ public:
 
         mLog( "Info" ) << "[" << __FILENAME__ << "::initialize] Forwarding relevant paramters to GPU updater\n";
         mUpdaterGpu.setGpu( miGpuToUse );
-        if ( mSetStepsBetweenSortings )
-            mUpdaterGpu.setStepsBetweenSortings( mnStepsBetweenSortings );
         mUpdaterGpu.setAge( mIngredients.modifyMolecules().getAge() );
 	
 	mLog( "Info" ) << "[" << __FILENAME__ << "::initialize] mUpdaterGpu.setPeriodicity\n";
@@ -193,10 +191,9 @@ public:
         mUpdaterGpu.setMoveType(mDiagMovesOn);
         
 	Method met;
- 	met.modifyCurve().setMode(0);
  	met.modifyCurve().setBox(mIngredients.getBoxX(),mIngredients.getBoxY(),mIngredients.getBoxZ());
-	met.modifyPacking().setBitPackingOn(true);
-	met.modifyPacking().setNBufferedTmpLatticeOn(true);
+	met.modifyPacking().setBitPackingOn(false); //only for power rof two lattices
+	met.modifyPacking().setNBufferedTmpLatticeOn(true); // should always be true! 
 	met.setOnGPUForOverhead(true);
  	mUpdaterGpu.setMethod(met);
 

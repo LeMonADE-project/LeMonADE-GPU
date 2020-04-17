@@ -67,6 +67,20 @@ void SpaceFillingCurve::setBox(uint64_t mBoxX_, uint64_t mBoxY_, uint64_t mBoxZ_
 
     //differentiate between the different curves by the mode type: 
     uint64_t mBoxXLog2(0), mBoxXYLog2(0);
+    if ( IsPowerOfTwo(mBoxX_) && IsPowerOfTwo(mBoxY_) && IsPowerOfTwo(mBoxZ_) )
+    {
+      if ( mBoxX_ == mBoxY_ && mBoxY_ == mBoxZ_  )
+      {  setMode(0); //for zOrderCurve the box needs to be cubic
+        std::cout << "SpaceFillingCurve::setBox: Use the z-OrderCurve for the indexing of the coordinates.\n"; 
+      }else{
+        setMode(2); //for linear coordinates in a cuboid box this should still work
+        std::cout << "SpaceFillingCurve::setBox: Use linear box coordinates specialized for power of two lattices.\n";
+      }
+    }else{
+      setMode(1); // here no bitwise operators are used and thus should work for all box dimensions.
+      std::cout << "SpaceFillingCurve::setBox: Use linear box coordinates for arbitrary box dimensions.\n";
+    }
+    
     switch( mode )
     {
         case 2: lP2Curve.initialize(mBoxX_,mBoxY_,mBoxZ_);
