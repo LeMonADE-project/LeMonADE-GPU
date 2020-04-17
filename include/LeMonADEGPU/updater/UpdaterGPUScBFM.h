@@ -109,10 +109,11 @@ protected:
     /* only do checks for uint8_t and uint16_t, for all signed data types
      * we kinda assume the user to think himself smart enough that he does
      * not want the overflow checking version. This is because the overflow
-     * checking is not tested with signed types being used! */
-//     static bool constexpr useOverflowChecks =
-//         sizeof( T_UCoordinateCuda ) <= 2 &&
-//         ! std::is_signed< T_UCoordinateCuda >::value;
+     * checking is not tested with signed types being used! 
+     * Previously this was a 'static bool constexp' which is not useful
+     * because the periodicity is only known at runtime and is one 
+     * contribution of setting to true or false.
+     */
     bool useOverflowChecks;
 
     /**
