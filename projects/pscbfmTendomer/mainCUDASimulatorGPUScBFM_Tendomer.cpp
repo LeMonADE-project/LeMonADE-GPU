@@ -19,11 +19,10 @@
 #include <LeMonADE/updater/UpdaterReadBfmFile.h>
 #include <LeMonADE/updater/UpdaterSimpleSimulator.h>
 #include <LeMonADE/feature/FeatureConnectionSc.h>
-
+#include <LeMonADE/updater/UpdaterSwellBox.h>
 
 #include <LeMonADEGPU/core/GPUScBFM_Tendomers.h>
 #include <LeMonADEGPU/utility/SelectiveLogger.hpp> // __FILENAME__
-
 
 #include "../analyzer/AnalyzerCrossLinkMSD.h"
 #include "../analyzer/AnalyzerMonomerMSD.h"
@@ -46,6 +45,8 @@ void printHelp( void )
         << "        (required) specifies the total Monte-Carlo steps to simulate.\n"
         << "    -s, --save-interval <integer>\n"
         << "        Save after every <integer> Monte-Carlo steps to the output file.\n"
+        << "    -b, --swelling-on <integer>\n"
+        << "        Increase the box size if monomer touch the boundary.\n"
         << "    -o, --output <file path>\n"
         << "        All intermediate steps at each save-interval will be appended to this file even if it already exists\n"
 	<< "    -d, --diagonal <integer> \n"
@@ -70,6 +71,7 @@ int main( int argc, char ** argv )
     int      iRngToUse       = -1;
     std::string seedFileName = "";
     int diagonalMoves        = 0; 
+    uint32_t boundarySize(0);
     try
     {
 
@@ -89,6 +91,7 @@ int main( int argc, char ** argv )
                 { "initial-state", required_argument, 0, 'i' },
                 { "max-mcs"      , required_argument, 0, 'm' },
                 { "output"       , required_argument, 0, 'o' },
+                { "boundary"     , required_argument, 0, 'b' },
                 { "rng"          , required_argument, 0, 'r' },
                 { "save-interval", required_argument, 0, 's' },
 		{ "diagonal", required_argument, 0, 'd' },
@@ -96,7 +99,7 @@ int main( int argc, char ** argv )
             };
             /* getopt_long stores the option index here. */
             int option_index = 0;
-            int c = getopt_long( argc, argv, "e:g:hi:m:o:r:s:d:", long_options, &option_index );
+            int c = getopt_long( argc, argv, "e:g:hi:m:o:b:r:s:d:", long_options, &option_index );
 
             if ( c == -1 )
                 break;
@@ -110,6 +113,7 @@ int main( int argc, char ** argv )
                 case 'm': max_mcs       = std::atol  ( optarg ); break;
                 case 'o': outfile       = std::string( optarg ); break;
                 case 'r': iRngToUse     = std::atoi  ( optarg ); break;
+                case 'b': boundarySize     = std::atoi  ( optarg ); break;
                 case 's': save_interval = std::atol  ( optarg ); break;
 		case 'd': diagonalMoves = std::atoi  ( optarg ); break;
                     break;
@@ -170,6 +174,8 @@ int main( int argc, char ** argv )
         //here you can choose to use MoveLocalBcc instead. Careful though: no real tests made yet
         //(other than for latticeOccupation, valid bonds, frozen monomers...)
         taskmanager.addUpdater( pUpdaterGpu );
+        if ( boundarySize > 0 )
+          taskmanager.addUpdater( new UpdaterSwellBox<IngredientsType>( myIngredients, 800, 32, 2 ));
 // 	if (analyzeON)
 // 	{
 // 	  taskmanager.addAnalyzer( new AnalyzerSystemMSD   <Ing>( myIngredients, 0       ) );
