@@ -175,7 +175,7 @@ int main( int argc, char ** argv )
         //(other than for latticeOccupation, valid bonds, frozen monomers...)
         taskmanager.addUpdater( pUpdaterGpu );
         if ( boundarySize > 0 )
-          taskmanager.addUpdater( new UpdaterSwellBox<IngredientsType>( myIngredients, 800, 32, 2 ));
+          taskmanager.addUpdater( new UpdaterSwellBox<Ing>( myIngredients, 800, 32, boundarySize ));
 // 	if (analyzeON)
 // 	{
 // 	  taskmanager.addAnalyzer( new AnalyzerSystemMSD   <Ing>( myIngredients, 0       ) );
