@@ -50,16 +50,16 @@ public:
    * @param differenceGreaterFour is a template parameter with default false
    * 
    */
-  template <bool differenceGreaterFour=false >
+//   template <bool differenceGreaterFour=false >
   __device__ __host__ inline   bool operator()(int dx, int dy, int dz) const 
   {
 
-    if ( differenceGreaterFour == true ) 
-    {
-      if(dx*dx > 9) return true; 
-      if(dy*dy > 9) return true; 
-      if(dz*dz > 9) return true; 
-    }
+//     if ( differenceGreaterFour == true ) 
+//     {
+//       if(dx*dx > 9) return true; 
+//       if(dy*dy > 9) return true; 
+//       if(dz*dz > 9) return true; 
+//     }
     //if check activated-> check if dx,dy,dz are in the correct range [-4:3]
     #ifdef __CUDA_ACC__
       return dpForbiddenBonds[linearizeBondVectorIndex(dx,dy,dz)];

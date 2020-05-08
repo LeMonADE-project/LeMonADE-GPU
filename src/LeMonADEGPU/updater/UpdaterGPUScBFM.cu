@@ -326,7 +326,7 @@ BondVectorSet       const              checkBondVector
   {
       auto const iGlobalNeighbor = dpNeighbors[ iNeighbor * rNeighborsPitchElements + iMonomer ];
       auto const data2 = dpPolymerSystem[ iGlobalNeighbor ];
-      if ( checkBondVector.operator()<true>( data2.x - r1.x, data2.y - r1.y, data2.z - r1.z ) )
+      if ( checkBondVector( data2.x - r1.x, data2.y - r1.y, data2.z - r1.z ) )
       {
 	return true; 
       }
@@ -2574,13 +2574,13 @@ void UpdaterGPUScBFM< T_UCoordinateCuda >::checkBonds() const
         if ( ! ( -3 <= dx && dx <= 3 ) ) erroneousAxis = 0;
         if ( ! ( -3 <= dy && dy <= 3 ) ) erroneousAxis = 1;
         if ( ! ( -3 <= dz && dz <= 3 ) ) erroneousAxis = 2;
-        if ( erroneousAxis >= 0 || checkBondVector.operator()<true>( dx, dy, dz ) )
+        if ( erroneousAxis >= 0 || checkBondVector( dx, dy, dz ) )
         {
             std::stringstream msg;
             msg << "[" << __FILENAME__ << "::checkSystem] ";
             if ( erroneousAxis > 0 )
                 msg << "Invalid " << char( 'X' + erroneousAxis ) << "-Bond: ";
-            if ( checkBondVector.operator()<true>( dx, dy, dz ) )
+            if ( checkBondVector( dx, dy, dz ) )
                 msg << "This particular bond is forbidden: ";
             msg << "(" << dx << "," << dy<< "," << dz << ") between monomer "
                 << i << " at (" << mPolymerSystem->host[i].x << ","
