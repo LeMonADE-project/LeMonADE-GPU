@@ -173,9 +173,10 @@ int main( int argc, char ** argv )
         taskmanager.addUpdater( new UpdaterReadBfmFile<Ing>( infile, myIngredients,UpdaterReadBfmFile<Ing>::READ_LAST_CONFIG_SAVE ), 0 );
         //here you can choose to use MoveLocalBcc instead. Careful though: no real tests made yet
         //(other than for latticeOccupation, valid bonds, frozen monomers...)
-        taskmanager.addUpdater( pUpdaterGpu );
         if ( boundarySize > 0 )
-          taskmanager.addUpdater( new UpdaterSwellBox<Ing>( myIngredients, 800, 32, boundarySize ));
+          taskmanager.addUpdater( new UpdaterSwellBox<Ing>( myIngredients, 800, 128, boundarySize ));
+        taskmanager.addUpdater( pUpdaterGpu );
+        
 // 	if (analyzeON)
 // 	{
 // 	  taskmanager.addAnalyzer( new AnalyzerSystemMSD   <Ing>( myIngredients, 0       ) );

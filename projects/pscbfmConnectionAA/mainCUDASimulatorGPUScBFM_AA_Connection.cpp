@@ -17,7 +17,7 @@
 #include <LeMonADE/utility/TaskManager.h>
 #include <LeMonADE/updater/UpdaterReadBfmFile.h>
 #include <LeMonADE/updater/UpdaterSimpleSimulator.h>
-#include <LeMonADE/feature/FeatureConnectionSc.h>
+#include <LeMonADE/feature/FeatureReactiveBonds.h>
 
 
 #include <LeMonADEGPU/core/GPUScBFM_AA_Connection.h>
@@ -141,7 +141,7 @@ int main( int argc, char ** argv )
             Features;
         */
         typedef LOKI_TYPELIST_4( FeatureMoleculesIOUnsaveCheck, FeatureAttributes<>,
-                                 FeatureExcludedVolumeSc<>, FeatureConnectionSc ) Features;
+                                 FeatureExcludedVolumeSc<>, FeatureReactiveBonds ) Features;
 
         typedef ConfigureSystem< VectorInt3, Features, 8 > Config;
         typedef Ingredients< Config > Ing;
