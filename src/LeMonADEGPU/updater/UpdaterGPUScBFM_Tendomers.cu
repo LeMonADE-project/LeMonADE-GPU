@@ -65,8 +65,8 @@ template< typename T_UCoordinateCuda >
 __global__ void kernelSimulateLabelMoves
 (
 typename CudaVec4< T_UCoordinateCuda >::value_type
-	    const * const __restrict__ dpPolymerSystem        ,
-uint32_t            const	       nMonomers              ,
+	    const * const __restrict__   dpPolymerSystem        ,
+uint32_t            const	         nMonomers              ,
 uint64_t            const 	       rSeed                  ,
 uint64_t            const 	       rGlobalIteration       ,
 BondVectorSet       const 	       checkBondVector        ,
@@ -75,7 +75,7 @@ T_RingCoordinates * const 	       dLabelPosition         ,
 T_Id              * const 	       dLatticeLabel          ,
 T_Id              * const 	       dpNeighborsMonomer     , 
 uint8_t           * const 	       dpNeighborsSizesMonomer,
-uint32_t            const              labelOffset
+uint32_t            const          labelOffset
 )
 {
     uint32_t rn;
@@ -83,79 +83,83 @@ uint32_t            const              labelOffset
     for ( auto iMonomer = blockIdx.x * blockDim.x + threadIdx.x;
           iMonomer < nMonomers; iMonomer += gridDim.x * blockDim.x, ++iGrid )
     {
-	if ( iGrid % 1 == 0 ) {
-	  Saru rng(rGlobalIteration,iMonomer,rSeed);
-	  rn =rng.rng32();
+        if ( iGrid % 1 == 0 ) {
+          Saru rng(rGlobalIteration,iMonomer,rSeed);
+          rn =rng.rng32();
         }
         int32_t direction=1-2 *( rn % 2 ); //left(-1) or right (+1)
-	// this is a position according to the tendomer id and the curvilinear position along the chain
-	// and has nothing to do with the spatial position in 3D
-	uint32_t globalLabelID(labelOffset+iMonomer);
+        // this is a position according to the tendomer id and the curvilinear position along the chain
+        // and has nothing to do with the spatial position in 3D
+        uint32_t globalLabelID(labelOffset+iMonomer);
         T_RingCoordinates labelPos=dLabelPosition[globalLabelID]; 
         
         uint32_t curvilinearDist=labelPos.x;
         uint32_t chainID=labelPos.y;
 
-        uint32_t latticeIDNew(curvilinearDist+direction + dMonomersPerChainP2*chainID );
-	uint32_t latticeID(curvilinearDist  + dMonomersPerChainP2*chainID );
+        uint32_t latticeID(curvilinearDist + dMonomersPerChainP2*chainID );
+        uint32_t latticeIDNew(latticeID + direction );
         uint32_t neighborLatticeEntry(dLatticeLabel[latticeIDNew ]);
         
         //neigboring position if not occupied by another label 
         if ( ( neighborLatticeEntry & 1u ) ==  0 ) 
         {
-	  //check if ring is connected to another oneBonds
-	  uint32_t connectedMonomerID(dLabelBonds[globalLabelID].x);//returns the global monomer ID plus one 
-	  if ( connectedMonomerID != 0)
-	  {
-	    connectedMonomerID--; 
-	    uint32_t neigboringMonomer(neighborLatticeEntry>>4);
-	    // position of the monomer which gets occupied by the moved label 
-	    auto const r0 = dpPolymerSystem[ neigboringMonomer  ]; 
-	    // position of the monomer which is connected to the unmoved label 
-	    auto const r1 = dpPolymerSystem[ connectedMonomerID  ]; 
-	    //if the new bond vector is not in the set, then continue with the next in the grid striding loop 
-	    auto const dx(MinImageDistanceComponentForPowerOfTwo(r0.x-r1.x,dcBoxX));
-	    auto const dy(MinImageDistanceComponentForPowerOfTwo(r0.y-r1.y,dcBoxY));
-	    auto const dz(MinImageDistanceComponentForPowerOfTwo(r0.z-r1.z,dcBoxZ));
-	    if ( dx*dx > 9 ) continue; 
-	    if ( dy*dy > 9 ) continue; 
-	    if ( dz*dz > 9 ) continue; 
-	    //only takes dx,dy,dz in the range of [-4:3]
-	    if ( checkBondVector(dx,dy,dz) ) continue ;  
-	    // still here: establish the new bond and erase the old oneBonds
-	    uint32_t connectedLabelID(dLabelBonds[globalLabelID].y>>2);
-	    uint32_t connectedLatticeEntry(dLabelPosition[connectedLabelID].x + dMonomersPerChainP2*dLabelPosition[connectedLabelID].y );
-	    //ugly!! -_:
-	    uint32_t iSpecies                ( (dLatticeLabel[ latticeID ]            & 14u ) >> 1 );
-	    uint32_t iSpeciesNeighbor        ( (neighborLatticeEntry                  & 14u ) >> 1 );
-	    uint32_t iSpeciesNeighboringLabel( (dLatticeLabel[connectedLatticeEntry ] & 14u ) >> 1 );
-	    
-	    uint32_t monomerID( dLatticeLabel[ latticeID ] >> 4 );
-	    //add bond for the neighboring chain monomer 
-	    dpNeighborsMonomer[ matrixOffset_d[iSpeciesNeighbor] + dpNeighborsSizesMonomer[ neigboringMonomer ] * pitch_d[iSpeciesNeighbor] + (neigboringMonomer-subgroupOffset_d[iSpeciesNeighbor]) ] 
-	    = connectedMonomerID; 
-	    dpNeighborsSizesMonomer[ neigboringMonomer ]++;
-	    //change neighbor for the connected label
-	    //first search for the bond id and then update the entries
-	    dpNeighborsMonomer[ matrixOffset_d[iSpeciesNeighboringLabel] + (dLabelBonds[connectedLabelID].y & 3u) * pitch_d[iSpeciesNeighboringLabel] + (connectedMonomerID- subgroupOffset_d[iSpeciesNeighboringLabel] ) ] 
-	    = neigboringMonomer; 
+          //check if ring is connected to another oneBonds
+          uint32_t connectedMonomerID(dLabelBonds[globalLabelID].x);//returns the global monomer ID plus one 
+          if ( connectedMonomerID != 0)
+          {
+            connectedMonomerID--; 
+            uint32_t neigboringMonomer(neighborLatticeEntry>>4);
+            // position of the monomer which gets occupied by the moved label 
+            auto const r0 = dpPolymerSystem[ neigboringMonomer  ]; 
+            // position of the monomer which is connected to the unmoved label 
+            auto const r1 = dpPolymerSystem[ connectedMonomerID  ]; 
+            //refold vector to the minimal distance. This is important because the
+            // positions are uints, thus "inbox"-coordinates!
+            auto const dx(MinImageDistanceComponentForPowerOfTwo(r0.x-r1.x,dcBoxX));
+            auto const dy(MinImageDistanceComponentForPowerOfTwo(r0.y-r1.y,dcBoxY));
+            auto const dz(MinImageDistanceComponentForPowerOfTwo(r0.z-r1.z,dcBoxZ));
+            //the checkBondVector acceptes only values from -4 to 3 
+            //and would return an undefined value for other values
+            if ( dx*dx > 9 ) continue; 
+            if ( dy*dy > 9 ) continue; 
+            if ( dz*dz > 9 ) continue; 
+            //only takes dx,dy,dz in the range of [-4:3]
+            //if the new bond vector is not in the set, then continue with the next in the grid striding loop 
+            if ( checkBondVector(dx,dy,dz) ) continue ;  
+            // still here: establish the new bond and erase the old oneBonds
+            uint32_t connectedLabelID(dLabelBonds[globalLabelID].y>>2);
+            uint32_t connectedLatticeEntry(dLabelPosition[connectedLabelID].x + dMonomersPerChainP2*dLabelPosition[connectedLabelID].y );
+            //ugly!! -_:
+            uint32_t iSpecies                ( (dLatticeLabel[ latticeID ]            & 14u ) >> 1 );
+            uint32_t iSpeciesNeighbor        ( (neighborLatticeEntry                  & 14u ) >> 1 );
+            uint32_t iSpeciesNeighboringLabel( (dLatticeLabel[connectedLatticeEntry ] & 14u ) >> 1 );
+            
+            uint32_t monomerID( dLatticeLabel[ latticeID ] >> 4 );
+            //add bond for the neighboring chain monomer 
+            dpNeighborsMonomer[ matrixOffset_d[iSpeciesNeighbor] + dpNeighborsSizesMonomer[ neigboringMonomer ] * pitch_d[iSpeciesNeighbor] + (neigboringMonomer-subgroupOffset_d[iSpeciesNeighbor]) ] 
+            = connectedMonomerID; 
+            dpNeighborsSizesMonomer[ neigboringMonomer ]++;
+            //change neighbor for the connected label
+            //first search for the bond id and then update the entries
+            dpNeighborsMonomer[ matrixOffset_d[iSpeciesNeighboringLabel] + (dLabelBonds[connectedLabelID].y & 3u) * pitch_d[iSpeciesNeighboringLabel] + (connectedMonomerID- subgroupOffset_d[iSpeciesNeighboringLabel] ) ] 
+            = neigboringMonomer; 
 
-	    //erase bond 
-	    //first search for the bond id and then update the entries
-	    dpNeighborsSizesMonomer[ monomerID ]--;
-	    dpNeighborsMonomer[ matrixOffset_d[iSpecies] + ( dLabelBonds[globalLabelID].y & 3u) * pitch_d[iSpecies] + (monomerID- subgroupOffset_d[iSpecies] ) ] 
-	    = dpNeighborsMonomer[ matrixOffset_d[iSpecies] + ( dpNeighborsSizesMonomer[ monomerID ] ) * pitch_d[iSpecies] + (monomerID- subgroupOffset_d[iSpecies] ) ] ;
-	    // update the dLabelBonds
-	    dLabelBonds[connectedLabelID].x=neigboringMonomer+1;
-// 	    dLabelBonds[connectedLabelID].y= stays the same label id and the same bond id ;
-// 	    dLabelBonds[globalLabelID].x= is still connected to the same chain id 
-	    dLabelBonds[globalLabelID].y= (connectedLabelID  << 2 ) + dpNeighborsSizesMonomer[ neigboringMonomer ]-1 ;
-	  }
-	  //update lattice 
-	  dLatticeLabel[latticeID   ]-=1; //turn non-occupied
-	  dLatticeLabel[latticeIDNew]+=1; //turn occupied
-	  //update label mLabelPosition
-	  dLabelPosition[globalLabelID].x=curvilinearDist+direction;
+            //erase bond 
+            //first search for the bond id and then update the entries
+            dpNeighborsSizesMonomer[ monomerID ]--;
+            dpNeighborsMonomer[ matrixOffset_d[iSpecies] + ( dLabelBonds[globalLabelID].y & 3u) * pitch_d[iSpecies] + (monomerID- subgroupOffset_d[iSpecies] ) ] 
+            = dpNeighborsMonomer[ matrixOffset_d[iSpecies] + ( dpNeighborsSizesMonomer[ monomerID ] ) * pitch_d[iSpecies] + (monomerID- subgroupOffset_d[iSpecies] ) ] ;
+            // update the dLabelBonds
+            dLabelBonds[connectedLabelID].x=neigboringMonomer+1;
+      // 	    dLabelBonds[connectedLabelID].y= stays the same label id and the same bond id ;
+      // 	    dLabelBonds[globalLabelID].x= is still connected to the same chain id 
+            dLabelBonds[globalLabelID].y= (connectedLabelID  << 2 ) + dpNeighborsSizesMonomer[ neigboringMonomer ]-1 ;
+          }
+          //update lattice 
+          dLatticeLabel[latticeID   ]-=1; //turn non-occupied
+          dLatticeLabel[latticeIDNew]+=1; //turn occupied
+          //update label mLabelPosition
+          dLabelPosition[globalLabelID].x=curvilinearDist+direction;
         }
     }
 }
@@ -166,9 +170,6 @@ template< typename T_UCoordinateCuda >
 void UpdaterGPUScBFM_Tendomers<T_UCoordinateCuda>::launch_MoveLabel( 
  const size_t nBlocks, const size_t nThreads, const size_t iSpecies, const uint64_t seed)
 {
-
-//   std::cout << "Start kernel call with " << nBlocks << " #blocks and " << nThreads << " #threads. \n";
-//   std::cout << "Number of labels in the species group is "  <<   nLabelsPerSpecies[iSpecies] << " at species " << iSpecies << "\n";
   
   kernelSimulateLabelMoves< T_UCoordinateCuda > 
   <<< nBlocks, nThreads, 0, mStream >>>(                
@@ -323,8 +324,7 @@ void UpdaterGPUScBFM_Tendomers<T_UCoordinateCuda>::initialize()
   auto sizeOfLattice = nTendomers*(nMonomersPerChain+2)*2;
   mLog( "Info" )<< "Allocate memory for the label lookup for "<<sizeOfLattice << " lattice entries \n"
 		<< "which corresponds to " <<  sizeOfLattice/ sizeof( T_Id)/1024 << " kB.\n";
-  mLatticeLabel    = new  MirroredVector< T_Id              > ( sizeOfLattice  );
-//   mLabelBonds      = new  MirroredVector< T_RingCoordinates > ( nLabels  );
+  mLatticeLabel  = new  MirroredVector< T_Id              > ( sizeOfLattice  );
   mLabelPosition = new  MirroredVector< T_RingCoordinates > ( nLabels  );
   mLog( "Info" )<< "Copy matrix offset, pitch and the subgroup offset for the neighbors and positions into constant memory... \n";
   auto const nSpecies = mnElementsInGroup.size();
@@ -624,22 +624,22 @@ void UpdaterGPUScBFM_Tendomers< T_UCoordinateCuda >::runSimulationOnGPU
                     cudaMemcpyDeviceToDevice, mStream ) );
             }
         }
-	//move labels 
+	      //move labels 
         for ( uint32_t iSubStep = 0; iSubStep < labelOffset.size(); ++iSubStep ) 
-	{
+	      {
             /* randomly choose which monomer group to advance */
             auto const iSpecies = randomNumbers.r250_rand32() % (labelOffset.size());
             auto const nThreads = 128;
             auto const nBlocks  = ceilDiv( nLabelsPerSpecies[iSpecies], nThreads );
             auto const seed     = randomNumbers.r250_rand32();
-	    //move label 
-	    launch_MoveLabel(nBlocks, nThreads, iSpecies, seed);
+            //move label 
+            launch_MoveLabel(nBlocks, nThreads, iSpecies, seed);
         } // iSubstep
         /* one Monte-Carlo step:
          *  - tries to move on average all particles one time
          *  - each particle could be touched, not just one group */
         for ( uint32_t iSubStep = 0; iSubStep < nSpecies; ++iSubStep ) 
-	{
+      	{
             auto const iStepTotal = iStep * nSpecies + iSubStep;
             //remember: mnLatticeTmpBuffers=2
             auto  iOffsetLatticeTmp = ( iStepTotal % mnLatticeTmpBuffers ) * ( mBoxX * mBoxY * mBoxZ * sizeof( mLatticeTmp->gpu[0] ));
@@ -649,8 +649,8 @@ void UpdaterGPUScBFM_Tendomers< T_UCoordinateCuda >::runSimulationOnGPU
 
             if (met.getPacking().getNBufferedTmpLatticeOn()) 
             {
-                    iOffsetLatticeTmp = 0u;
-                    texLatticeTmp = mLatticeTmp->texture;
+                iOffsetLatticeTmp = 0u;
+                texLatticeTmp = mLatticeTmp->texture;
             }
             /* randomly choose which monomer group to advance */
             auto const iSpecies = randomNumbers.r250_rand32() % nSpecies;
@@ -664,40 +664,40 @@ void UpdaterGPUScBFM_Tendomers< T_UCoordinateCuda >::runSimulationOnGPU
             switch ( monomericMoveType )
             {
             case 0: this-> template launch_CheckSpecies<6>(nBlocks, nThreads, iSpecies, iOffsetLatticeTmp, seed);
-		    if ( useCudaMemset )
-			launch_PerformSpeciesAndApply(nBlocks, nThreads, iSpecies, texLatticeTmp);
-		    else
-			launch_PerformSpecies(nBlocks,nThreads,iSpecies,texLatticeTmp);
-		    break;
-	    case 1: this-> template launch_CheckSpecies<18>(nBlocks, nThreads, iSpecies, iOffsetLatticeTmp, seed);
-		    if ( useCudaMemset )
-			launch_PerformSpeciesAndApply(nBlocks, nThreads, iSpecies, texLatticeTmp);
-		    else
-			launch_PerformSpecies(nBlocks,nThreads,iSpecies,texLatticeTmp);
-		    break;
-	    case 2: this-> launch_CheckSpeciesWithMonomericMoveType(nBlocks, nThreads, iSpecies, iOffsetLatticeTmp, seed, moveType -> texture);
-		    if ( useCudaMemset )
-			launch_PerformSpeciesAndApply(nBlocks, nThreads, iSpecies, texLatticeTmp);
-		    else
-			launch_PerformSpecies(nBlocks,nThreads,iSpecies,texLatticeTmp);
-		    break;
+                    if ( useCudaMemset )
+                      launch_PerformSpeciesAndApply(nBlocks, nThreads, iSpecies, texLatticeTmp);
+                    else
+                      launch_PerformSpecies(nBlocks,nThreads,iSpecies,texLatticeTmp);
+                    break;
+            case 1: this-> template launch_CheckSpecies<18>(nBlocks, nThreads, iSpecies, iOffsetLatticeTmp, seed);
+                    if ( useCudaMemset )
+                      launch_PerformSpeciesAndApply(nBlocks, nThreads, iSpecies, texLatticeTmp);
+                    else
+                      launch_PerformSpecies(nBlocks,nThreads,iSpecies,texLatticeTmp);
+                    break;
+            case 2: this-> launch_CheckSpeciesWithMonomericMoveType(nBlocks, nThreads, iSpecies, iOffsetLatticeTmp, seed, moveType -> texture);
+                    if ( useCudaMemset )
+                      launch_PerformSpeciesAndApply(nBlocks, nThreads, iSpecies, texLatticeTmp);
+                    else
+                      launch_PerformSpecies(nBlocks,nThreads,iSpecies,texLatticeTmp);
+                    break;
             }
-	    if ( useCudaMemset )
-	    {
-		if(met.getPacking().getNBufferedTmpLatticeOn()){
-		    /* we only need to delete when buffers will wrap around and
-			* on the last loop, so that on next runSimulationOnGPU
-			* call mLatticeTmp is clean */
-		    if ( ( iStepTotal % mnLatticeTmpBuffers == 0 ) ||
-			( iStep == nMonteCarloSteps-1 && iSubStep == nSpecies-1 ) )
-		    {
-			cudaMemsetAsync( (void*) mLatticeTmp->gpu, 0, mLatticeTmp->nBytes, mStream );
-		    }
-		}else
-		    mLatticeTmp->memsetAsync(0);
-	    }
-	    else
-		launch_ZeroArraySpecies(nBlocks,nThreads,iSpecies);
+
+            if ( useCudaMemset ){
+              if(met.getPacking().getNBufferedTmpLatticeOn()){
+                  /* we only need to delete when buffers will wrap around and
+                * on the last loop, so that on next runSimulationOnGPU
+                * call mLatticeTmp is clean */
+                if ( ( iStepTotal % mnLatticeTmpBuffers == 0 ) ||
+                    ( iStep == nMonteCarloSteps-1 && iSubStep == nSpecies-1 ) 
+                    )
+                  cudaMemsetAsync( (void*) mLatticeTmp->gpu, 0, mLatticeTmp->nBytes, mStream );
+              }else
+                  mLatticeTmp->memsetAsync(0);
+            }
+            else
+              launch_ZeroArraySpecies(nBlocks,nThreads,iSpecies);
+            chooseThreads.analyze(iSpecies,mStream);
         } // iSubstep
     } // iStep
 
