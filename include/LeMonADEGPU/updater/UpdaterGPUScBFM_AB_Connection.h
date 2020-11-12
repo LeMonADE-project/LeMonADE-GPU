@@ -97,8 +97,6 @@ private:
      */
     std::vector< D_MonomerReactivity > mMonomerReactivity;
     //holds the IDS of the chains found by the conenction move 
-//     MirroredVector< T_Id > * mCrossLinkFlags;
-//     MirroredVector< T_Id > * mCrossLinkIDS;
     T_Id * mCrossLinkFlags;
     T_Id * mCrossLinkIDS;
     //must be a multiple of 4. This is a condition due to the used shared memory... 
@@ -111,7 +109,6 @@ private:
 
 public:
     void initialize();
-//     bool execute();
     void runSimulationOnGPU(const uint32_t nSteps );
     void doCopyBack();
     void checkSystem() const  ;
@@ -119,9 +116,7 @@ public:
     void checkReactiveLatticeOccupation() ; 
     void cleanup();
     void destruct();
-    
-    
-    
+
     void setNrOfReactiveMonomers ( T_Id nReactiveMonomers_, T_Id nReactiveMonomersCrossLinks_, T_Id nReactiveMonomersChains_ );
     void setReactiveGroup ( T_Id monID_, bool reactivity_, T_MaxNumLinks maxNumLinks_ );
     void initializeReactiveLattice();
@@ -132,9 +127,6 @@ public:
 	  const size_t nBlocks , const size_t nThreads, const T_Id iSpecies );
     void launch_resetReactiveLattice(
 	  const size_t nBlocks , const size_t nThreads, const T_Id iSpecies );
-//     void launch_CheckConnection(
-// 	  const size_t nBlocks, const size_t nThreads, 
-// 	  const size_t iSpecies, const uint64_t seed);
     void launch_ApplyConnection(
 	  const size_t nBlocks , const size_t   nThreads, 
 	  const size_t MonomerSpecies,

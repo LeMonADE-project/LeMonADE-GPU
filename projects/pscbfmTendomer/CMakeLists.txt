@@ -14,10 +14,13 @@ link_directories (${LEMONADE_LIBRARY_DIR})
 
 include_directories ("${LEMONADEGPU_DIR}/include/")
 cuda_add_executable( mainSimulatorTendomer mainCUDASimulatorGPUScBFM_Tendomer.cpp )
+# cuda_add_executable( mainSimulatorTendomerConnection mainCUDASimulatorGPUScBFM_TendomerConnection.cpp )
 
 if( ( NOT DEFINED project_build_static ) OR ( project_build_static ) )
     target_link_libraries(mainSimulatorTendomer libLeMonADEGPU-static LeMonADE cuda ${CUDA_curand_LIBRARY} )
+    # target_link_libraries(mainSimulatorTendomerConnection libLeMonADEGPU-static LeMonADE cuda ${CUDA_curand_LIBRARY} )
 else()
     link_directories ("${CMAKE_BINARY_DIR}/lib/")
     target_link_libraries(mainSimulatorTendomer LeMonADEGPU LeMonADE cuda ${CUDA_curand_LIBRARY} )
+    # target_link_libraries(mainSimulatorTendomerConnection LeMonADEGPU LeMonADE cuda ${CUDA_curand_LIBRARY} )
 endif()

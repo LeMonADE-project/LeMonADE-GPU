@@ -77,8 +77,6 @@ private:
   
 
     uint32_t nMonomersPerChain, nTendomers, nCrossLinks, nLabelsPerTendomerArm, functionality, nLabels;
-//     struct LabelInformation { size_t offset, nElements ; };
-
     std::vector< uint32_t > labelOffset;
     std::vector< uint32_t > nLabelsPerSpecies;
     //maybe this could be a normal std::vector....
@@ -111,7 +109,6 @@ public:
     int32_t getLabel                  ( uint32_t ID_ );
     
     void initialize();
-//     using BaseClass::runSimulationOnGPU;
     void runSimulationOnGPU(const uint32_t nSteps );
     void launch_MoveLabel(const size_t nBlocks, const size_t nThreads, const size_t iSpecies, const uint64_t seed);
     void doCopyBack();

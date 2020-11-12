@@ -29,14 +29,14 @@ for arg in "$@"; do
             exit
             ;;
         
-        -DINSTALLDIR_LEMONADEGPU=*)
-                        CMAKE_ARGUMENTS+=${arg}" "
-                        TESTOPTION=${arg#*=}
+	-DINSTALLDIR_LEMONADEGPU=*)
+			CMAKE_ARGUMENTS+=${arg}" "
+			TESTOPTION=${arg#*=}
 			echo "LeMonADEGPU is installed in "$TESTOPTION
 			;;
 	-DLEMONADE_DIR=*)
-                        CMAKE_ARGUMENTS+=${arg}" "
-                        TESTOPTION=${arg#*=}
+			CMAKE_ARGUMENTS+=${arg}" "
+			TESTOPTION=${arg#*=}
 			echo "LeMonADE-lib is installed in "$TESTOPTION
 			;;
 	-DBUILDDIR=*)           
