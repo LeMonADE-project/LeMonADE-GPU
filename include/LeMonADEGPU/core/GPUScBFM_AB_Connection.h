@@ -128,7 +128,7 @@ public:
         UpdaterGPUScBFM_AB_Connection< T_UCoordinateCuda > & mUpdaterGpu = mUpdatersGpu;
 
         mUpdaterGpu.setSplitColors( mnSplitColors );
-	mUpdaterGpu.setAutoColoring(false);
+	    mUpdaterGpu.setAutoColoring(false);
         mLog( "Info" ) << "Size of mUpdater: " << sizeof( mUpdaterGpu ) << " Byte\n";
         mLog( "Info" ) << "Size of WrappedTemplatedUpdaters: " << sizeof( WrappedTemplatedUpdaters ) << " Byte\n";
 
@@ -153,8 +153,7 @@ public:
         mLog( "Info" ) << "[" << __FILENAME__ << "::initialize] mUpdaterGpu.setNrOfAllMonomers\n";
         mUpdaterGpu.setNrOfAllMonomers( mIngredients.getMolecules().size() );
         mLog( "Info" ) << "[" << __FILENAME__ << "::initialize] mUpdaterGpu.setMonomerCoordinates\n";
-        for ( size_t i = 0u; i < mIngredients.getMolecules().size(); ++i )
-        {
+        for ( size_t i = 0u; i < mIngredients.getMolecules().size(); ++i ){
             mUpdaterGpu.setMonomerCoordinates( i, molecules[i].getX(),
                                                   molecules[i].getY(),
                                                   molecules[i].getZ() );
@@ -174,36 +173,35 @@ public:
          * Note that supported range is [-4,3] */
         int const maxBondLength = 4;
         for ( int dx = -maxBondLength; dx < maxBondLength; ++dx )
-        for ( int dy = -maxBondLength; dy < maxBondLength; ++dy )
-        for ( int dz = -maxBondLength; dz < maxBondLength; ++dz )
-        {
-            /* !!! The negation is confusing, again there should be a better way to copy the bond set */
-            mUpdaterGpu.copyBondSet( dx, dy, dz, ! mIngredients.getBondset().isValid( VectorInt3( dx, dy, dz ) ) );
-        }
+            for ( int dy = -maxBondLength; dy < maxBondLength; ++dy )
+                for ( int dz = -maxBondLength; dz < maxBondLength; ++dz ){
+                    /* !!! The negation is confusing, again there should be a better way to copy the bond set */
+                    mUpdaterGpu.copyBondSet( dx, dy, dz, ! mIngredients.getBondset().isValid( VectorInt3( dx, dy, dz ) ) );
+                }
         uint32_t nReactiveMonomers(0),nReactiveMonomersCrossLinks(0),nReactiveMonomersChains(0);
         for (size_t i =0 ; i < mIngredients.getMolecules().size(); i++){
-	  mUpdaterGpu.setReactiveGroup( i, molecules[i].isReactive(), molecules[i].getNumMaxLinks() );
-	  if (molecules[i].isReactive() == 1 ){
-	    if (molecules[i].getNumMaxLinks() >2)
-	      nReactiveMonomersCrossLinks++;
-	    else 
-	      nReactiveMonomersChains++;
-	    nReactiveMonomers++;
-	  }
-	}
-	mUpdaterGpu.setNrOfReactiveMonomers(nReactiveMonomers, nReactiveMonomersCrossLinks, nReactiveMonomersChains);
+            mUpdaterGpu.setReactiveGroup( i, molecules[i].isReactive(), molecules[i].getNumMaxLinks() );
+            if (molecules[i].isReactive() == 1 ){
+                if (molecules[i].getNumMaxLinks() >2)
+                nReactiveMonomersCrossLinks++;
+                else 
+                nReactiveMonomersChains++;
+                nReactiveMonomers++;
+            }
+	    }
+	    mUpdaterGpu.setNrOfReactiveMonomers(nReactiveMonomers, nReactiveMonomersCrossLinks, nReactiveMonomersChains);
         
-	mLog( "Info" ) << "[" << __FILENAME__ << "::initialize] set move type (either standard or diagonal moves)\n";
+	    mLog( "Info" ) << "[" << __FILENAME__ << "::initialize] set move type (either standard or diagonal moves)\n";
         mUpdaterGpu.setDiagonalMovesOn(mDiagMovesOn);
 	
 	
-	Method met;
- 	met.modifyCurve().setMode(0);
- 	met.modifyCurve().setBox(mIngredients.getBoxX(),mIngredients.getBoxY(),mIngredients.getBoxZ());
-	met.modifyPacking().setBitPackingOn(true);
-	met.modifyPacking().setNBufferedTmpLatticeOn(true);
-	met.setOnGPUForOverhead(true);
- 	mUpdaterGpu.setMethod(met);
+        Method met;
+        met.modifyCurve().setMode(0);
+        met.modifyCurve().setBox(mIngredients.getBoxX(),mIngredients.getBoxY(),mIngredients.getBoxZ());
+        met.modifyPacking().setBitPackingOn(true);
+        met.modifyPacking().setNBufferedTmpLatticeOn(true);
+        met.setOnGPUForOverhead(true);
+        mUpdaterGpu.setMethod(met);
 
 	
         mLog( "Info" ) << "[" << __FILENAME__ << "::initialize] initialize GPU updater\n";
@@ -230,7 +228,7 @@ public:
         mLog( "Info" ) << "[" << __FILENAME__ << "] start simulation on GPU\n";
 
         mUpdaterGpu.setAge( mIngredients.modifyMolecules().getAge() );
-	mUpdaterGpu.runSimulationOnGPU( mnSteps ); 
+        mUpdaterGpu.runSimulationOnGPU( mnSteps ); 
 
         // copy back positions of all monomers
         mLog( "Info" ) << "[" << __FILENAME__ << "] copy back monomers from GPU updater to CPU 'molecules' to be used with analyzers\n";
@@ -245,18 +243,15 @@ public:
         }
         // copy back connectivity for all monomers 
         mLog( "Info" ) << "[" << __FILENAME__ << "] copy back monomer connectivity from GPU updater to CPU 'molecules' to be used with analyzers\n";
-	for( size_t i = 0; i < mIngredients.getMolecules().size(); ++i )
-        {
-	  if (mIngredients.getMolecules()[i].isReactive()){
-	    auto nLinks(mUpdaterGpu.getNumLinks(i));
-	    for ( size_t iBond = 0; iBond < nLinks; ++iBond ) 
-	    {
-	      auto Neighbor(mUpdaterGpu.getNeighborIdx(i,iBond));
-	      if (! molecules.areConnected(i,Neighbor))
-		molecules.connect(i,Neighbor);
-	    }
-	  }
-	  
+        for( size_t i = 0; i < mIngredients.getMolecules().size(); ++i ){
+            if (mIngredients.getMolecules()[i].isReactive()){
+                auto nLinks(mUpdaterGpu.getNumLinks(i));
+                for ( size_t iBond = 0; iBond < nLinks; ++iBond ){
+                    auto Neighbor(mUpdaterGpu.getNeighborIdx(i,iBond));
+                    if (! molecules.areConnected(i,Neighbor))
+                        molecules.connect(i,Neighbor);
+                }
+            } 
         }
 	
 	
@@ -293,8 +288,8 @@ public:
     inline void initialize()
     {
         auto const maxBoxSize = std::max( mIngredients.getBoxX(), std::max( mIngredients.getBoxY(), mIngredients.getBoxZ() ) );
-	if ( maxBoxSize < 0 )
-	  std::runtime_error("The maximum box size detected is smaller than 0! There could be something wront with the input file or the given bix sizes. ");
+        if ( maxBoxSize < 0 )
+        std::runtime_error("The maximum box size detected is smaller than 0! There could be something wront with the input file or the given bix sizes. ");
 	
         mCanUseUint8Positions = (unsigned long long) maxBoxSize <= ( 1llu << ( CHAR_BIT * sizeof( uint8_t ) ) );
         if ( mCanUseUint8Positions )
