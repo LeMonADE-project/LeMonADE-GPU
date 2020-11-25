@@ -22,7 +22,7 @@
 #include <LeMonADE/feature/FeatureConnectionSc.h>
 #include <LeMonADE/updater/UpdaterSwellBox.h>
 
-#include <LeMonADEGPU/core/GPUScBFM_Tendomers.h>
+#include <LeMonADEGPU/core/GPUScBFM_TendomersConnection.h>
 #include <LeMonADEGPU/utility/SelectiveLogger.hpp> // __FILENAME__
 
 void printHelp( void )
@@ -129,7 +129,7 @@ int main( int argc, char ** argv )
          * it on the heap, i.e.:
          *   GPUScBFM_AB_Type<Ing> gpuBfm( myIngredients, save_interval, iGpuToUse );
          */
-        auto const pUpdaterGpu = new GPUScBFM_Tendomers<Ing>( myIngredients, save_interval, diagonalMoves );
+        auto const pUpdaterGpu = new GPUScBFM_TendomersConnection<Ing>( myIngredients, save_interval, diagonalMoves );
         pUpdaterGpu->setGpu( iGpuToUse );
         pUpdaterGpu->activateLogging( "Error"     );
         pUpdaterGpu->activateLogging( "Stats"      );

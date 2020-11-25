@@ -34,6 +34,7 @@ SET(_src
     UpdaterGPUScBFM_AB_Breaking.cu
     UpdaterGPUScBFM_AA_Breaking.cu
     UpdaterGPUScBFM_Tendomers.cu
+    UpdaterGPUScBFM_TendomersConnection.cu
    )
 FILE(_header
      ${CMAKE_SOURCE_DIR}/include/LeMonADEGPU/updater/UpdaterGPUScBFM.h
@@ -42,6 +43,7 @@ FILE(_header
      ${CMAKE_SOURCE_DIR}/include/LeMonADEGPU/updater/UpdaterGPUScBFM_AB_Breaking.h
      ${CMAKE_SOURCE_DIR}/include/LeMonADEGPU/updater/UpdaterGPUScBFM_AA_Breaking.h
      ${CMAKE_SOURCE_DIR}/include/LeMonADEGPU/updater/UpdaterGPUScBFM_Tendomers.h
+     ${CMAKE_SOURCE_DIR}/include/LeMonADEGPU/updater/UpdaterGPUScBFM_TendomersConnection.h
     )
 # set_property(TARGET obj_updater PROPERTY CUDA_RESOLVE_DEVICE_SYMBOLS ON)
 set_target_properties(obj_updater PROPERTIES CUDA_SEPARABLE_COMPILATION ON)
