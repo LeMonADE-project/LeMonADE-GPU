@@ -328,12 +328,19 @@ void UpdaterGPUScBFM_TendomersConnection<T_UCoordinateCuda>::launch_MoveLabel(
    T_Id LatticeEntry(mLatticeIds->host[met.getCurve().linearizeBoxVectorIndex(x,y,z)]);
    if( LatticeEntry > 0 ){
      auto r=mPolymerSystemSorted->host[LatticeEntry-1 + mviSubGroupOffsets[1] ];
+     r.x=(r.x % mBoxX);
+     r.y=(r.y % mBoxY);
+     r.z=(r.z % mBoxZ);
      if ( r.x != x || r.y != y || r.z != z  )
      {
        std::stringstream error_message;
        error_message << "LatticeEntry=  "<<LatticeEntry  << " "
          << "Pos= ("<< x <<"," << y << "," << z << ")" << " "
-         << "mPolymerSystemSorted= ("<< r.x <<"," << r.y << "," << r.z << ")" << "\n";
+         << "mPolymerSystemSorted= ("<<        static_cast<uint32_t>(r.x) 
+                                     << "," << static_cast<uint32_t>(r.y) 
+                                     << "," << static_cast<uint32_t>(r.z) 
+                                     << ")" 
+          << "\n";
        throw std::runtime_error(error_message.str());
      }
    }
@@ -1077,17 +1084,17 @@ void UpdaterGPUScBFM_TendomersConnection< T_UCoordinateCuda >::runSimulationOnGP
               launch_ZeroArraySpecies(nBlocks,nThreads,iSpecies);
             chooseThreads.analyze(iSpecies,mStream);
         } // iSubstep
-        // auto const nThreads = chooseThreads.getBestThread(ChainEndSpecies);
-        // auto const nBlocks  = ceilDiv( mnElementsInGroup[ ChainEndSpecies ], nThreads );
-        // launch_initializeReactiveLattice( nBlocks, nThreads, ChainEndSpecies);
-        // if (mLog( "Check" ).isActive())
-        //   checkReactiveLatticeOccupation();
-        // auto const nThreads_c = 128;
-        // auto const nBlocks_c  = ceilDiv( nReactiveMonomersCrossLinks, nThreads_c );
-        // auto const seed     = randomNumbers.r250_rand32();
-        // launch_CheckConnection(nBlocks_c,nThreads_c,CrossLinkSpecies, ChainEndSpecies,seed);
-        // launch_ApplyConnection(nBlocks_c,nThreads_c,CrossLinkSpecies, ChainEndSpecies);
-        // launch_resetReactiveLattice( nBlocks, nThreads, ChainEndSpecies);
+        auto const nThreads = chooseThreads.getBestThread(ChainEndSpecies);
+        auto const nBlocks  = ceilDiv( mnElementsInGroup[ ChainEndSpecies ], nThreads );
+        launch_initializeReactiveLattice( nBlocks, nThreads, ChainEndSpecies);
+        if (mLog( "Check" ).isActive())
+          checkReactiveLatticeOccupation();
+        auto const nThreads_c = 128;
+        auto const nBlocks_c  = ceilDiv( nReactiveMonomersCrossLinks, nThreads_c );
+        auto const seed     = randomNumbers.r250_rand32();
+        launch_CheckConnection(nBlocks_c,nThreads_c,CrossLinkSpecies, ChainEndSpecies,seed);
+        launch_ApplyConnection(nBlocks_c,nThreads_c,CrossLinkSpecies, ChainEndSpecies);
+        launch_resetReactiveLattice( nBlocks, nThreads, ChainEndSpecies);
     } // iStep
 
     std::clock_t const t1 = std::clock();

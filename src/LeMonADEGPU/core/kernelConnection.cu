@@ -24,7 +24,7 @@ __global__ void  kernelResetMultiples(
     {
         sdataA[i] = Partner_k[i];
         sdataB[i] = Partner_k[i];
-        printf("Partner_k[%d]=%d", i, Partner_k[i]);
+        // printf("Partner_k[%d]=%d", i, Partner_k[i]);
     }
     __syncthreads();
     for (int i = threadIdx.x; i < ArraySize-1; i += blockDim.x ) 
