@@ -1,17 +1,15 @@
 #pragma once
 
-
-#include <chrono>                           // std::chrono::high_resolution_clock
-#include <climits>                          // CHAR_BIT
-#include <limits>                           // numeric_limits
+#include <chrono>  // std::chrono::high_resolution_clock
+#include <climits> // CHAR_BIT
+#include <limits>  // numeric_limits
 #include <iostream>
 
 #include <LeMonADE/updater/AbstractUpdater.h>
-#include <LeMonADE/utility/Vector3D.h>      // VectorInt3
+#include <LeMonADE/utility/Vector3D.h> // VectorInt3
 
 #include <LeMonADEGPU/updater/UpdaterGPUScBFM_TendomersConnection.h>
 #include <LeMonADEGPU/utility/SelectiveLogger.hpp>
-
 
 #define USE_UINT8_POSITIONS
 
@@ -22,8 +20,7 @@
  * the kernels while we still need to inherit from AbstractUpdater
  */
 
-
-template< class T_IngredientsType >
+template <class T_IngredientsType>
 class GPUScBFM_TendomersConnection : public AbstractUpdater
 {
 public:
@@ -31,8 +28,8 @@ public:
     typedef typename T_IngredientsType::molecules_type MoleculesType;
 
 protected:
-    IngredientsType & mIngredients;
-    MoleculesType   & molecules   ;
+    IngredientsType &mIngredients;
+    MoleculesType &molecules;
 
 private:
     /**
@@ -46,12 +43,12 @@ private:
      * inherit from basically shadow each other
      * @see https://stackoverflow.com/questions/3422106/how-do-i-select-a-member-variable-with-a-type-parameter
      */
-    struct WrappedTemplatedUpdaters :
-        UpdaterGPUScBFM_TendomersConnection< uint8_t  >,
-        UpdaterGPUScBFM_TendomersConnection< uint16_t >,
-        UpdaterGPUScBFM_TendomersConnection< int16_t  >,
-        UpdaterGPUScBFM_TendomersConnection< int32_t  >
-    {};
+    struct WrappedTemplatedUpdaters : UpdaterGPUScBFM_TendomersConnection<uint8_t>,
+                                      UpdaterGPUScBFM_TendomersConnection<uint16_t>,
+                                      UpdaterGPUScBFM_TendomersConnection<int16_t>,
+                                      UpdaterGPUScBFM_TendomersConnection<int32_t>
+    {
+    };
     WrappedTemplatedUpdaters mUpdatersGpu;
 
     int miGpuToUse;
@@ -62,10 +59,10 @@ private:
     uint64_t mnStepsBetweenSortings;
     bool mSetStepsBetweenSortings;
     uint8_t mnSplitColors;
-    int mDiagMovesOn; 
-    
+    int mDiagMovesOn;
+
 protected:
-    inline T_IngredientsType & getIngredients() { return mIngredients; }
+    inline T_IngredientsType &getIngredients() { return mIngredients; }
 
 public:
     /**
@@ -75,42 +72,40 @@ public:
      * @param rnSteps       Number of mcs to be executed per GPU-call
      * @param riGpuToUse    ID of the GPU to use. Default: 0
      */
-    inline GPUScBFM_TendomersConnection
-    (
-        T_IngredientsType & rIngredients,
-        uint32_t            rnSteps     ,
-	int                 mDiagMovesOn_ = 0,
-        int                 riGpuToUse = 0
-    )
-    : mIngredients( rIngredients                   ),
-      molecules   ( rIngredients.modifyMolecules() ),
-      miGpuToUse  ( riGpuToUse                     ),
-      mnSteps     ( rnSteps                        ),
-      mLog        ( __FILENAME__                   ),
-      mSetStepsBetweenSortings( false ),
-      mDiagMovesOn(mDiagMovesOn_),
-      mnSplitColors( 0 )
+    inline GPUScBFM_TendomersConnection(
+        T_IngredientsType &rIngredients,
+        uint32_t rnSteps,
+        int mDiagMovesOn_ = 0,
+        int riGpuToUse = 0)
+        : mIngredients(rIngredients),
+          molecules(rIngredients.modifyMolecules()),
+          miGpuToUse(riGpuToUse),
+          mnSteps(rnSteps),
+          mLog(__FILENAME__),
+          mSetStepsBetweenSortings(false),
+          mDiagMovesOn(mDiagMovesOn_),
+          mnSplitColors(0)
     {
-        mLog.deactivate( "Check"     );
-        mLog.deactivate( "Error"     );
-        mLog.deactivate( "Info"      );
-        mLog.deactivate( "Stat"      );
-        mLog.deactivate( "Warning"   );
+        mLog.deactivate("Check");
+        mLog.deactivate("Error");
+        mLog.deactivate("Info");
+        mLog.deactivate("Stat");
+        mLog.deactivate("Warning");
     }
 
-    inline void activateLogging( std::string const sLevel )
+    inline void activateLogging(std::string const sLevel)
     {
-        UpdaterGPUScBFM_TendomersConnection< uint8_t  > & updater1 = mUpdatersGpu;
-        UpdaterGPUScBFM_TendomersConnection< uint16_t > & updater2 = mUpdatersGpu;
-        UpdaterGPUScBFM_TendomersConnection< int32_t  > & updater3 = mUpdatersGpu;
-        updater1.mLog.activate( sLevel );
-        updater2.mLog.activate( sLevel );
-        updater3.mLog.activate( sLevel );
-        mLog.activate( sLevel );
+        UpdaterGPUScBFM_TendomersConnection<uint8_t> &updater1 = mUpdatersGpu;
+        UpdaterGPUScBFM_TendomersConnection<uint16_t> &updater2 = mUpdatersGpu;
+        UpdaterGPUScBFM_TendomersConnection<int32_t> &updater3 = mUpdatersGpu;
+        updater1.mLog.activate(sLevel);
+        updater2.mLog.activate(sLevel);
+        updater3.mLog.activate(sLevel);
+        mLog.activate(sLevel);
     }
 
-    inline void setGpu( int riGpuToUse ){ miGpuToUse = riGpuToUse; }
-    inline void setStepsBetweenSortings( int rnStepsBetweenSortings )
+    inline void setGpu(int riGpuToUse) { miGpuToUse = riGpuToUse; }
+    inline void setStepsBetweenSortings(int rnStepsBetweenSortings)
     {
         mSetStepsBetweenSortings = true;
         mnStepsBetweenSortings = rnStepsBetweenSortings;
@@ -123,97 +118,97 @@ public:
      * UpdaterGPUScBFM_TendomersConnection.cu by itself and explicit template instantitation
      * over T_IngredientsType is basically impossible
      */
-    template< typename T_UCoordinateCuda >
+    template <typename T_UCoordinateCuda>
     inline void initializeUpdater()
     {
-        UpdaterGPUScBFM_TendomersConnection< T_UCoordinateCuda > & mUpdaterGpu = mUpdatersGpu;
+        UpdaterGPUScBFM_TendomersConnection<T_UCoordinateCuda> &mUpdaterGpu = mUpdatersGpu;
 
-        mLog( "Info" ) << "Size of mUpdater: " << sizeof( mUpdaterGpu ) << " Byte\n";
-        mLog( "Info" ) << "Size of WrappedTemplatedUpdaters: " << sizeof( WrappedTemplatedUpdaters ) << " Byte\n";
+        mLog("Info") << "Size of mUpdater: " << sizeof(mUpdaterGpu) << " Byte\n";
+        mLog("Info") << "Size of WrappedTemplatedUpdaters: " << sizeof(WrappedTemplatedUpdaters) << " Byte\n";
 
         auto const tInit0 = std::chrono::high_resolution_clock::now();
 
-        mLog( "Info" ) << "[" << __FILENAME__ << "::initialize] Forwarding relevant paramters to GPU updater\n";
-        mUpdaterGpu.setGpu( miGpuToUse );
-        mUpdaterGpu.setAge( mIngredients.modifyMolecules().getAge() );
-	
-	    mLog( "Info" ) << "[" << __FILENAME__ << "::initialize] mUpdaterGpu.setPeriodicity\n";
-        mUpdaterGpu.setPeriodicity( mIngredients.isPeriodicX(), mIngredients.isPeriodicY(), mIngredients.isPeriodicZ() );
+        mLog("Info") << "[" << __FILENAME__ << "::initialize] Forwarding relevant paramters to GPU updater\n";
+        mUpdaterGpu.setGpu(miGpuToUse);
+        mUpdaterGpu.setAge(mIngredients.modifyMolecules().getAge());
+
+        mLog("Info") << "[" << __FILENAME__ << "::initialize] mUpdaterGpu.setPeriodicity\n";
+        mUpdaterGpu.setPeriodicity(mIngredients.isPeriodicX(), mIngredients.isPeriodicY(), mIngredients.isPeriodicZ());
 
         /* copy monomer positions, attributes and connectivity of all monomers */
-        mLog( "Info" ) << "[" << __FILENAME__ << "::initialize] mUpdaterGpu.setLatticeSize\n";
-        mUpdaterGpu.setLatticeSize( mIngredients.getBoxX(), mIngredients.getBoxY(), mIngredients.getBoxZ() );
-	
-        mLog( "Info" ) << "[" << __FILENAME__ << "::initialize] mUpdaterGpu.setNrOfAllMonomers\n";
-        mUpdaterGpu.setNrOfAllMonomers( mIngredients.getMolecules().size() );
-	
-        mLog( "Info" ) << "[" << __FILENAME__ << "::initialize] mUpdaterGpu.setMonomerCoordinates\n";
-        for ( size_t i = 0u; i < mIngredients.getMolecules().size(); ++i )
-            mUpdaterGpu.setMonomerCoordinates( i, molecules[i].getX(), molecules[i].getY(), molecules[i].getZ() );
-        mLog( "Info" ) << "[" << __FILENAME__ << "::initialize] mUpdaterGpu.setAttribute\n";
-        for ( size_t i = 0u; i < mIngredients.getMolecules().size(); ++i )
-	        mUpdaterGpu.setAttributeTag( i, mIngredients.getMolecules()[i].getAttributeTag() );
+        mLog("Info") << "[" << __FILENAME__ << "::initialize] mUpdaterGpu.setLatticeSize\n";
+        mUpdaterGpu.setLatticeSize(mIngredients.getBoxX(), mIngredients.getBoxY(), mIngredients.getBoxZ());
 
-        mLog( "Info" ) << "[" << __FILENAME__ << "::initialize] mUpdaterGpu.setConnectivity\n";
-        for ( size_t i = 0u; i < mIngredients.getMolecules().size(); ++i )
-        for ( size_t iBond = 0; iBond < mIngredients.getMolecules().getNumLinks(i); ++iBond )
-            mUpdaterGpu.setConnectivity( i, mIngredients.getMolecules().getNeighborIdx( i, iBond ) );
+        mLog("Info") << "[" << __FILENAME__ << "::initialize] mUpdaterGpu.setNrOfAllMonomers\n";
+        mUpdaterGpu.setNrOfAllMonomers(mIngredients.getMolecules().size());
 
-         // false-allowed; true-forbidden
-        mLog( "Info" ) << "[" << __FILENAME__ << "::initialize] copy bondset from LeMonADE to GPU-class for BFM\n";
+        mLog("Info") << "[" << __FILENAME__ << "::initialize] mUpdaterGpu.setMonomerCoordinates\n";
+        for (size_t i = 0u; i < mIngredients.getMolecules().size(); ++i)
+            mUpdaterGpu.setMonomerCoordinates(i, molecules[i].getX(), molecules[i].getY(), molecules[i].getZ());
+        mLog("Info") << "[" << __FILENAME__ << "::initialize] mUpdaterGpu.setAttribute\n";
+        for (size_t i = 0u; i < mIngredients.getMolecules().size(); ++i)
+            mUpdaterGpu.setAttributeTag(i, mIngredients.getMolecules()[i].getAttributeTag());
+
+        mLog("Info") << "[" << __FILENAME__ << "::initialize] mUpdaterGpu.setConnectivity\n";
+        for (size_t i = 0u; i < mIngredients.getMolecules().size(); ++i)
+            for (size_t iBond = 0; iBond < mIngredients.getMolecules().getNumLinks(i); ++iBond)
+                mUpdaterGpu.setConnectivity(i, mIngredients.getMolecules().getNeighborIdx(i, iBond));
+
+        // false-allowed; true-forbidden
+        mLog("Info") << "[" << __FILENAME__ << "::initialize] copy bondset from LeMonADE to GPU-class for BFM\n";
         /* maximum of (expected!!!) bond length in one dimension. Should be
          * queryable or there should be a better way to copy the bond set.
          * Note that supported range is [-4,3] */
         int const maxBondLength = 4;
-        for ( int dx = -maxBondLength; dx < maxBondLength; ++dx )
-        for ( int dy = -maxBondLength; dy < maxBondLength; ++dy )
-        for ( int dz = -maxBondLength; dz < maxBondLength; ++dz )
-        {
-            /* !!! The negation is confusing, again there should be a better way to copy the bond set */
-            mUpdaterGpu.copyBondSet( dx, dy, dz, ! mIngredients.getBondset().isValid( VectorInt3( dx, dy, dz ) ) );
-        }
+        for (int dx = -maxBondLength; dx < maxBondLength; ++dx)
+            for (int dy = -maxBondLength; dy < maxBondLength; ++dy)
+                for (int dz = -maxBondLength; dz < maxBondLength; ++dz)
+                {
+                    /* !!! The negation is confusing, again there should be a better way to copy the bond set */
+                    mUpdaterGpu.copyBondSet(dx, dy, dz, !mIngredients.getBondset().isValid(VectorInt3(dx, dy, dz)));
+                }
 
-        uint32_t nReactiveMonomers(0),nReactiveMonomersCrossLinks(0),nReactiveMonomersChains(0);
-        for (size_t i =0 ; i < mIngredients.getMolecules().size(); i++){
-            mUpdaterGpu.setReactiveGroup( i, molecules[i].isReactive(), molecules[i].getNumMaxLinks() );
-            if (molecules[i].isReactive() == 1 ){
-                if (molecules[i].getNumMaxLinks() >2)
+        uint32_t nReactiveMonomers(0), nReactiveMonomersCrossLinks(0), nReactiveMonomersChains(0);
+        for (size_t i = 0; i < mIngredients.getMolecules().size(); i++)
+        {
+            mUpdaterGpu.setReactiveGroup(i, molecules[i].isReactive(), molecules[i].getNumMaxLinks());
+            if (molecules[i].isReactive() == 1)
+            {
+                if (molecules[i].getNumMaxLinks() > 2)
                     nReactiveMonomersCrossLinks++;
-                else 
+                else
                     nReactiveMonomersChains++;
-                    nReactiveMonomers++;
+                nReactiveMonomers++;
             }
         }
         mUpdaterGpu.setNrOfReactiveMonomers(nReactiveMonomers, nReactiveMonomersCrossLinks, nReactiveMonomersChains);
-            
 
-        mUpdaterGpu.setNTendomers             ( mIngredients.getNumTendomers()              );
-        mUpdaterGpu.setNumCrossLinkers        ( mIngredients.getNumCrossLinkers()           );
-        mUpdaterGpu.setNumMonomersPerChain    ( mIngredients.getNumMonomersPerChain()       );
-        mUpdaterGpu.setNumLabelsPerTendomerArm( mIngredients.getNumLabelsPerTendomerArm()+1 );
-        mUpdaterGpu.setFunctionality          ( 4                                           );
-        
-        mLog( "Info" ) << "[" << __FILENAME__ << "::initialize] mUpdaterGpu.setLabel\n";
-        for ( size_t i = 0u; i < mIngredients.getMolecules().size(); ++i )
-            mUpdaterGpu.setLabel( i, mIngredients.getMolecules()[i].getLabel() );
-        
-        mLog( "Info" ) << "[" << __FILENAME__ << "::initialize] set move type (either standard, diagonal moves or partial diagonal moves for pending chain)\n";
+        mUpdaterGpu.setNTendomers(mIngredients.getNumTendomers());
+        mUpdaterGpu.setNumCrossLinkers(mIngredients.getNumCrossLinkers());
+        mUpdaterGpu.setNumMonomersPerChain(mIngredients.getNumMonomersPerChain());
+        mUpdaterGpu.setNumLabelsPerTendomerArm(mIngredients.getNumLabelsPerTendomerArm() + 1);
+        mUpdaterGpu.setFunctionality(4);
+
+        mLog("Info") << "[" << __FILENAME__ << "::initialize] mUpdaterGpu.setLabel\n";
+        for (size_t i = 0u; i < mIngredients.getMolecules().size(); ++i)
+            mUpdaterGpu.setLabel(i, mIngredients.getMolecules()[i].getLabel());
+
+        mLog("Info") << "[" << __FILENAME__ << "::initialize] set move type (either standard, diagonal moves or partial diagonal moves for pending chain)\n";
         mUpdaterGpu.setMoveType(mDiagMovesOn);
-            
+
         Method met;
-        met.modifyCurve().setBox(mIngredients.getBoxX(),mIngredients.getBoxY(),mIngredients.getBoxZ());
-        met.modifyPacking().setBitPackingOn(true); //only for power rof two lattices
-        met.modifyPacking().setNBufferedTmpLatticeOn(true); // should always be true! 
+        met.modifyCurve().setBox(mIngredients.getBoxX(), mIngredients.getBoxY(), mIngredients.getBoxZ());
+        met.modifyPacking().setBitPackingOn(true);          //only for power rof two lattices
+        met.modifyPacking().setNBufferedTmpLatticeOn(true); // should always be true!
         met.setOnGPUForOverhead(true);
         mUpdaterGpu.setMethod(met);
 
-	
-        mLog( "Info" ) << "[" << __FILENAME__ << "::initialize] initialize GPU updater\n";
+        mLog("Info") << "[" << __FILENAME__ << "::initialize] initialize GPU updater\n";
         mUpdaterGpu.initialize();
 
         auto const tInit1 = std::chrono::high_resolution_clock::now();
         std::stringstream sBuffered;
-        sBuffered << "tInit = " << std::chrono::duration<double>( tInit1 - tInit0 ).count() << "s\n";
+        sBuffered << "tInit = " << std::chrono::duration<double>(tInit1 - tInit0).count() << "s\n";
     }
 
     /**
@@ -221,104 +216,107 @@ public:
      * some class inheriting from this class...
      * https://en.wikipedia.org/wiki/Virtual_function
      */
-    template< typename T_UCoordinateCuda >
+    template <typename T_UCoordinateCuda>
     inline bool executeUpdater()
     {
-        UpdaterGPUScBFM_TendomersConnection< T_UCoordinateCuda > & mUpdaterGpu = mUpdatersGpu;
+        UpdaterGPUScBFM_TendomersConnection<T_UCoordinateCuda> &mUpdaterGpu = mUpdatersGpu;
 
         std::clock_t const t0 = std::clock();
 
-        mLog( "Info" ) << "[" << __FILENAME__ << "] MCS:" << mIngredients.getMolecules().getAge() << "\n";
-        mLog( "Info" ) << "[" << __FILENAME__ << "] start simulation on GPU\n";
+        mLog("Info") << "[" << __FILENAME__ << "] MCS:" << mIngredients.getMolecules().getAge() << "\n";
+        mLog("Info") << "[" << __FILENAME__ << "] start simulation on GPU\n";
 
-        mUpdaterGpu.setAge( mIngredients.modifyMolecules().getAge() );
-	    mUpdaterGpu.runSimulationOnGPU( mnSteps ); 
+        mUpdaterGpu.setAge(mIngredients.modifyMolecules().getAge());
+        mUpdaterGpu.runSimulationOnGPU(mnSteps);
 
         IngredientsType newIng(mIngredients);
         //delete all the informations in molecules
         newIng.modifyMolecules().clear();
         newIng.modifyMolecules().resize(mUpdaterGpu.getNrOfAllMonomers());
         // copy back positions of all monomers
-        mLog( "Info" ) << "[" << __FILENAME__ << "] copy back monomers from GPU updater to CPU 'molecules' to be used with analyzers\n";
-        for( size_t i = 0; i < newIng.getMolecules().size(); ++i )
+        mLog("Info") << "[" << __FILENAME__ << "] copy back monomers from GPU updater to CPU 'molecules' to be used with analyzers\n";
+        for (size_t i = 0; i < newIng.getMolecules().size(); ++i)
         {
-            newIng.modifyMolecules()[i].setAllCoordinates
-            (	
+            newIng.modifyMolecules()[i].setAllCoordinates(
                 mUpdaterGpu.getMonomerPositionInX(i),
                 mUpdaterGpu.getMonomerPositionInY(i),
-                mUpdaterGpu.getMonomerPositionInZ(i)
-            );
+                mUpdaterGpu.getMonomerPositionInZ(i));
             auto nLinks(mUpdaterGpu.getNumLinks(i));
-            for ( size_t iBond = 0; iBond < nLinks; ++iBond ) 
+            for (size_t iBond = 0; iBond < nLinks; ++iBond)
             {
-                auto Neighbor(mUpdaterGpu.getNeighborIdx(i,iBond));
-                if (! newIng.modifyMolecules().areConnected(i,Neighbor))
-                    newIng.modifyMolecules().connect(i,Neighbor);
+                auto Neighbor(mUpdaterGpu.getNeighborIdx(i, iBond));
+                if (!newIng.modifyMolecules().areConnected(i, Neighbor))
+                    newIng.modifyMolecules().connect(i, Neighbor);
             }
             newIng.modifyMolecules()[i].setLabel(mUpdaterGpu.getLabel(i));
+            newIng.modifyMolecules()[i].setMonomerReactivity(mIngredients.getMolecules()[i].getMonomerReactivity());
+            newIng.modifyMolecules()[i].setAttributeTag(mIngredients.getMolecules()[i].getAttributeTag());
         }
         /* update number of total simulation steps already done */
-        newIng.modifyMolecules().setAge( mIngredients.modifyMolecules().getAge() + mnSteps );
-	    mIngredients = newIng;
-	
-        if ( mLog.isActive( "Stat" ) )
+        newIng.modifyMolecules().setAge(mIngredients.modifyMolecules().getAge() + mnSteps);
+        mIngredients = newIng;
+
+        if (mLog.isActive("Stat"))
         {
             std::clock_t const t1 = std::clock();
-            double const dt = (double) ( t1 - t0 ) / CLOCKS_PER_SEC;    // in seconds
+            double const dt = (double)(t1 - t0) / CLOCKS_PER_SEC; // in seconds
             /* attempted moves per second */
-            double const amps = ( (double) mnSteps * mIngredients.getMolecules().size() )/ dt;
+            double const amps = ((double)mnSteps * mIngredients.getMolecules().size()) / dt;
 
-            mLog( "Stat" )
-            << "[" << __FILENAME__ << "] mcs " << mIngredients.getMolecules().getAge()
-            << " with " << amps << " [attempted moves/s]\n"
-            << "[" << __FILENAME__ << "] mcs " << mIngredients.getMolecules().getAge()
-            << " passed time " << dt << " [s] with " << mnSteps << " MCS\n";
+            mLog("Stat")
+                << "[" << __FILENAME__ << "] mcs " << mIngredients.getMolecules().getAge()
+                << " with " << amps << " [attempted moves/s]\n"
+                << "[" << __FILENAME__ << "] mcs " << mIngredients.getMolecules().getAge()
+                << " passed time " << dt << " [s] with " << mnSteps << " MCS\n";
         }
 
         return true;
     }
 
-    template< typename T_UCoordinateCuda >
+    template <typename T_UCoordinateCuda>
     inline void cleanupUpdater()
     {
-        UpdaterGPUScBFM_TendomersConnection< T_UCoordinateCuda > & mUpdaterGpu = mUpdatersGpu;
+        UpdaterGPUScBFM_TendomersConnection<T_UCoordinateCuda> &mUpdaterGpu = mUpdatersGpu;
 
-        mLog( "Info" ) << "[" << __FILENAME__ << "] cleanup\n";
+        mLog("Info") << "[" << __FILENAME__ << "] cleanup\n";
         mUpdaterGpu.cleanup();
     }
 
-#if defined( USE_UINT8_POSITIONS )
+#if defined(USE_UINT8_POSITIONS)
     inline void initialize()
     {
-        auto const maxBoxSize = std::max( mIngredients.getBoxX(), std::max( mIngredients.getBoxY(), mIngredients.getBoxZ() ) );
-	    if ( maxBoxSize < 0 )
-	        std::runtime_error("The maximum box size detected is smaller than 0! There could be something wront with the input file or the given bix sizes. ");
-	
-        mCanUseUint8Positions = (unsigned long long) maxBoxSize <= ( 1llu << ( CHAR_BIT * sizeof( uint8_t ) ) );
-        if ( mCanUseUint8Positions )
-            initializeUpdater< uint8_t >();
+        auto const maxBoxSize = std::max(mIngredients.getBoxX(), std::max(mIngredients.getBoxY(), mIngredients.getBoxZ()));
+        if (maxBoxSize < 0)
+            std::runtime_error("The maximum box size detected is smaller than 0! There could be something wront with the input file or the given bix sizes. ");
+
+        mCanUseUint8Positions = (unsigned long long)maxBoxSize <= (1llu << (CHAR_BIT * sizeof(uint8_t)));
+        if (mCanUseUint8Positions)
+            initializeUpdater<uint8_t>();
         else
-            initializeUpdater< uint16_t >();
+            initializeUpdater<uint16_t>();
     }
 
     inline bool execute()
     {
-        if ( mCanUseUint8Positions )
-            return executeUpdater< uint8_t >();
+        if (mCanUseUint8Positions)
+            return executeUpdater<uint8_t>();
         else
-            return executeUpdater< uint16_t >();
+            return executeUpdater<uint16_t>();
     }
 
     inline void cleanup()
     {
-        if ( mCanUseUint8Positions )
-            cleanupUpdater< uint8_t >();
+        if (mCanUseUint8Positions)
+            cleanupUpdater<uint8_t>();
         else
-            cleanupUpdater< uint16_t >();
+            cleanupUpdater<uint16_t>();
     }
 #else
-    inline void initialize(){     initializeUpdater< int32_t >(); }
-    inline bool execute   (){ return executeUpdater< int32_t >(); }
-    inline void cleanup   (){        cleanupUpdater< int32_t >(); }
+    inline void initialize()
+    {
+        initializeUpdater<int32_t>();
+    }
+    inline bool execute() { return executeUpdater<int32_t>(); }
+    inline void cleanup() { cleanupUpdater<int32_t>(); }
 #endif
 };
