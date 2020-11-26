@@ -20,7 +20,7 @@
 #include <LeMonADE/updater/UpdaterSimpleSimulator.h>
 #include <LeMonADE/feature/FeatureConnectionSc.h>
 #include <LeMonADE/updater/UpdaterSwellBox.h>
-
+#include <LeMonADE/feature/FeatureReactiveBonds.h>
 #include <LeMonADEGPU/core/GPUScBFM_Tendomers.h>
 #include <LeMonADEGPU/utility/SelectiveLogger.hpp> // __FILENAME__
 
@@ -147,8 +147,8 @@ int main( int argc, char ** argv )
 //                                  FeatureExcludedVolumeSc<>, FeatureConnectionSc ) Features;
 //         typedef LOKI_TYPELIST_5( FeatureMoleculesIOUnsaveCheck, FeatureAttributes<>,
 //                                  FeatureExcludedVolumeSc<>, FeatureConnectionSc, FeatureLabel ) Features;
-        typedef LOKI_TYPELIST_4( FeatureMoleculesIOUnsaveCheck, FeatureAttributes<>,
-                                 FeatureExcludedVolumeSc<>, FeatureLabel ) Features;
+        typedef LOKI_TYPELIST_5( FeatureMoleculesIOUnsaveCheck, FeatureAttributes<>,
+                                 FeatureExcludedVolumeSc<>, FeatureLabel, FeatureReactiveBonds ) Features;
 				 
         typedef ConfigureSystem< VectorInt3, Features, 8 > Config;
         typedef Ingredients< Config > Ing;
@@ -174,7 +174,7 @@ int main( int argc, char ** argv )
         //here you can choose to use MoveLocalBcc instead. Careful though: no real tests made yet
         //(other than for latticeOccupation, valid bonds, frozen monomers...)
         if ( boundarySize > 0 )
-          taskmanager.addUpdater( new UpdaterSwellBox<Ing>( myIngredients, 800, 128, boundarySize ));
+          taskmanager.addUpdater( new UpdaterSwellBox<Ing>( myIngredients, 800, 32, boundarySize ));
         taskmanager.addUpdater( pUpdaterGpu );
         
 // 	if (analyzeON)
