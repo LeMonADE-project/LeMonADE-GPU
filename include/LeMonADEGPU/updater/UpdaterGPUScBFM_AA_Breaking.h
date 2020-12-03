@@ -27,6 +27,7 @@ protected:
     using BaseClass::met;
     using BaseClass::mStream;
     using BaseClass::mnAllMonomers;
+    using BaseClass::mviPolymerSystemSortedVirtualBox;
     using BaseClass::mPolymerSystemSortedOld;
     using BaseClass::mPolymerSystemSorted;
     using BaseClass::mnElementsInGroup;

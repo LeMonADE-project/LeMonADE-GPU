@@ -49,6 +49,7 @@ protected:
     using BaseClass::mnAllMonomers;
     using BaseClass::mNeighbors;
     using BaseClass::checkBondVector;
+    using BaseClass::mviPolymerSystemSortedVirtualBox;
     using BaseClass::mPolymerSystemSortedOld;
     using BaseClass::mPolymerSystemSorted;
     using BaseClass::mnElementsInGroup;
@@ -85,7 +86,7 @@ protected:
     size_t nReactiveMonomers;
     size_t nReactiveMonomersCrossLinks;
     size_t nReactiveMonomersChains;
-    Tracker tracker;
+    Tracker<T_UCoordinateCuda> tracker;
     Connection connection;
 
 public:

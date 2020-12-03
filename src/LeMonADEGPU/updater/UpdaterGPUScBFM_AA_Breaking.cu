@@ -145,7 +145,9 @@ void UpdaterGPUScBFM_AA_Breaking<T_UCoordinateCuda>::launch_BreakConnections(
   CUDA_ERROR(cudaDeviceSynchronize());
   CUDA_ERROR( cudaStreamSynchronize( mStream ) );
   hGlobalIterator++;
-  tracker.trackBreaks( dBreaksID1->gpu, dBreaksID2->gpu, nReactiveMonomers+1, miNewToi->gpu,mviSubGroupOffsets[ iSpecies ], mviSubGroupOffsets[ iSpecies ], mAge);
+  tracker.trackBreaks( dBreaksID1->gpu, dBreaksID2->gpu, nReactiveMonomers+1, 
+    miNewToi->gpu,mviSubGroupOffsets[ iSpecies ], mviSubGroupOffsets[ iSpecies ], mAge,
+    mPolymerSystemSorted, mviPolymerSystemSortedVirtualBox);
  
 }
 template< typename T_UCoordinateCuda > 

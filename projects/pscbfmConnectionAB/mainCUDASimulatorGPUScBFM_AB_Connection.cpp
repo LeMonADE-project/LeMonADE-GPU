@@ -162,6 +162,7 @@ int main( int argc, char ** argv )
         taskmanager.addUpdater( pUpdaterGpu );
 
         taskmanager.addAnalyzer( new AnalyzerWriteBfmFile<Ing>( outfile, myIngredients ) );
+        taskmanager.addAnalyzer( new AnalyzerWriteBfmFile<Ing>( "LastConfig.bfm", myIngredients, AnalyzerWriteBfmFile<Ing>::OVERWRITE ) );
 
         taskmanager.initialize();
 

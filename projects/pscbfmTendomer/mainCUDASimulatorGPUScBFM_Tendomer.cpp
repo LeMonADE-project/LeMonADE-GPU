@@ -12,6 +12,7 @@
 #include <LeMonADE/core/Ingredients.h>
 #include <LeMonADE/feature/FeatureMoleculesIO.h>
 #include <LeMonADE/feature/FeatureMoleculesIOUnsaveCheck.h>
+#include <LeMonADE/feature/FeatureReactiveBonds.h>
 #include <LeMonADE/feature/FeatureAttributes.h>
 #include <LeMonADE/feature/FeatureExcludedVolumeSc.h>
 #include <LeMonADE/feature/FeatureLabel.h>
@@ -147,8 +148,8 @@ int main( int argc, char ** argv )
 //                                  FeatureExcludedVolumeSc<>, FeatureConnectionSc ) Features;
 //         typedef LOKI_TYPELIST_5( FeatureMoleculesIOUnsaveCheck, FeatureAttributes<>,
 //                                  FeatureExcludedVolumeSc<>, FeatureConnectionSc, FeatureLabel ) Features;
-        typedef LOKI_TYPELIST_4( FeatureMoleculesIOUnsaveCheck, FeatureAttributes<>,
-                                 FeatureExcludedVolumeSc<>, FeatureLabel ) Features;
+        typedef LOKI_TYPELIST_5( FeatureMoleculesIOUnsaveCheck, FeatureAttributes<>,
+                                 FeatureExcludedVolumeSc<>, FeatureLabel, FeatureReactiveBonds ) Features;
 				 
         typedef ConfigureSystem< VectorInt3, Features, 8 > Config;
         typedef Ingredients< Config > Ing;

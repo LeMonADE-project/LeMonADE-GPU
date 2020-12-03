@@ -1,18 +1,24 @@
 
 #include <LeMonADEGPU/utility/GPUConnectionTracker.h>
+#include <LeMonADEGPU/utility/cudacommon.hpp>
 
-using ID_t = Tracker::ID_t;
+using ID_t               = Tracker<uint8_t>::ID_t;
+using T_Coordinates      = Tracker< uint8_t >::T_Coordinates;
 
+template< typename T_UCoordinateCuda >
 __global__ void kernelTrackBreaks
 (
   ID_t           * const dID1      ,
   ID_t           * const dID2      ,
-  ID_t             const dSize     ,
+  size_t           const dSize     ,
   int32_t          const dOffsetA  ,
   int32_t          const dOffsetB  ,
   ID_t           * const diNewToi  ,
   ID_t           * const dOutputID1,
-  ID_t           * const dOutputID2 
+  ID_t           * const dOutputID2,
+  typename CudaVec4< T_UCoordinateCuda >::value_type
+                const * const __restrict__ dpPolymerSystem,
+  T_Coordinates const * const dpiPolymerSystemSortedVirtualBox 
 )
 {
   for ( auto i = blockIdx.x * blockDim.x + threadIdx.x;
@@ -34,18 +40,20 @@ __global__ void kernelTrackBreaks
 //     printf("Breaks iOld1=%d iOld2=%d Id1=%d Id2=%d\n ",diNewToi[iMonomer+dOffsetA], diNewToi[iPartner+dOffsetB], iMonomer+dOffsetA,iPartner+dOffsetB );
   }
 }
-
-void Tracker::trackBreaks( ID_t * const ID1     ,
+template< typename T_UCoordinateCuda > 
+void Tracker<T_UCoordinateCuda>::trackBreaks( ID_t * const ID1     ,
 			   ID_t * const ID2     ,
-			   ID_t   const size    ,     
+			   size_t const size    ,     
 			   ID_t * const diNewToi,
 			   int32_t const offsetA,
 			   int32_t const offsetB,
-			   uint32_t const mAge  )
+			   uint32_t const mAge  ,
+         MirroredVector< T_UCoordinatesCuda >const * const mPolymerSystemSorted , 
+         MirroredVector< T_Coordinates      >const * const mviPolymerSystemSortedVirtualBox  )
 {
   auto nThreads(256);
   auto nBlocks(ceilDiv(size,nThreads));
-  kernelTrackBreaks<<<nBlocks,nThreads,0, mStream>>>(
+  kernelTrackBreaks<T_UCoordinateCuda><<<nBlocks,nThreads,0, mStream>>>(
   ID1, 
   ID2, 
   size, 
@@ -53,23 +61,30 @@ void Tracker::trackBreaks( ID_t * const ID1     ,
   offsetB,
   diNewToi, 
   BondHistoryID1->gpu + counter*nIDs,
-  BondHistoryID2->gpu + counter*nIDs
+  BondHistoryID2->gpu + counter*nIDs,
+  mPolymerSystemSorted->gpu,
+  mviPolymerSystemSortedVirtualBox->gpu
   );  
   age.push_back(mAge);
   increaseCounter();	
   if(counter == bufferSize )
   dumpReactions();
 }
+
+template< typename T_UCoordinateCuda >
 __global__ void kernelTrackConnections
 (
   ID_t           * const dID1      ,
   ID_t           * const dID2      ,
-  ID_t             const dSize     ,
+  size_t           const dSize     ,
   int32_t          const dOffsetA  ,
   int32_t          const dOffsetB  ,
   ID_t           * const diNewToi  ,
   ID_t           * const dOutputID1,
-  ID_t           * const dOutputID2
+  ID_t           * const dOutputID2,
+  typename CudaVec4< T_UCoordinateCuda >::value_type
+                const * const __restrict__ dpPolymerSystem,
+  T_Coordinates const * const dpiPolymerSystemSortedVirtualBox
 )
 {
   for ( auto i = blockIdx.x * blockDim.x + threadIdx.x;
@@ -91,18 +106,25 @@ __global__ void kernelTrackConnections
 //       printf("Bonds Mon1 = %d  Mon2 = %d Id1=%d Id2=%d %d %d  \n ", iMonomer+dOffsetA, iPartner+dOffsetB, diNewToi[iMonomer+dOffsetA],diNewToi[iPartner+dOffsetB], dOffsetA,dOffsetB );
     }
 }
-void Tracker::trackConnections( ID_t * const ID1     ,
-                                ID_t * const ID2     ,
-                                ID_t   const size    ,     
+
+template< typename T_UCoordinateCuda > 
+void Tracker<T_UCoordinateCuda>::trackConnections( 
+        ID_t * const ID1     ,
+        ID_t * const ID2     ,
+        size_t const size    ,     
 				ID_t * const diNewToi,
 				int32_t const offsetA,
 				int32_t const offsetB,
-				uint32_t const mAge)
+        uint32_t const mAge,
+        MirroredVector< T_UCoordinatesCuda >const * const  mPolymerSystemSorted , 
+        MirroredVector< T_Coordinates      >const * const mviPolymerSystemSortedVirtualBox
+      )
 {
   auto nThreads(256);	
   auto nBlocks(ceilDiv(size,nThreads));
 //   std::cout << "Tracker::trackConnections: offsetA= "<< offset << " mAge= " << mAge  << " size= " << size <<std::endl;
-  kernelTrackConnections<<<nBlocks,nThreads,0, mStream>>>(
+
+  kernelTrackConnections<T_UCoordinateCuda><<<nBlocks,nThreads,0, mStream>>>(
   ID1, 
   ID2, 
   size, 
@@ -110,7 +132,9 @@ void Tracker::trackConnections( ID_t * const ID1     ,
   offsetB,
   diNewToi, 
   BondHistoryID1->gpu + counter*nIDs,
-  BondHistoryID2->gpu + counter*nIDs
+  BondHistoryID2->gpu + counter*nIDs,
+  mPolymerSystemSorted->gpu,
+  mviPolymerSystemSortedVirtualBox->gpu
   );
   age.push_back(mAge);
   increaseCounter();
@@ -118,7 +142,8 @@ void Tracker::trackConnections( ID_t * const ID1     ,
   dumpReactions();
 }
 
-void Tracker::init(uint32_t bufferSize_, uint32_t nIDs_, cudaStream_t mStream_)
+template< typename T_UCoordinateCuda > 
+void Tracker<T_UCoordinateCuda>::init(uint32_t bufferSize_, uint32_t nIDs_, cudaStream_t mStream_)
 {
   bufferSize=bufferSize_; nIDs=nIDs_; mStream=mStream_;
   BaseClass::setInformationSize(4);
@@ -129,13 +154,15 @@ void Tracker::init(uint32_t bufferSize_, uint32_t nIDs_, cudaStream_t mStream_)
   BondHistoryID1 = new MirroredVector< ID_t >( 2*bufferSize*nIDs, mStream ); //essentially the ids of the first monomer 
   BondHistoryID2 = new MirroredVector< ID_t >( 2*bufferSize*nIDs, mStream ); //essentially the ids of the second monomer
 }
-void Tracker::increaseCounter()
+
+template< typename T_UCoordinateCuda > 
+void Tracker<T_UCoordinateCuda>::increaseCounter()
 {
   counter++;
 }
 
-
-void Tracker::dumpReactions()
+template< typename T_UCoordinateCuda > 
+void Tracker<T_UCoordinateCuda>::dumpReactions()
 {
   BaseClass::setBufferSize(bufferSize);
   BondHistoryID1->popAsync();
@@ -143,7 +170,7 @@ void Tracker::dumpReactions()
   CUDA_ERROR( cudaStreamSynchronize( mStream ) );
 //   std::cout <<"counter= " << counter << " nIDs="<<nIDs << std::endl;
   for (uint32_t j=0 ; j < counter ; j ++ ) {
-  uint32_t currentAge(age[j]);
+  int32_t currentAge(age[j]);
     for(uint32_t i =0 ; i < nIDs; i ++)
     {
       auto index(i+nIDs*j);
@@ -152,7 +179,7 @@ void Tracker::dumpReactions()
       
       if( Mon2  > 0 )
       {
-	std::vector<uint32_t> vec;
+	std::vector<int32_t> vec;
 	vec.push_back(currentAge); //time 
 	vec.push_back( Mon2 & 1 ); // either 0 or 1 for remove or add 
 	Mon2 = (Mon2 >> 1) -1;

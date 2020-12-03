@@ -48,6 +48,7 @@ protected:
     using BaseClass::mnAllMonomers;
     using BaseClass::mNeighbors;
     using BaseClass::checkBondVector;
+    using BaseClass::mviPolymerSystemSortedVirtualBox;
     using BaseClass::mPolymerSystemSortedOld;
     using BaseClass::mPolymerSystemSorted;
     using BaseClass::mnElementsInGroup;
@@ -82,7 +83,7 @@ protected:
 
     uint32_t ChainEndSpecies ; 
     size_t nReactiveMonomers;
-    Tracker tracker;
+    Tracker<T_UCoordinateCuda> tracker;
     Connection connection;
     //flag to decide which monomer of the AA bond pair should move in which subsubstep
     MirroredTexture< uint8_t > * AAMonomerFlag;

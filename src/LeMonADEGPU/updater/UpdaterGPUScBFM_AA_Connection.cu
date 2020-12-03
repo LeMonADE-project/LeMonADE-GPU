@@ -342,7 +342,7 @@ void UpdaterGPUScBFM_AA_Connection< T_UCoordinateCuda >::launch_ApplyConnection(
     mviSubGroupOffsets[ iSpecies ],
     AAMonomerFlag->gpu
   );
-  tracker.trackConnections( mChainEndFlags, mChainEndIDS, flagArraySize, miNewToi->gpu,mviSubGroupOffsets[ iSpecies ],mviSubGroupOffsets[ iSpecies ], mAge );
+  tracker.trackConnections( mChainEndFlags, mChainEndIDS, flagArraySize, miNewToi->gpu,mviSubGroupOffsets[ iSpecies ],mviSubGroupOffsets[ iSpecies ], mAge, mPolymerSystemSorted, mviPolymerSystemSortedVirtualBox );
   CUDA_ERROR(cudaDeviceSynchronize());
   CUDA_ERROR( cudaStreamSynchronize( mStream ) );
 }
