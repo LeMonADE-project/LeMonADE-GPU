@@ -38,12 +38,8 @@ __global__ void kernelTrackBreaks
     auto gID1(iMonomer + dOffsetA);
     auto rsmall = dpPolymerSystem[ gID1 ];
     //cast from T_UCoordinateCuda = uint32_t "down" to int32_t
-    T_Coordinates rSorted = {
-      T_Coordinate( rsmall.x ),
-      T_Coordinate( rsmall.y ),
-      T_Coordinate( rsmall.z ),
-      T_Coordinate( rsmall.w )
-    };
+    T_Coordinates rSorted = { T_Coordinate( rsmall.x ), T_Coordinate( rsmall.y ),
+                              T_Coordinate( rsmall.z ), T_Coordinate( rsmall.w )};
     auto nPos = dpiPolymerSystemSortedVirtualBox[ gID1 ];
     rSorted.x += nPos.x * dcBoxX;
     rSorted.y += nPos.y * dcBoxY;
@@ -54,12 +50,8 @@ __global__ void kernelTrackBreaks
     auto gID2(iPartner+dOffsetB);
     rsmall = dpPolymerSystem[ gID2 ];
     //cast from T_UCoordinateCuda = uint32_t "down" to int32_t
-    rSorted = {
-      T_Coordinate( rsmall.x ),
-      T_Coordinate( rsmall.y ),
-      T_Coordinate( rsmall.z ),
-      T_Coordinate( rsmall.w )
-    };
+    rSorted = { T_Coordinate( rsmall.x ), T_Coordinate( rsmall.y ),
+                T_Coordinate( rsmall.z ), T_Coordinate( rsmall.w )};
     nPos = dpiPolymerSystemSortedVirtualBox[ gID2 ];
     rSorted.x += nPos.x * dcBoxX;
     rSorted.y += nPos.y * dcBoxY;
@@ -67,9 +59,6 @@ __global__ void kernelTrackBreaks
     rSorted.w  = ( (diNewToi[gID2]+1)<<1 )+0;
     dOutputID2[i] = rSorted;
 
-
-//     output[miNewToi[iMonomer-1]-dOffsetA]= ( (miNewToi[iPartner-1]-dOffsetB+1)<<1 )+0;
-//     printf("Breaks iOld1=%d iOld2=%d Id1=%d Id2=%d\n ",diNewToi[iMonomer+dOffsetA], diNewToi[iPartner+dOffsetB], iMonomer+dOffsetA,iPartner+dOffsetB );
   }
 }
 template< typename T_UCoordinateCuda > 
@@ -133,12 +122,8 @@ __global__ void kernelTrackConnections
       auto gID1(iMonomer + dOffsetA);
       auto rsmall = dpPolymerSystem[ gID1 ];
       //cast from T_UCoordinateCuda = uint32_t "down" to int32_t
-      T_Coordinates rSorted = {
-        T_Coordinate( rsmall.x ),
-        T_Coordinate( rsmall.y ),
-        T_Coordinate( rsmall.z ),
-        T_Coordinate( rsmall.w )
-      };
+      T_Coordinates rSorted = { T_Coordinate( rsmall.x ), T_Coordinate( rsmall.y ),
+                                T_Coordinate( rsmall.z ), T_Coordinate( rsmall.w )};
       auto  nPos = dpiPolymerSystemSortedVirtualBox[ gID1 ];
       rSorted.x += nPos.x * dcBoxX;
       rSorted.y += nPos.y * dcBoxY;
@@ -150,12 +135,8 @@ __global__ void kernelTrackConnections
       auto gID2(iPartner+dOffsetB);
       rsmall = dpPolymerSystem[ gID2 ];
       //cast from T_UCoordinateCuda = uint32_t "down" to int32_t
-      rSorted = {
-        T_Coordinate( rsmall.x ),
-        T_Coordinate( rsmall.y ),
-        T_Coordinate( rsmall.z ),
-        T_Coordinate( rsmall.w )
-      };
+      rSorted = { T_Coordinate( rsmall.x ), T_Coordinate( rsmall.y ),
+                  T_Coordinate( rsmall.z ), T_Coordinate( rsmall.w )};
       nPos = dpiPolymerSystemSortedVirtualBox[ gID2 ];
       rSorted.x += nPos.x * dcBoxX;
       rSorted.y += nPos.y * dcBoxY;
