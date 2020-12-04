@@ -339,6 +339,7 @@ void UpdaterGPUScBFM_AB_Connection< T_UCoordinateCuda >::launch_ApplyConnection(
     mviSubGroupOffsets[ MonomerSpecies ],   
     mviSubGroupOffsets[ PartnerSpecies ]
   );
+
   tracker.trackConnections( mCrossLinkIDS, mCrossLinkFlags, flagArraySize, 
     miNewToi->gpu, mviSubGroupOffsets[ MonomerSpecies ], mviSubGroupOffsets[ PartnerSpecies ], 
     mAge, mPolymerSystemSorted, mviPolymerSystemSortedVirtualBox);
@@ -410,13 +411,13 @@ void UpdaterGPUScBFM_AB_Connection<T_UCoordinateCuda>::initialize()
   BaseClass::setAutoColoring(false);
   mLog( "Info" )<< "Start manual coloring of the graph...\n" ;
   //do manual coloring 
-  for ( auto i = 0; i < mnAllMonomers ; i++)
+  for ( uint32_t i = 0; i < mnAllMonomers ; i++)
   {
     T_Id color(( i % 2)==0 ? 2 :3);
     mGroupIds.push_back(color ); 
   }
 
-  for (auto i = 0; i < nReactiveMonomers; i++)
+  for (uint32_t i = 0; i < nReactiveMonomers; i++)
   {
     mGroupIds[mNewToOldReactiveID[i]] = (mMonomerReactivity[i].maxNumLinks == 2 ) ? 1 : 0 ;
     if (i <20 ) 
