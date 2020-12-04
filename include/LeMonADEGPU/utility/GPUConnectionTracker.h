@@ -13,6 +13,7 @@ class Tracker:public TrackLinks<int32_t>
 public:
 	typedef  TrackLinks<int32_t> BaseClass; 
 	typedef  uint32_t ID_t;
+	using T_BoxSize          = uint64_t;
 	//type for coordinate for the host 
 	using T_Coordinate       = int32_t; // int64_t // should be signed!
 	//type for vector of coordinates on host 
@@ -29,7 +30,10 @@ public:
 	// inline void setAge(uint32_t age_){
 	//   age.push_back(age_);
 	// }
-	void init(uint32_t bufferSize_, uint32_t nIDs_, cudaStream_t mStream_);
+	void init(uint32_t bufferSize_, uint32_t nIDs_, cudaStream_t mStream_,
+	  T_BoxSize const boxX,
+  	  T_BoxSize const boxY,
+  	  T_BoxSize const boxZ);
 	protected:
 	uint32_t bufferSize, nIDs, counter;
 	cudaStream_t mStream;
@@ -56,13 +60,13 @@ public:
 				MirroredVector< T_Coordinates      >const * const mviPolymerSystemSortedVirtualBox );
 	//! setter function for the buffer size
 	void setBufferSize(uint32_t bufferSize_){bufferSize=bufferSize_;}
-	MirroredVector<ID_t> * BondHistoryID1;
-	MirroredVector<ID_t> * BondHistoryID2;
+	MirroredVector<T_Coordinates> * BondHistoryID1;
+	MirroredVector<T_Coordinates> * BondHistoryID2;
 	//! dumps the data of the connection process into a file 
 	void dumpReactions(); 
 	inline void setIDOffset(uint32_t IDoffset_){ IDoffset=IDoffset_; }
 private:
-  std::vector<uint32_t> age;
+  	std::vector<uint32_t> age;
 };
 
 template class Tracker< uint8_t  >;

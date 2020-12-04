@@ -488,7 +488,7 @@ void UpdaterGPUScBFM_AA_Connection<T_UCoordinateCuda>::initialize()
   ChainEndSpecies  = 0; 
   initializeReactiveLattice();
   mLog( "Info" )<< "Initialize lattice.done. \n" ;
-  tracker.init(100, nReactiveMonomers+1, mStream);
+  tracker.init(100, nReactiveMonomers+1, mStream, mBoxX, mBoxY,mBoxZ);
   mLog( "Info" ) << "nReactiveMonomers = " << nReactiveMonomers+1 <<"\n";
   connection.setArraySize(nReactiveMonomers);
   connection.init();

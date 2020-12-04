@@ -656,7 +656,7 @@ void UpdaterGPUScBFM_TendomersConnection<T_UCoordinateCuda>::initialize()
   ChainEndSpecies  = 1; 
   initializeReactiveLattice();
   mLog( "Info" )<< "Initialize lattice.done. \n" ;
-  tracker.init(100, nReactiveMonomersCrossLinks+1, mStream);
+  tracker.init(100, nReactiveMonomersCrossLinks+1, mStream, mBoxX, mBoxY,mBoxZ);
   mLog( "Info" ) << "nReactiveMonomersCrossLinks = " << nReactiveMonomersCrossLinks+1 <<"\n";
   connection.setArraySize(nReactiveMonomersCrossLinks);
   connection.init();
