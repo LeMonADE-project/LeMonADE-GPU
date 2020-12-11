@@ -496,7 +496,7 @@ void UpdaterGPUScBFM_TendomersConnection< T_UCoordinateCuda >::launch_ApplyConne
     mviSubGroupOffsets[ PartnerSpecies ]
   );
   tracker.trackConnections( mCrossLinkIDS, mCrossLinkFlags, flagArraySize, 
-    miNewToi->gpu, mviSubGroupOffsets[ MonomerSpecies ], mviSubGroupOffsets[ PartnerSpecies ], mAge, 
+    miNewToi->gpu,miToiNew->gpu, mviSubGroupOffsets[ MonomerSpecies ], mviSubGroupOffsets[ PartnerSpecies ], mAge, 
     mPolymerSystemSorted, mviPolymerSystemSortedVirtualBox );
 }
 

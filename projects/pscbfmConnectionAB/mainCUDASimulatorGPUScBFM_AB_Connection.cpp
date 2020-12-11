@@ -14,6 +14,7 @@
 #include <LeMonADE/feature/FeatureAttributes.h>
 #include <LeMonADE/feature/FeatureExcludedVolumeSc.h>
 #include <LeMonADE/feature/FeatureFixedMonomers.h>
+#include <LeMonADE/feature/FeatureSystemInformationLinearMeltWithCrosslinker.h>
 #include <LeMonADE/utility/TaskManager.h>
 #include <LeMonADE/updater/UpdaterReadBfmFile.h>
 #include <LeMonADE/updater/UpdaterSimpleSimulator.h>
@@ -132,8 +133,9 @@ int main( int argc, char ** argv )
             FeatureLattice< uint8_t > FeatureExcludedVolume< FeatureLatticePowerOfTwo<> > )
             Features;
         */
-        typedef LOKI_TYPELIST_4( FeatureMoleculesIOUnsaveCheck, FeatureAttributes<>,
-                                 FeatureExcludedVolumeSc<>, FeatureReactiveBonds ) Features;
+        typedef LOKI_TYPELIST_5( FeatureMoleculesIOUnsaveCheck, FeatureAttributes<>,
+                                 FeatureExcludedVolumeSc<>, FeatureReactiveBonds,
+                                 FeatureSystemInformationLinearMeltWithCrosslinker ) Features;
 
         typedef ConfigureSystem< VectorInt3, Features, 8 > Config;
         typedef Ingredients< Config > Ing;

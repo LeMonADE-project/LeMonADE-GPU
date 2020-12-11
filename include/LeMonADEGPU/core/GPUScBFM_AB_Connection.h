@@ -190,7 +190,8 @@ public:
             }
 	    }
 	    mUpdaterGpu.setNrOfReactiveMonomers(nReactiveMonomers, nReactiveMonomersCrossLinks, nReactiveMonomersChains);
-        
+        mUpdaterGpu.setChainLength(mIngredients.getChainLength());
+        mUpdaterGpu.setNChains(mIngredients.getNumberofChains());
 	    mLog( "Info" ) << "[" << __FILENAME__ << "::initialize] set move type (either standard or diagonal moves)\n";
         mUpdaterGpu.setDiagonalMovesOn(mDiagMovesOn);
 	

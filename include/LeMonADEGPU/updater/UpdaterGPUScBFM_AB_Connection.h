@@ -68,6 +68,7 @@ protected:
     using BaseClass::launch_PerformSpecies;
     using BaseClass::launch_ZeroArraySpecies;
     using BaseClass::miNewToi;
+    using BaseClass::miToiNew;
     using BaseClass::mviSubGroupOffsets;
     using BaseClass::mNeighborsSorted;
     using BaseClass::mNeighborsSortedInfo;
@@ -106,7 +107,7 @@ private:
     MirroredTexture< T_Id > * mLatticeIds;
     
     std::vector< T_Id >  mNewToOldReactiveID;
-    uint32_t crosslinkFunctionality;
+    uint32_t crosslinkFunctionality, chainLength, nChains;
 
 public:
     void initialize();
@@ -119,6 +120,9 @@ public:
     void destruct();
 
     void setNrOfReactiveMonomers ( T_Id nReactiveMonomers_, T_Id nReactiveMonomersCrossLinks_, T_Id nReactiveMonomersChains_ );
+    void setChainLength(uint32_t  const chainLength_ );
+    void setNChains(uint32_t  const nChains_ );
+    
     void setReactiveGroup ( T_Id monID_, bool reactivity_, T_MaxNumLinks maxNumLinks_ );
     void initializeReactiveLattice();
     void launch_CheckConnection(

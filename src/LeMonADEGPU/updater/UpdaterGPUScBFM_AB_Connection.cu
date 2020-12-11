@@ -341,7 +341,7 @@ void UpdaterGPUScBFM_AB_Connection< T_UCoordinateCuda >::launch_ApplyConnection(
   );
 
   tracker.trackConnections( mCrossLinkIDS, mCrossLinkFlags, flagArraySize, 
-    miNewToi->gpu, mviSubGroupOffsets[ MonomerSpecies ], mviSubGroupOffsets[ PartnerSpecies ], 
+    miNewToi->gpu, miToiNew->gpu, mviSubGroupOffsets[ MonomerSpecies ], mviSubGroupOffsets[ PartnerSpecies ], 
     mAge, mPolymerSystemSorted, mviPolymerSystemSortedVirtualBox);
 }
 
@@ -373,18 +373,19 @@ crosslinkFunctionality      ( 0    )
 };
 template< typename T_UCoordinateCuda > 
 void UpdaterGPUScBFM_AB_Connection<T_UCoordinateCuda>::destruct(){
-      
-    DeleteMirroredObject deletePointer;
-    deletePointer( mLatticeIds       , "mLatticeIds"        );
-//     CUDA_ERROR(cudaFree(mCrossLinkFlags));  
-//     CUDA_ERROR(cudaFree(mCrossLinkIDS)); 
-    if ( deletePointer.nBytesFreed > 0 )
-    {
-        mLog( "Info" )
-            << "Freed a total of "
-            << prettyPrintBytes( deletePointer.nBytesFreed )
-            << " on GPU and host RAM.\n";
-    }
+  // DeleteMirroredObject deletePointer;
+  // deletePointer( mLatticeIds                     , "mLatticeIds"                      );
+  // // if (mCrossLinkFlags != NULL )
+  // //   CUDA_ERROR(cudaFree(mCrossLinkFlags));  
+  // // if (mCrossLinkIDS != NULL )
+  // //   CUDA_ERROR(cudaFree(mCrossLinkIDS)); 
+  // if ( deletePointer.nBytesFreed > 0 )
+  // {
+  //     mLog( "Info" )
+  //         << "Freed a total of "
+  //         << prettyPrintBytes( deletePointer.nBytesFreed )
+  //         << " on GPU and host RAM.\n";
+  // }
 }
 template< typename T_UCoordinateCuda > 
 UpdaterGPUScBFM_AB_Connection<T_UCoordinateCuda>::~UpdaterGPUScBFM_AB_Connection()
@@ -439,8 +440,6 @@ void UpdaterGPUScBFM_AB_Connection<T_UCoordinateCuda>::initialize()
   { decltype( dcBoxXM1    ) x = mBoxXM1   ; CUDA_ERROR( cudaMemcpyToSymbol( dcBoxXM1   , &x, sizeof(x) ) ); }
   { decltype( dcBoxYM1    ) x = mBoxYM1   ; CUDA_ERROR( cudaMemcpyToSymbol( dcBoxYM1   , &x, sizeof(x) ) ); }
   { decltype( dcBoxZM1    ) x = mBoxZM1   ; CUDA_ERROR( cudaMemcpyToSymbol( dcBoxZM1   , &x, sizeof(x) ) ); }
-//   { decltype( dcBoxXLog2  ) x = mBoxXLog2 ; CUDA_ERROR( cudaMemcpyToSymbol( dcBoxXLog2 , &x, sizeof(x) ) ); }
-//   { decltype( dcBoxXYLog2 ) x = mBoxXYLog2; CUDA_ERROR( cudaMemcpyToSymbol( dcBoxXYLog2, &x, sizeof(x) ) ); }
   uint32_t tmp_DXTable2[6] = { 0u-2u,2,  0,0,  0,0 };
   uint32_t tmp_DYTable2[6] = {  0,0, 0u-2u,2,  0,0 };
   uint32_t tmp_DZTable2[6] = {  0,0,  0,0, 0u-2u,2 };
@@ -457,7 +456,15 @@ void UpdaterGPUScBFM_AB_Connection<T_UCoordinateCuda>::initialize()
   ChainEndSpecies  = 1; 
   initializeReactiveLattice();
   mLog( "Info" )<< "Initialize lattice.done. \n" ;
-  tracker.init(100, nReactiveMonomersCrossLinks+1, mStream, mBoxX, mBoxY,mBoxZ);
+  tracker.init(100, nReactiveMonomersCrossLinks+1, mStream, mBoxX, mBoxY, mBoxZ, chainLength, nChains);
+  // run over all crosslinks and check wheter they have already some connections to a  chain
+  for (size_t i=nChains*chainLength ;i<mnAllMonomers; i++ ){
+    for (size_t j =0; j < BaseClass::getNumLinks(i); j++){
+      tracker.addCrosslinkConnection( BaseClass::getNeighborIdx(i,j), i );
+    }
+  }
+  miToiNew->pop();
+  tracker.pushToGPU(miToiNew->host);
   mLog( "Info" ) << "nReactiveMonomersCrossLinks = " << nReactiveMonomersCrossLinks+1 <<"\n";
   connection.setArraySize(nReactiveMonomersCrossLinks);
   connection.init();
@@ -488,7 +495,14 @@ void UpdaterGPUScBFM_AB_Connection<T_UCoordinateCuda>::setNrOfReactiveMonomers( 
 	  << "Nr of reactive chain ends "<< nReactiveMonomersChains <<"\n" ;
     
 };
-
+template< typename T_UCoordinateCuda >
+void UpdaterGPUScBFM_AB_Connection<T_UCoordinateCuda>::setChainLength(uint32_t const chainLength_ ){  
+  chainLength=chainLength_;
+}
+template< typename T_UCoordinateCuda >
+void UpdaterGPUScBFM_AB_Connection<T_UCoordinateCuda>::setNChains(uint32_t const nChains_ ){  
+  nChains=nChains_;
+}
 template< typename T_UCoordinateCuda >
 void UpdaterGPUScBFM_AB_Connection<T_UCoordinateCuda>::setReactiveGroup(T_Id monID_, bool reactivity_, T_MaxNumLinks maxNumLinks_){
 

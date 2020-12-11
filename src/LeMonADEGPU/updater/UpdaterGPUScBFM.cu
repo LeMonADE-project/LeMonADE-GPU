@@ -1075,30 +1075,30 @@ UpdaterGPUScBFM< T_UCoordinateCuda >::UpdaterGPUScBFM()
 template< typename T_UCoordinateCuda >
 void UpdaterGPUScBFM< T_UCoordinateCuda >::destruct()
 {
-    DeleteMirroredObject deletePointer;
-    deletePointer( mLatticeOut                     , "mLatticeOut"                      );
-    deletePointer( mLatticeTmp                     , "mLatticeTmp"                      );
-    deletePointer( mLatticeTmp2                    , "mLatticeTmp2"                     );
-    deletePointer( mPolymerSystem                  , "mPolymerSystem"                   );
-    deletePointer( mPolymerSystemSorted            , "mPolymerSystemSorted"             );
-    deletePointer( mPolymerSystemSortedOld         , "mPolymerSystemSortedOld"          );
-    deletePointer( mviPolymerSystemSortedVirtualBox, "mviPolymerSystemSortedVirtualBox" );
-    deletePointer( mPolymerFlags                   , "mPolymerFlags"                    );
-    deletePointer( miToiNew                        , "miToiNew"                         );
-    deletePointer( miNewToi                        , "miNewToi"                         );
-    deletePointer( miNewToiComposition             , "miNewToiComposition"              );
-    deletePointer( miNewToiSpatial                 , "miNewToiSpatial"                  );
-    deletePointer( mvKeysZOrderLinearIds           , "mvKeysZOrderLinearIds"            );
-    deletePointer( mNeighbors                      , "mNeighbors"                       );
-    deletePointer( mNeighborsSorted                , "mNeighborsSorted"                 );
-    deletePointer( mNeighborsSortedSizes           , "mNeighborsSortedSizes"            );
-    if ( deletePointer.nBytesFreed > 0 )
-    {
-        mLog( "Info" )
-            << "Freed a total of "
-            << prettyPrintBytes( deletePointer.nBytesFreed )
-            << " on GPU and host RAM.\n";
-    }
+    // DeleteMirroredObject deletePointer;
+    // deletePointer( mLatticeOut                     , "mLatticeOut"                      );
+    // deletePointer( mLatticeTmp                     , "mLatticeTmp"                      );
+    // deletePointer( mLatticeTmp2                    , "mLatticeTmp2"                     );
+    // deletePointer( mPolymerSystem                  , "mPolymerSystem"                   );
+    // deletePointer( mPolymerSystemSorted            , "mPolymerSystemSorted"             );
+    // deletePointer( mPolymerSystemSortedOld         , "mPolymerSystemSortedOld"          );
+    // deletePointer( mviPolymerSystemSortedVirtualBox, "mviPolymerSystemSortedVirtualBox" );
+    // deletePointer( mPolymerFlags                   , "mPolymerFlags"                    );
+    // deletePointer( miToiNew                        , "miToiNew"                         );
+    // deletePointer( miNewToi                        , "miNewToi"                         );
+    // deletePointer( miNewToiComposition             , "miNewToiComposition"              );
+    // deletePointer( miNewToiSpatial                 , "miNewToiSpatial"                  );
+    // deletePointer( mvKeysZOrderLinearIds           , "mvKeysZOrderLinearIds"            );
+    // deletePointer( mNeighbors                      , "mNeighbors"                       );
+    // deletePointer( mNeighborsSorted                , "mNeighborsSorted"                 );
+    // deletePointer( mNeighborsSortedSizes           , "mNeighborsSortedSizes"            );
+    // if ( deletePointer.nBytesFreed > 0 )
+    // {
+    //     mLog( "Info" )
+    //         << "Freed a total of "
+    //         << prettyPrintBytes( deletePointer.nBytesFreed )
+    //         << " on GPU and host RAM.\n";
+    // }
 }
 
 template< typename T_UCoordinateCuda >
