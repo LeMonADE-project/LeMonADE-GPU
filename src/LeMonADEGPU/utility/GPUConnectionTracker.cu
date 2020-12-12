@@ -185,36 +185,27 @@ __global__ void kernelTrackConnections
       auto crosslinkID(dNidToCid[reducedMonChainID2]); // second cross link id, id zero there is no cross link connected to the first cross link, global id + 1
       auto gMonoOnChain2(diToiNew[dNidToMid[reducedMonChainID2]] );// second  chain end monomer, global id 
       dChainID[i]=(reducedMonChainID1-(reducedMonChainID1%2) )/2 ; // chain ID where the first monomer is attached to 
-      // T_Coordinates rRefoldCrosslink2={ T_Coordinate( 0 ), T_Coordinate( 0 ), T_Coordinate( 0 ), T_Coordinate( 0 )};
-      // T_Coordinates rRefoldCrosslink2={ 0 , 0 ,  0 ,  0 };
-      T_Coordinates rRefoldCrosslink2;
+      T_Coordinates rRefoldCrosslink2={ 0 , 0 ,  0 ,  3 }; // 3=(( 0+1)<<1 )+1 ; 
       dNidToCid[reducedMonChainID1]=gID1+1;
-      if(   crosslinkID == 0 ){ // there is no crosslink at the other chain end
-        rRefoldCrosslink2.w = 3;//(( 0+1)<<1 )+1 ; 
-        rRefoldCrosslink2.x = 0;
-        rRefoldCrosslink2.y = 0;
-        rRefoldCrosslink2.z = 0;
-        
-      } else {
+      if( crosslinkID >0 ){
         crosslinkID= crosslinkID-1;
         // The cross links and the chains are connected across periodic images. Thus the bonds can be "bond+multiple of box size". 
         // To reduce this to the real value, we calculate the bond1 from the cross link to the chain start (reduce to MIC) 
         // , add the vector from the end-to-end vector of the chain and the vector of the chain end to the second cross link(MIC again).
+        // printf("gID2=%d gMonoOnChain2=%d crosslinkID=%d\n",gID2, gMonoOnChain2, crosslinkID);
         // position of the chain start 
-        T_Coordinates rChain1(calcVector(dpPolymerSystem[ gID2 ], dpiPolymerSystemSortedVirtualBox[ gID2 ]));
-        // position of the chain end 
-        T_Coordinates rChain2(calcVector(dpPolymerSystem[ gMonoOnChain2 ], dpiPolymerSystemSortedVirtualBox[ gMonoOnChain2 ]));
+        // T_Coordinates rChain1(calcVector(dpPolymerSystem[ gID2 ], dpiPolymerSystemSortedVirtualBox[ gID2 ]));
+        // // position of the chain end 
+        // T_Coordinates rChain2(calcVector(dpPolymerSystem[ gMonoOnChain2 ], dpiPolymerSystemSortedVirtualBox[ gMonoOnChain2 ]));
         // position of the connected cross link 
         T_Coordinates rCrosslink2(calcVector(dpPolymerSystem[ crosslinkID ], dpiPolymerSystemSortedVirtualBox[ crosslinkID ]));
         //calculate the refolded position of the second cross link 
-        rRefoldCrosslink2=( rCrosslink1 + MinImageVector(rCrosslink1,rChain1) + substractVectors(rChain2,rChain1) + MinImageVector( rChain2,rCrosslink2)  );
+        // rRefoldCrosslink2=( rCrosslink1 + MinImageVector(rCrosslink1,rChain1) + substractVectors(rChain2,rChain1) + MinImageVector( rChain2,rCrosslink2)  );
+        rRefoldCrosslink2=rCrosslink2;
         rRefoldCrosslink2.w  = ( (diNewToi[crosslinkID]+1)<<1 )+1;
       }
       dOutputID2[i] = rRefoldCrosslink2;
       
-      // dOutputID2[i].x = ( (diNewToi[iPartner+dOffsetB]+1)<<1 )+1;
-//       output[miNewToi[iMonomer-1+offsetA]]= ( (miNewToi[iPartner-1+offsetB]+1)<<1 )+1;
-//       printf("Bonds Mon1 = %d  Mon2 = %d Id1=%d Id2=%d %d %d  \n ", iMonomer+dOffsetA, iPartner+dOffsetB, diNewToi[iMonomer+dOffsetA],diNewToi[iPartner+dOffsetB], dOffsetA,dOffsetB );
     }
 }
 
@@ -234,8 +225,8 @@ void Tracker<T_UCoordinateCuda>::trackConnections(
 {
   auto nThreads(256);	
   auto nBlocks(ceilDiv(size,nThreads));
-//   std::cout << "Tracker::trackConnections: offsetA= "<< offset << " mAge= " << mAge  << " size= " << size <<std::endl;
-
+  // std::cout << "Tracker::trackConnections:   mAge= " << mAge  << " size= " << size <<std::endl;
+  CUDA_ERROR( cudaStreamSynchronize( mStream ) );
   kernelTrackConnections<T_UCoordinateCuda><<<nBlocks,nThreads,0, mStream>>>(
   ID1, 
   ID2, 
@@ -302,9 +293,9 @@ void Tracker<T_UCoordinateCuda>::init(uint32_t bufferSize_, uint32_t nIDs_, cuda
   std::cout << "Tracker::init: each BondHistory can take " 
             << 2*bufferSize*nIDs << " number of elements with " 
             << 2*bufferSize*nIDs *sizeof(T_Coordinates)/1024.<< " kB \n";
-  BondHistoryID1 = new MirroredVector< T_Coordinates >( 2*bufferSize*nIDs, mStream ); //essentially the ids of the first monomer and its positions
-  BondHistoryID2 = new MirroredVector< T_Coordinates >( 2*bufferSize*nIDs, mStream ); //essentially the ids of the second monomer and its positions
-  mChainID       = new MirroredVector<          ID_t >( 2*bufferSize*nIDs, mStream ); //the chain id between monomer one and two 
+  BondHistoryID1 = new MirroredVector< T_Coordinates >( bufferSize*nIDs, mStream ); //essentially the ids of the first monomer and its positions
+  BondHistoryID2 = new MirroredVector< T_Coordinates >( bufferSize*nIDs, mStream ); //essentially the ids of the second monomer and its positions
+  mChainID       = new MirroredVector<          ID_t >( bufferSize*nIDs, mStream ); //the chain id between monomer one and two 
   mMidToNid      = new MirroredVector<          ID_t >( chainLength*nChains, mStream );
   mNidToMid      = new MirroredVector<          ID_t >( 2*nChains, mStream );
   mNidToNid      = new MirroredVector<          ID_t >( 2*nChains, mStream );

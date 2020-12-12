@@ -373,19 +373,19 @@ crosslinkFunctionality      ( 0    )
 };
 template< typename T_UCoordinateCuda > 
 void UpdaterGPUScBFM_AB_Connection<T_UCoordinateCuda>::destruct(){
-  // DeleteMirroredObject deletePointer;
-  // deletePointer( mLatticeIds                     , "mLatticeIds"                      );
-  // // if (mCrossLinkFlags != NULL )
-  // //   CUDA_ERROR(cudaFree(mCrossLinkFlags));  
-  // // if (mCrossLinkIDS != NULL )
-  // //   CUDA_ERROR(cudaFree(mCrossLinkIDS)); 
-  // if ( deletePointer.nBytesFreed > 0 )
-  // {
-  //     mLog( "Info" )
-  //         << "Freed a total of "
-  //         << prettyPrintBytes( deletePointer.nBytesFreed )
-  //         << " on GPU and host RAM.\n";
-  // }
+  DeleteMirroredObject deletePointer;
+  deletePointer( mLatticeIds                     , "mLatticeIds"                      );
+  // if (mCrossLinkFlags != NULL )
+  //   CUDA_ERROR(cudaFree(mCrossLinkFlags));  
+  // if (mCrossLinkIDS != NULL )
+  //   CUDA_ERROR(cudaFree(mCrossLinkIDS)); 
+  if ( deletePointer.nBytesFreed > 0 )
+  {
+      mLog( "Info" )
+          << "Freed a total of "
+          << prettyPrintBytes( deletePointer.nBytesFreed )
+          << " on GPU and host RAM.\n";
+  }
 }
 template< typename T_UCoordinateCuda > 
 UpdaterGPUScBFM_AB_Connection<T_UCoordinateCuda>::~UpdaterGPUScBFM_AB_Connection()
@@ -456,7 +456,7 @@ void UpdaterGPUScBFM_AB_Connection<T_UCoordinateCuda>::initialize()
   ChainEndSpecies  = 1; 
   initializeReactiveLattice();
   mLog( "Info" )<< "Initialize lattice.done. \n" ;
-  tracker.init(100, nReactiveMonomersCrossLinks+1, mStream, mBoxX, mBoxY, mBoxZ, chainLength, nChains);
+  tracker.init(10, nReactiveMonomersCrossLinks+1, mStream, mBoxX, mBoxY, mBoxZ, chainLength, nChains);
   // run over all crosslinks and check wheter they have already some connections to a  chain
   for (size_t i=nChains*chainLength ;i<mnAllMonomers; i++ ){
     for (size_t j =0; j < BaseClass::getNumLinks(i); j++){
