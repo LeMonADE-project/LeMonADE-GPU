@@ -205,7 +205,7 @@ __global__ void kernelTrackConnections
         rRefoldCrosslink2.w  = ( (diNewToi[crosslinkID]+1)<<1 )+1;
       }
       dOutputID2[i] = rRefoldCrosslink2;
-      
+
     }
 }
 
@@ -332,7 +332,7 @@ void Tracker<T_UCoordinateCuda>::pushToGPU(ID_t const * const miToiNew){
   }
 
   mNidToCid->push();
-  for (uint32_t j=0 ; j < counter ; j ++ ) {
+  for (uint32_t j=0 ; j < bufferSize ; j ++ ) {
     for(uint32_t i =0 ; i < nIDs; i ++){
       auto index(i+nIDs*j);
       BondHistoryID1->host[index].w=0;
@@ -360,6 +360,7 @@ template< typename T_UCoordinateCuda >
 void Tracker<T_UCoordinateCuda>::dumpReactions()
 {
   BaseClass::setBufferSize(bufferSize);
+  CUDA_ERROR( cudaStreamSynchronize( mStream ) );
   BondHistoryID1->popAsync();
   BondHistoryID2->popAsync();
   mChainID->popAsync();
