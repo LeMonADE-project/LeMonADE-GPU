@@ -462,7 +462,6 @@ void UpdaterGPUScBFM_TendomersConnection<T_UCoordinateCuda>::launch_MoveLabel(
          continue; //no Partner found -> go to next Crosslink in the grid 
        iPartner--;
        iMonomer--;
-       printf("Apply: %d %d\n", iMonomer, iPartner);
        dpNeighborsMonomer[ dpNeighborsSizesMonomer[ iMonomer ] * rNeighborsPitchElementsMonomer + iMonomer ] = iOffsetChains + iPartner; 
        dpNeighborsPartner[ dpNeighborsSizesPartner[ iPartner ] * rNeighborsPitchElementsPartner + iPartner ] = iOffsetCrossLinks + iMonomer; 
        dpNeighborsSizesMonomer[ iMonomer ]++;

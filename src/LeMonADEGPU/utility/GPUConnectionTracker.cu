@@ -206,7 +206,6 @@ __global__ void kernelTrackConnections
         rRefoldCrosslink2.w  = ( (diNewToi[crosslinkID]+1)<<1 )+1;
       }
       dOutputID2[i] = rRefoldCrosslink2;
-      printf("getracker: %d %d %d\n", i , dOutputID1[i].w, dOutputID2[i].w);
 
     }
 }

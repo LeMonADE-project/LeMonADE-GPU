@@ -212,7 +212,6 @@ __global__ void kernelTrackConnections
       }
       dOutputID2[i] = rRefoldCrosslink2;
       // printf ("i=%d out1=%d (%d,%d,%d)  cID=%d out2=%d\n", i, dOutputID1[i].w,dOutputID1[i].x, dOutputID1[i].y,dOutputID1[i].z, dChainID[i],dOutputID2[i].w);
-      printf("getracker: %d %d %d\n",i, dOutputID1[i].w, dOutputID2[i].w);
     }
 }
 __global__ void kernelControllSettings(
@@ -277,8 +276,6 @@ void TrackerTendomer<T_UCoordinateCuda>::trackConnections(
   mNidToCid->gpu
   );
   CUDA_ERROR( cudaStreamSynchronize( mStream ) );
-    kernelPrintBondHist<<<nBlocks,nThreads,0,mStream>>>(    BondHistoryID1->gpu + counter*nIDs,
-    BondHistoryID2->gpu + counter*nIDs,size) ;
   age.push_back(mAge);
   increaseCounter();
   if(counter == bufferSize ) 
@@ -423,7 +420,7 @@ void TrackerTendomer<T_UCoordinateCuda>::dumpReactions()
       auto Mon2(BondHistoryID2->host[index]);
       auto MonID1(Mon1.w); 
       auto MonID2(Mon2.w); 
-      std::cout << "outracked: " << " " << index<< " " <<i<< " " << MonID1<< " " <<MonID2<<std::endl;
+      
       if( MonID2  > 0 )
       {
         std::vector<int32_t> vec;
