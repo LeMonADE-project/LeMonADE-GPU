@@ -457,7 +457,7 @@ void UpdaterGPUScBFM_AB_Connection<T_UCoordinateCuda>::initialize()
   ChainEndSpecies  = 1; 
   initializeReactiveLattice();
   mLog( "Info" )<< "Initialize lattice.done. \n" ;
-  tracker.init(10, nReactiveMonomersCrossLinks+2, mStream, mBoxX, mBoxY, mBoxZ, chainLength, nChains);
+  tracker.init(10, flagArraySize, mStream, mBoxX, mBoxY, mBoxZ, chainLength, nChains);
   // run over all crosslinks and check wheter they have already some connections to a  chain
   for (size_t i=nChains*chainLength ;i<mnAllMonomers; i++ ){
     for (size_t j =0; j < BaseClass::getNumLinks(i); j++){

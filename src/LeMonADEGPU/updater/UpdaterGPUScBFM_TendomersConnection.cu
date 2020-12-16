@@ -519,8 +519,7 @@ mCrossLinkFlags             ( NULL ),
 mCrossLinkIDS               ( NULL ),
 nReactiveMonomers           ( 0    ),
 nReactiveMonomersChains     ( 0    ),
-nReactiveMonomersCrossLinks ( 0    ),
-tracker () 
+nReactiveMonomersCrossLinks ( 0    )
 {
     /**
      * Log control.
@@ -631,18 +630,7 @@ void UpdaterGPUScBFM_TendomersConnection<T_UCoordinateCuda>::initialize()
   mLog( "Info" )<< "Initialize baseclass \n" ;
 
   BaseClass::initialize();
-    //set things for the connection 
-    CrossLinkSpecies = 0; 
-    ChainEndSpecies  = 1; 
-    initializeReactiveLattice();
-    mLog( "Info" )<< "Initialize lattice.done. \n" ;
-    tracker.init(10, nReactiveMonomersCrossLinks+1, mStream, mBoxX, mBoxY,mBoxZ, nMonomersPerChain, nTendomers);
-    // run over all crosslinks and check wheter they have already some connections to a  chain
-    for (size_t i=2*nTendomers*nMonomersPerChain ;i<mnAllMonomers; i++ ){
-      for (size_t j =0; j < BaseClass::getNumLinks(i); j++){
-        tracker.addCrosslinkConnection( BaseClass::getNeighborIdx(i,j), i );
-      }
-    }
+
   mLog( "Info" )<<"Cross link functionality is "<< functionality << "\n";
   CUDA_ERROR( cudaMemcpyToSymbol( dcCrossLinkMaxNumLinks, &functionality, sizeof( functionality ) ) );
   flagArraySize = (4*ceil((nReactiveMonomersCrossLinks+1)*1.0/4.) );
@@ -666,7 +654,18 @@ void UpdaterGPUScBFM_TendomersConnection<T_UCoordinateCuda>::initialize()
   CUDA_ERROR( cudaMemcpyToSymbol( DZTable2_d, tmp_DZTable2, sizeof( tmp_DXTable2 ) ) );
   mLog( "Info" )<< "Initialize baseclass.done. \n" ;
   /////////////////////////////////////////////////////////////////////////////
-
+    //set things for the connection 
+    CrossLinkSpecies = 0; 
+    ChainEndSpecies  = 1; 
+    initializeReactiveLattice();
+    mLog( "Info" )<< "Initialize lattice.done. \n" ;
+    tracker.init(10, flagArraySize, mStream, mBoxX, mBoxY,mBoxZ, nMonomersPerChain, nTendomers);
+    // run over all crosslinks and check wheter they have already some connections to a  chain
+    for (size_t i=2*nTendomers*nMonomersPerChain ;i<mnAllMonomers; i++ ){
+      for (size_t j =0; j < BaseClass::getNumLinks(i); j++){
+        tracker.addCrosslinkConnection( BaseClass::getNeighborIdx(i,j), i );
+      }
+    }
   miToiNew->pop();
   CUDA_ERROR( cudaStreamSynchronize( mStream ) ); // finish e.g. initializations
   tracker.pushToGPU(miToiNew->host);

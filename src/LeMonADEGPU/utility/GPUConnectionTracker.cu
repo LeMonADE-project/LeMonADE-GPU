@@ -202,9 +202,11 @@ __global__ void kernelTrackConnections
         //calculate the refolded position of the second cross link 
         // rRefoldCrosslink2=( rCrosslink1 + MinImageVector(rCrosslink1,rChain1) + substractVectors(rChain2,rChain1) + MinImageVector( rChain2,rCrosslink2)  );
         rRefoldCrosslink2=rCrosslink2;
+        
         rRefoldCrosslink2.w  = ( (diNewToi[crosslinkID]+1)<<1 )+1;
       }
       dOutputID2[i] = rRefoldCrosslink2;
+      printf("getracker: %d %d %d\n", i , dOutputID1[i].w, dOutputID2[i].w);
 
     }
 }
@@ -291,8 +293,8 @@ void Tracker<T_UCoordinateCuda>::init(uint32_t bufferSize_, uint32_t nIDs_, cuda
   BaseClass::setInformationSize(11);
   BaseClass::addComment("MCS Bond/Break ChainID ID1 Position1 ID2 Position2 ");
   std::cout << "Tracker::init: each BondHistory can take " 
-            << 2*bufferSize*nIDs << " number of elements with " 
-            << 2*bufferSize*nIDs *sizeof(T_Coordinates)/1024.<< " kB \n";
+            << bufferSize*nIDs << " number of elements with " 
+            << bufferSize*nIDs *sizeof(T_Coordinates)/1024.<< " kB \n";
   BondHistoryID1 = new MirroredVector< T_Coordinates >( bufferSize*nIDs, mStream ); //essentially the ids of the first monomer and its positions
   BondHistoryID2 = new MirroredVector< T_Coordinates >( bufferSize*nIDs, mStream ); //essentially the ids of the second monomer and its positions
   mChainID       = new MirroredVector<          ID_t >( bufferSize*nIDs, mStream ); //the chain id between monomer one and two 

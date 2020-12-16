@@ -174,7 +174,7 @@ __global__ void kernelTrackConnections
 
       iMonomer--;
       iPartner--;
-      printf("getracker: %d %d ", iMonomer, iPartner);
+      
       //Crosslink1:
       auto gID1(iMonomer + dOffsetA);
       T_Coordinates rCrosslink1( calcVector(dpPolymerSystem[ gID1 ],dpiPolymerSystemSortedVirtualBox[ gID1 ]  ) ); 
@@ -190,7 +190,7 @@ __global__ void kernelTrackConnections
       auto crosslinkID(dNidToCid[reducedMonChainID2]); // second cross link id, id zero there is no cross link connected to the first cross link, global id + 1
       auto gMonoOnChain2(diToiNew[dNidToMid[reducedMonChainID2]] );// second  chain end monomer, global id 
       dChainID[i]=(reducedMonChainID1-(reducedMonChainID1%2) )/2 ; // chain ID where the first monomer is attached to 
-      printf("ChainID=%d  rCID=%d %d %d ID1=%d ID2=%d \n", dChainID[i], reducedMonChainID1,reducedMonChainID2,crosslinkID ,  diNewToi[gID1], diNewToi[gID2] );
+      // printf("ChainID=%d  rCID=%d %d %d ID1=%d ID2=%d \n", dChainID[i], reducedMonChainID1,reducedMonChainID2,crosslinkID ,  diNewToi[gID1], diNewToi[gID2] );
       T_Coordinates rRefoldCrosslink2={ 0 , 0 ,  0 ,  3 }; // 3=(( 0+1)<<1 )+1 ; 
       dNidToCid[reducedMonChainID1]=gID1+1;
       if( crosslinkID >0 ){
@@ -211,7 +211,8 @@ __global__ void kernelTrackConnections
         rRefoldCrosslink2.w  = ( (diNewToi[crosslinkID]+1)<<1 )+1;
       }
       dOutputID2[i] = rRefoldCrosslink2;
-      printf ("i=%d out1=%d (%d,%d,%d)  cID=%d out2=%d\n", i, dOutputID1[i].w,dOutputID1[i].x, dOutputID1[i].y,dOutputID1[i].z, dChainID[i],dOutputID2[i].w);
+      // printf ("i=%d out1=%d (%d,%d,%d)  cID=%d out2=%d\n", i, dOutputID1[i].w,dOutputID1[i].x, dOutputID1[i].y,dOutputID1[i].z, dChainID[i],dOutputID2[i].w);
+      printf("getracker: %d %d %d\n",i, dOutputID1[i].w, dOutputID2[i].w);
     }
 }
 __global__ void kernelControllSettings(
@@ -232,7 +233,7 @@ __global__ void kernelPrintBondHist(
 )
 {  for ( auto i = blockIdx.x * blockDim.x + threadIdx.x;
     i < dSize; i += gridDim.x * blockDim.x ){
-      if (dOutputID2[i].w!=0)
+      if (dOutputID1[i].w!=0)
       printf("Hist i=%d ID1=%d ID2=%d\n", i , dOutputID1[i].w, dOutputID2[i].w );
    }
 
@@ -256,6 +257,7 @@ void TrackerTendomer<T_UCoordinateCuda>::trackConnections(
 //   std::cout << "Tracker::trackConnections:   mAge= " << mAge  << " size= " << size <<std::endl;
 //   kernelPrintBondHist<<<nBlocks,nThreads,0,mStream>>>(    BondHistoryID1->gpu + counter*nIDs,
 //     BondHistoryID2->gpu + counter*nIDs,size) ;
+  CUDA_ERROR( cudaStreamSynchronize( mStream ) );
   kernelTrackConnections<T_UCoordinateCuda><<<nBlocks,nThreads,0, mStream>>>(
   ID1, 
   ID2, 
@@ -274,7 +276,9 @@ void TrackerTendomer<T_UCoordinateCuda>::trackConnections(
   mNidToNid->gpu,
   mNidToCid->gpu
   );
-
+  CUDA_ERROR( cudaStreamSynchronize( mStream ) );
+    kernelPrintBondHist<<<nBlocks,nThreads,0,mStream>>>(    BondHistoryID1->gpu + counter*nIDs,
+    BondHistoryID2->gpu + counter*nIDs,size) ;
   age.push_back(mAge);
   increaseCounter();
   if(counter == bufferSize ) 
@@ -403,7 +407,7 @@ void TrackerTendomer<T_UCoordinateCuda>::increaseCounter()
 template< typename T_UCoordinateCuda > 
 void TrackerTendomer<T_UCoordinateCuda>::dumpReactions()
 {
-  
+  CUDA_ERROR( cudaStreamSynchronize( mStream ) );
   BondHistoryID1->popAsync();
   BondHistoryID2->popAsync();
   mChainID->popAsync();
@@ -419,6 +423,7 @@ void TrackerTendomer<T_UCoordinateCuda>::dumpReactions()
       auto Mon2(BondHistoryID2->host[index]);
       auto MonID1(Mon1.w); 
       auto MonID2(Mon2.w); 
+      std::cout << "outracked: " << " " << index<< " " <<i<< " " << MonID1<< " " <<MonID2<<std::endl;
       if( MonID2  > 0 )
       {
         std::vector<int32_t> vec;
