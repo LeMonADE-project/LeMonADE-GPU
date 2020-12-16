@@ -43,6 +43,7 @@ SET ( project_SRCS
       ${CMAKE_CURRENT_SOURCE_DIR}/LeMonADEGPU/utility/SelectiveLogger.cpp
       ${CMAKE_CURRENT_SOURCE_DIR}/LeMonADEGPU/utility/findMaxNeighbors.cpp
       ${CMAKE_CURRENT_SOURCE_DIR}/LeMonADEGPU/utility/GPUConnectionTracker.cu
+      ${CMAKE_CURRENT_SOURCE_DIR}/LeMonADEGPU/utility/GPUConnectionTrackerTendomer.cu
 )  
      
 MESSAGE( "Add src files : " ${project_SRCS})

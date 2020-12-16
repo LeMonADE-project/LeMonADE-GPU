@@ -30,7 +30,7 @@
 #include <LeMonADEGPU/utility/DeleteMirroredObject.h>
 #include <LeMonADEGPU/core/BondVectorSet.h>
 #include <LeMonADEGPU/core/kernelConnection.h>
-#include <LeMonADEGPU/utility/GPUConnectionTracker.h>
+#include <LeMonADEGPU/utility/GPUConnectionTrackerTendomer.h>
 
 using T_Flags            = UpdaterGPUScBFM_TendomersConnection< uint8_t >::T_Flags;
 using T_Lattice          = UpdaterGPUScBFM< uint8_t >::T_Lattice        ;
@@ -386,7 +386,8 @@ void UpdaterGPUScBFM_TendomersConnection<T_UCoordinateCuda>::launch_MoveLabel(
              T_UCoordinateCuda( r0.x + DXTable2_d[ direction ] ),
              T_UCoordinateCuda( r0.y + DYTable2_d[ direction ] ),
              T_UCoordinateCuda( r0.z + DZTable2_d[ direction ] ) };
- 
+ //implement a check for the absolut of the new connecting vector to be valid in the non periodic boundary case
+ //there a monomer coult connect across one box size in this current implementation ,e .g 0 -2 =Box-1 , which is valid for peridoic but not for non periodic boxes!@!
    auto const PartnerlatticeEntry = dLatticeIds[met.getCurve().linearizeBoxVectorIndex(r1.x,r1.y,r1.z )];
  // 	printf("ID_X=%d, ID_X=%d , IC_c=%d, (%d,%d,%d), (%d,%d,%d)\n", iOffset + iMonomer, iMonomer, PartnerlatticeEntry-1, r1.x,r1.y,r1.z ,r0.x,r0.y,r0.z);
    //Partner Id start at 1!!!
@@ -459,9 +460,9 @@ void UpdaterGPUScBFM_TendomersConnection<T_UCoordinateCuda>::launch_MoveLabel(
        auto iMonomer(mCrossLinkIDS[i]);
        if (iPartner == 0 || iMonomer == 0 ) 
          continue; //no Partner found -> go to next Crosslink in the grid 
-       
        iPartner--;
        iMonomer--;
+       printf("Apply: %d %d\n", iMonomer, iPartner);
        dpNeighborsMonomer[ dpNeighborsSizesMonomer[ iMonomer ] * rNeighborsPitchElementsMonomer + iMonomer ] = iOffsetChains + iPartner; 
        dpNeighborsPartner[ dpNeighborsSizesPartner[ iPartner ] * rNeighborsPitchElementsPartner + iPartner ] = iOffsetCrossLinks + iMonomer; 
        dpNeighborsSizesMonomer[ iMonomer ]++;
@@ -495,6 +496,7 @@ void UpdaterGPUScBFM_TendomersConnection< T_UCoordinateCuda >::launch_ApplyConne
     mviSubGroupOffsets[ MonomerSpecies ],   
     mviSubGroupOffsets[ PartnerSpecies ]
   );
+  CUDA_ERROR( cudaStreamSynchronize( mStream ) );
   tracker.trackConnections( mCrossLinkIDS, mCrossLinkFlags, flagArraySize, 
     miNewToi->gpu,miToiNew->gpu, mviSubGroupOffsets[ MonomerSpecies ], mviSubGroupOffsets[ PartnerSpecies ], mAge, 
     mPolymerSystemSorted, mviPolymerSystemSortedVirtualBox );
@@ -518,7 +520,7 @@ mCrossLinkIDS               ( NULL ),
 nReactiveMonomers           ( 0    ),
 nReactiveMonomersChains     ( 0    ),
 nReactiveMonomersCrossLinks ( 0    ),
-crosslinkFunctionality      ( 0    )
+tracker () 
 {
     /**
      * Log control.
@@ -561,6 +563,7 @@ UpdaterGPUScBFM_TendomersConnection<T_UCoordinateCuda>::~UpdaterGPUScBFM_Tendome
 template< typename T_UCoordinateCuda >
 void UpdaterGPUScBFM_TendomersConnection<T_UCoordinateCuda>::cleanup()
 {
+  tracker.dumpReactions();
     this->destruct();    
     destruct();
     cudaDeviceSynchronize();
@@ -626,10 +629,22 @@ void UpdaterGPUScBFM_TendomersConnection<T_UCoordinateCuda>::initialize()
   
   mLog( "Info" )<< "Start manual coloring of the graph...done\n" ;
   mLog( "Info" )<< "Initialize baseclass \n" ;
-  BaseClass::initialize();
 
-  mLog( "Info" )<<"Cross link functionality is "<< crosslinkFunctionality << "\n";
-  CUDA_ERROR( cudaMemcpyToSymbol( dcCrossLinkMaxNumLinks, &crosslinkFunctionality, sizeof( crosslinkFunctionality ) ) );
+  BaseClass::initialize();
+    //set things for the connection 
+    CrossLinkSpecies = 0; 
+    ChainEndSpecies  = 1; 
+    initializeReactiveLattice();
+    mLog( "Info" )<< "Initialize lattice.done. \n" ;
+    tracker.init(10, nReactiveMonomersCrossLinks+1, mStream, mBoxX, mBoxY,mBoxZ, nMonomersPerChain, nTendomers);
+    // run over all crosslinks and check wheter they have already some connections to a  chain
+    for (size_t i=2*nTendomers*nMonomersPerChain ;i<mnAllMonomers; i++ ){
+      for (size_t j =0; j < BaseClass::getNumLinks(i); j++){
+        tracker.addCrosslinkConnection( BaseClass::getNeighborIdx(i,j), i );
+      }
+    }
+  mLog( "Info" )<<"Cross link functionality is "<< functionality << "\n";
+  CUDA_ERROR( cudaMemcpyToSymbol( dcCrossLinkMaxNumLinks, &functionality, sizeof( functionality ) ) );
   flagArraySize = (4*ceil((nReactiveMonomersCrossLinks+1)*1.0/4.) );
   CUDA_ERROR(cudaMalloc((void **) &mCrossLinkIDS, sizeof(T_Id)*flagArraySize));
   CUDA_ERROR(cudaMalloc((void **) &mCrossLinkFlags, sizeof(T_Id)*flagArraySize));
@@ -651,12 +666,10 @@ void UpdaterGPUScBFM_TendomersConnection<T_UCoordinateCuda>::initialize()
   CUDA_ERROR( cudaMemcpyToSymbol( DZTable2_d, tmp_DZTable2, sizeof( tmp_DXTable2 ) ) );
   mLog( "Info" )<< "Initialize baseclass.done. \n" ;
   /////////////////////////////////////////////////////////////////////////////
-  //set things for the connection 
-  CrossLinkSpecies = 0; 
-  ChainEndSpecies  = 1; 
-  initializeReactiveLattice();
-  mLog( "Info" )<< "Initialize lattice.done. \n" ;
-  tracker.init(100, nReactiveMonomersCrossLinks+1, mStream, mBoxX, mBoxY,mBoxZ);
+
+  miToiNew->pop();
+  CUDA_ERROR( cudaStreamSynchronize( mStream ) ); // finish e.g. initializations
+  tracker.pushToGPU(miToiNew->host);
   mLog( "Info" ) << "nReactiveMonomersCrossLinks = " << nReactiveMonomersCrossLinks+1 <<"\n";
   connection.setArraySize(nReactiveMonomersCrossLinks);
   connection.init();
@@ -890,19 +903,19 @@ void UpdaterGPUScBFM_TendomersConnection<T_UCoordinateCuda>::setNumLabelsPerTend
   // therefore no attempt should be spend to move the labels on the cross links
     vMonomerLabel.resize(mnAllMonomers, std::numeric_limits<uint32_t>::max());
 }
-template< typename T_UCoordinateCuda >
-void UpdaterGPUScBFM_TendomersConnection<T_UCoordinateCuda>::setFunctionality          ( uint32_t functionality_ )
-{
-    if ( functionality != 0 )
-    {
-        std::stringstream msg;
-        msg << "[" << __FILENAME__ << "::setFunctionality] "
-            << "Functionality of crosslinks already set to " << functionality << "!\n";
-        throw std::runtime_error( msg.str() );
-    }
-    functionality = functionality_;
-    mLog( "Info" ) << "Functionality of crosslinks "<< functionality <<"\n";
-}
+// template< typename T_UCoordinateCuda >
+// void UpdaterGPUScBFM_TendomersConnection<T_UCoordinateCuda>::setFunctionality          ( uint32_t functionality_ )
+// {
+//     if ( functionality != 0 )
+//     {
+//         std::stringstream msg;
+//         msg << "[" << __FILENAME__ << "::setFunctionality] "
+//             << "Functionality of crosslinks already set to " << functionality << "!\n";
+//         throw std::runtime_error( msg.str() );
+//     }
+//     functionality = functionality_;
+//     mLog( "Info" ) << "Functionality of crosslinks "<< functionality <<"\n";
+// }
 
 template< typename T_UCoordinateCuda >
 void UpdaterGPUScBFM_TendomersConnection<T_UCoordinateCuda>::setLabel( uint32_t ID_, uint32_t label_){vMonomerLabel[ID_]=label_;}
@@ -955,7 +968,7 @@ void UpdaterGPUScBFM_TendomersConnection<T_UCoordinateCuda>::setReactiveGroup(T_
     monReact.reactivity=reactivity_;
     monReact.maxNumLinks=maxNumLinks_;
     mMonomerReactivity.push_back(monReact);
-    if(maxNumLinks_ > crosslinkFunctionality) crosslinkFunctionality = maxNumLinks_;
+    if(maxNumLinks_ > functionality) functionality = maxNumLinks_;
   }
   
 }
@@ -1199,10 +1212,10 @@ void UpdaterGPUScBFM_TendomersConnection< T_UCoordinateCuda >::checkSystem() con
     for (auto i = 0; i < nReactiveMonomers; i++)
     {
       if (mGroupIds[mNewToOldReactiveID[i]] == 0 ){
-        if (mNeighbors->host[i].size > crosslinkFunctionality)
+        if (mNeighbors->host[i].size > functionality)
         {
           std::stringstream error_message;
-          error_message << "Exceeds the maximum number of bonds of " <<crosslinkFunctionality << "for crossLinks at monomer Id "
+          error_message << "Exceeds the maximum number of bonds of " <<functionality << "for crossLinks at monomer Id "
                   <<  i << " with " << mNeighbors->host[i].size << "\n";
           for (size_t j =0 ; j < mNeighbors->host[i].size; j++ )
             error_message <<"Neighbor[" <<j << "]= " <<  mNeighbors->host[i].neighborIds[j] << "\n";

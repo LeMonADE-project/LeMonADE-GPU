@@ -305,6 +305,7 @@ __global__ void kernelApplyConnection
       
       iPartner--;
       iMonomer--;
+
       dpNeighborsMonomer[ dpNeighborsSizesMonomer[ iMonomer ] * rNeighborsPitchElementsMonomer + iMonomer ] = iOffsetChains + iPartner; 
       dpNeighborsPartner[ dpNeighborsSizesPartner[ iPartner ] * rNeighborsPitchElementsPartner + iPartner ] = iOffsetCrossLinks + iMonomer; 
       dpNeighborsSizesMonomer[ iMonomer ]++;

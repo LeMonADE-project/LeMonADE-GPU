@@ -187,7 +187,6 @@ public:
         mUpdaterGpu.setNumCrossLinkers(mIngredients.getNumCrossLinkers());
         mUpdaterGpu.setNumMonomersPerChain(mIngredients.getNumMonomersPerChain());
         mUpdaterGpu.setNumLabelsPerTendomerArm(mIngredients.getNumLabelsPerTendomerArm() + 1);
-        mUpdaterGpu.setFunctionality(4);
 
         mLog("Info") << "[" << __FILENAME__ << "::initialize] mUpdaterGpu.setLabel\n";
         for (size_t i = 0u; i < mIngredients.getMolecules().size(); ++i)

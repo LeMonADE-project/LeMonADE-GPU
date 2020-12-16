@@ -1,14 +1,13 @@
 
 
-#ifndef LEMONADEGPU_GPUCONNECTIONTRACKER_H_
+#ifndef LEMONADEGPU_GPUCONNECTIONTRACKERTENDOMER_H_
 
-#define LEMONADEGPU_GPUCONNECTIONTRACKER_H_
+#define LEMONADEGPU_GPUCONNECTIONTRACKERTENDOMER_H_
 #include <LeMonADE/utility/TrackConnection.h>
 #include <LeMonADEGPU/utility/cudacommon.hpp>
 #include <cuda_runtime_api.h>    
-
 template< typename T_UCoordinateCuda > 
-class Tracker:public TrackLinks<int32_t>
+class TrackerTendomer:public TrackLinks<int32_t>
 {
 
   
@@ -24,7 +23,7 @@ public:
 	using T_UCoordinatesCuda = typename CudaVec4< T_UCoordinateCuda >::value_type;
 
 	//! constructor which sets some values 
-	Tracker();
+	TrackerTendomer();
 
 	void increaseCounter();
 
@@ -35,13 +34,13 @@ public:
 	  T_BoxSize const boxX,
   	  T_BoxSize const boxY,
   	  T_BoxSize const boxZ,
-	  uint32_t chainLength=0,
-	  uint32_t nChains=0);
+      uint32_t nMonomerPerChain_,
+	  uint32_t nTendomers_);
 protected:
 	uint32_t bufferSize, nIDs, counter;
 	cudaStream_t mStream;
 	uint32_t  IDoffset;
-	uint32_t nChains, chainLength;
+	uint32_t nTendomers, nMonomerPerChain;
 public:
 	
 	void trackBreaks( ID_t * const ID1     ,
@@ -93,5 +92,4 @@ protected:
 	//! chainID of the connection from the first and the second monomer
 	MirroredVector<ID_t> * mChainID;
 };
-
 #endif

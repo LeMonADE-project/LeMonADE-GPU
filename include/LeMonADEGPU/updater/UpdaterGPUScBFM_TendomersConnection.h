@@ -6,7 +6,7 @@
 #include <LeMonADEGPU/utility/SelectiveLogger.hpp>
 #include <LeMonADEGPU/utility/cudacommon.hpp>
 #include <LeMonADEGPU/core/constants.cuh>
-#include <LeMonADEGPU/utility/GPUConnectionTracker.h>
+#include <LeMonADEGPU/utility/GPUConnectionTrackerTendomer.h>
 #include <LeMonADEGPU/core/kernelConnection.h>
 struct D_MonomerReactivity {
     using T_Id               = UpdaterGPUScBFM< uint8_t >::T_Id         ;
@@ -86,7 +86,7 @@ protected:
     size_t nReactiveMonomers;
     size_t nReactiveMonomersCrossLinks;
     size_t nReactiveMonomersChains;
-    Tracker<T_UCoordinateCuda> tracker;
+    TrackerTendomer<T_UCoordinateCuda> tracker;
     Connection connection;
 
 public:
@@ -109,7 +109,6 @@ private:
     MirroredTexture< T_Id > * mLatticeIds;
     
     std::vector< T_Id >  mNewToOldReactiveID;
-    uint32_t crosslinkFunctionality;
     ///////////////////////end connection part ////////////////
     ///////////////////////start label part    ////////////////
     uint32_t nMonomersPerChain, nTendomers, nCrossLinks, nLabelsPerTendomerArm, functionality, nLabels;
@@ -140,7 +139,7 @@ public:
     void    setNumCrossLinkers        ( uint32_t nCrossLinks_           );
     void    setNumMonomersPerChain    ( uint32_t nMonomersPerChain_     );
     void    setNumLabelsPerTendomerArm( uint32_t nLabelsPerTendomerArm_ );
-    void    setFunctionality          ( uint32_t functionality_         );
+    // void    setFunctionality          ( uint32_t functionality_         );
     void    setLabel                  ( uint32_t ID_, uint32_t label_   );
     void    setMoveType               ( int      monomericMoveType_     );
     
