@@ -61,7 +61,8 @@ public:
 				int32_t const offsetB,
 				uint32_t const mAge,
 				MirroredVector< T_UCoordinatesCuda >const * const mPolymerSystemSorted , 
-				MirroredVector< T_Coordinates      >const * const mviPolymerSystemSortedVirtualBox);
+				MirroredVector< T_Coordinates      >const * const mviPolymerSystemSortedVirtualBox,
+				ID_t * const gLattice);
 	//! setter function for the buffer size
 	void setBufferSize(uint32_t bufferSize_){bufferSize=bufferSize_;}
 
@@ -90,6 +91,7 @@ protected:
 	//! ID  (and position ) of the second monomer  (of the connected crosslink)
 	MirroredVector<T_Coordinates> * BondHistoryID2;
 	//! chainID of the connection from the first and the second monomer
-	MirroredVector<ID_t> * mChainID;
+	// MirroredVector<ID_t> * mChainID;
+	MirroredVector<int2> * mChainID;
 };
 #endif

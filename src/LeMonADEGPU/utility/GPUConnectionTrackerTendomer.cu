@@ -9,7 +9,7 @@ using ID_t               = Tracker<uint8_t>::ID_t;
 using T_Coordinates      = Tracker< uint8_t >::T_Coordinates;
 using T_Coordinate       = Tracker< uint8_t >::T_Coordinate;
 using T_BoxSize          = uint64_t;
-
+__device__ __constant__ uint32_t dcMonomersPerChainP2; //number of monomers per chain plus 2 for the boundary entries  
 template< typename T_UCoordinateCuda >
 __global__ void kernelTrackBreaks
 (
@@ -152,9 +152,10 @@ __global__ void kernelTrackConnections
   ID_t           * const diToiNew  ,
   T_Coordinates  * const dOutputID1,
   T_Coordinates  * const dOutputID2,
-  ID_t           * const dChainID  ,
+  int2           * const dChainID  ,
   typename CudaVec4< T_UCoordinateCuda >::value_type const * const __restrict__ dpPolymerSystem,
   T_Coordinates const * const dpiPolymerSystemSortedVirtualBox,
+  ID_t           * const dLattice  ,
   ID_t           * const dMidToNid,
   ID_t           * const dNidToMid,
   ID_t           * const dNidToNid,
@@ -179,7 +180,6 @@ __global__ void kernelTrackConnections
       auto gID1(iMonomer + dOffsetA);
       T_Coordinates rCrosslink1( calcVector(dpPolymerSystem[ gID1 ],dpiPolymerSystemSortedVirtualBox[ gID1 ]  ) ); 
       rCrosslink1.w  = diNewToi[gID1];
-
       dOutputID1[i] = rCrosslink1;
       ////////////////////////////
       // Chain monomer 1 : 
@@ -189,8 +189,15 @@ __global__ void kernelTrackConnections
       auto reducedMonChainID2(dNidToNid[reducedMonChainID1 ]); // reduced chain id -> chain end 
       auto crosslinkID(dNidToCid[reducedMonChainID2]); // second cross link id, id zero there is no cross link connected to the first cross link, global id + 1
       auto gMonoOnChain2(diToiNew[dNidToMid[reducedMonChainID2]] );// second  chain end monomer, global id 
-      dChainID[i]=(reducedMonChainID1-(reducedMonChainID1%2) )/2 ; // chain ID where the first monomer is attached to 
-      // printf("ChainID=%d  rCID=%d %d %d ID1=%d ID2=%d \n", dChainID[i], reducedMonChainID1,reducedMonChainID2,crosslinkID ,  diNewToi[gID1], diNewToi[gID2] );
+      dChainID[i].x=(reducedMonChainID1-(reducedMonChainID1%2) )/2 ; // chain ID where the first monomer is attached to 
+      //calculate the number of elastic segments for the current chain
+      //first go throught the lattice from the begining up to the first as occupied marked lattic entry which is greater one 
+      //this one must be the slip link (the position 0 and N+2 mark the end of the chain and position 1 is also not allowed due to some simulations issues)
+      int curDist1(2);
+      while(!(     dLattice[reducedMonChainID1*dcMonomersPerChainP2+curDist1] >0 
+              && ((dLattice[reducedMonChainID1*dcMonomersPerChainP2+curDist1] &1u) == 1) ) 
+            ) curDist1++;
+      dChainID[i].y=curDist1;
       T_Coordinates rRefoldCrosslink2={ 0 , 0 ,  0 ,  3 }; // 3=(( 0+1)<<1 )+1 ; 
       dNidToCid[reducedMonChainID1]=gID1+1;
       if( crosslinkID >0 ){
@@ -209,6 +216,10 @@ __global__ void kernelTrackConnections
         rRefoldCrosslink2=( rCrosslink1 + MinImageVector(rCrosslink1,rChain1) + substractVectors(rChain2,rChain1) + MinImageVector( rChain2,rCrosslink2)  );
         // rRefoldCrosslink2=rCrosslink2;
         rRefoldCrosslink2.w  = ( (diNewToi[crosslinkID]+1)<<1 )+1;
+        //calculate the number of elastic segments for the second chain
+        int curDist2(2); //curvilinear distance = number of segments in the elastic chain
+        while(!(dLattice[reducedMonChainID2*dcMonomersPerChainP2+curDist2] >0 && dLattice[reducedMonChainID2*dcMonomersPerChainP2+curDist2] &1 == 1 ) ) curDist2++;
+        dChainID[i].y+=curDist2;
       }
       dOutputID2[i] = rRefoldCrosslink2;
       // printf ("i=%d out1=%d (%d,%d,%d)  cID=%d out2=%d\n", i, dOutputID1[i].w,dOutputID1[i].x, dOutputID1[i].y,dOutputID1[i].z, dChainID[i],dOutputID2[i].w);
@@ -248,7 +259,8 @@ void TrackerTendomer<T_UCoordinateCuda>::trackConnections(
         int32_t const offsetB,
         uint32_t const mAge,
         MirroredVector< T_UCoordinatesCuda >const * const  mPolymerSystemSorted , 
-        MirroredVector< T_Coordinates      >const * const mviPolymerSystemSortedVirtualBox
+        MirroredVector< T_Coordinates      >const * const mviPolymerSystemSortedVirtualBox,
+        ID_t * const gLattice
       )
 {
   auto nThreads(256);	
@@ -270,6 +282,7 @@ void TrackerTendomer<T_UCoordinateCuda>::trackConnections(
   mChainID->gpu       + counter*nIDs,
   mPolymerSystemSorted->gpu,
   mviPolymerSystemSortedVirtualBox->gpu,
+  gLattice,
   mMidToNid->gpu,
   mNidToMid->gpu,
   mNidToNid->gpu,
@@ -307,6 +320,7 @@ void TrackerTendomer<T_UCoordinateCuda>::init(uint32_t bufferSize_, uint32_t nID
     uint32_t nTendomers_)
 {
       nMonomerPerChain=nMonomerPerChain_;
+      { decltype( nMonomerPerChain      ) x = nMonomerPerChain+2     ; CUDA_ERROR( cudaMemcpyToSymbol( dcMonomersPerChainP2     , &x, sizeof(x) ) ); }
       nTendomers=nTendomers_;
       bufferSize=bufferSize_; 
       nIDs=nIDs_; 
@@ -316,14 +330,14 @@ void TrackerTendomer<T_UCoordinateCuda>::init(uint32_t bufferSize_, uint32_t nID
                 << "bufferSize=" <<bufferSize<<"\n"
                 << "nIDs=" <<nIDs<<"\n"
                 << "mStream=" <<mStream<<"\n";
-      BaseClass::setInformationSize(11);
-      BaseClass::addComment("MCS Bond/Break ChainID ID1 Position1 ID2 Position2 ");
+      BaseClass::setInformationSize(12);
+      BaseClass::addComment("MCS Bond/Break ChainID nElasticSegments ID1 Position1 ID2 Position2 ");
       std::cout << "Tracker::init: each BondHistory can take " 
                 << bufferSize*nIDs << " number of elements with " 
                 << bufferSize*nIDs *sizeof(T_Coordinates)/1024.<< " kB \n";
       BondHistoryID1 = new MirroredVector< T_Coordinates >( bufferSize*nIDs, mStream ); //essentially the ids of the first monomer and its positions
       BondHistoryID2 = new MirroredVector< T_Coordinates >( bufferSize*nIDs, mStream ); //essentially the ids of the second monomer and its positions
-      mChainID       = new MirroredVector<          ID_t >( bufferSize*nIDs, mStream ); //the chain id between monomer one and two 
+      mChainID       = new MirroredVector<          int2 >( bufferSize*nIDs, mStream ); //the chain id between monomer one and two 
       mMidToNid      = new MirroredVector<          ID_t >( nMonomerPerChain*2*nTendomers, mStream );
       mNidToMid      = new MirroredVector<          ID_t >( 2*nTendomers, mStream );
       mNidToNid      = new MirroredVector<          ID_t >( 2*nTendomers, mStream );
@@ -387,7 +401,8 @@ void TrackerTendomer<T_UCoordinateCuda>::pushToGPU(ID_t const * const miToiNew){
       BondHistoryID2->host[index].x=0;
       BondHistoryID2->host[index].y=0;
       BondHistoryID2->host[index].z=0;
-      mChainID->host[index]=0;
+      mChainID->host[index].x=0;
+      mChainID->host[index].y=0;
     }
   }
   BondHistoryID1->push();
@@ -426,7 +441,8 @@ void TrackerTendomer<T_UCoordinateCuda>::dumpReactions()
         std::vector<int32_t> vec;
         vec.push_back(currentAge); //time 
         vec.push_back( MonID2 & 1 ); // either 0 or 1 for remove or add 
-        vec.push_back(mChainID->host[index]);
+        vec.push_back(mChainID->host[index].x);
+        vec.push_back(mChainID->host[index].y);
         MonID2 = (MonID2 >> 1) -1;
         if (MonID1 > MonID2 ) {
           vec.push_back(MonID1); 
@@ -458,7 +474,8 @@ void TrackerTendomer<T_UCoordinateCuda>::dumpReactions()
         BondHistoryID2->host[index].x=0;
         BondHistoryID2->host[index].y=0;
         BondHistoryID2->host[index].z=0;
-        mChainID->host[index]=0;
+        mChainID->host[index].x=0;
+        mChainID->host[index].y=0;
       }
     }
   }

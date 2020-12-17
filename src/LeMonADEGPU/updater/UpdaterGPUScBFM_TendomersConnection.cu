@@ -498,7 +498,7 @@ void UpdaterGPUScBFM_TendomersConnection< T_UCoordinateCuda >::launch_ApplyConne
   CUDA_ERROR( cudaStreamSynchronize( mStream ) );
   tracker.trackConnections( mCrossLinkIDS, mCrossLinkFlags, flagArraySize, 
     miNewToi->gpu,miToiNew->gpu, mviSubGroupOffsets[ MonomerSpecies ], mviSubGroupOffsets[ PartnerSpecies ], mAge, 
-    mPolymerSystemSorted, mviPolymerSystemSortedVirtualBox );
+    mPolymerSystemSorted, mviPolymerSystemSortedVirtualBox, mLatticeLabel->gpu );
 }
 
 template< typename T_UCoordinateCuda > 
@@ -653,18 +653,18 @@ void UpdaterGPUScBFM_TendomersConnection<T_UCoordinateCuda>::initialize()
   CUDA_ERROR( cudaMemcpyToSymbol( DZTable2_d, tmp_DZTable2, sizeof( tmp_DXTable2 ) ) );
   mLog( "Info" )<< "Initialize baseclass.done. \n" ;
   /////////////////////////////////////////////////////////////////////////////
-    //set things for the connection 
-    CrossLinkSpecies = 0; 
-    ChainEndSpecies  = 1; 
-    initializeReactiveLattice();
-    mLog( "Info" )<< "Initialize lattice.done. \n" ;
-    tracker.init(10, flagArraySize, mStream, mBoxX, mBoxY,mBoxZ, nMonomersPerChain, nTendomers);
-    // run over all crosslinks and check wheter they have already some connections to a  chain
-    for (size_t i=2*nTendomers*nMonomersPerChain ;i<mnAllMonomers; i++ ){
-      for (size_t j =0; j < BaseClass::getNumLinks(i); j++){
-        tracker.addCrosslinkConnection( BaseClass::getNeighborIdx(i,j), i );
-      }
+  //set things for the connection 
+  CrossLinkSpecies = 0; 
+  ChainEndSpecies  = 1; 
+  initializeReactiveLattice();
+  mLog( "Info" )<< "Initialize lattice.done. \n" ;
+  tracker.init(10, flagArraySize, mStream, mBoxX, mBoxY,mBoxZ, nMonomersPerChain, nTendomers);
+  // run over all crosslinks and check wheter they have already some connections to a  chain
+  for (size_t i=2*nTendomers*nMonomersPerChain ;i<mnAllMonomers; i++ ){
+    for (size_t j =0; j < BaseClass::getNumLinks(i); j++){
+      tracker.addCrosslinkConnection( BaseClass::getNeighborIdx(i,j), i );
     }
+  }
   miToiNew->pop();
   CUDA_ERROR( cudaStreamSynchronize( mStream ) ); // finish e.g. initializations
   tracker.pushToGPU(miToiNew->host);

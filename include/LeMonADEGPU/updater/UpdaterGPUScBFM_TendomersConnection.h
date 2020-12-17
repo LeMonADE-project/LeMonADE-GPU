@@ -123,13 +123,30 @@ private:
     
     // stores if it is occupied by a label and the ID of the corresponding chain monomers 
     MirroredVector< T_Id > * mLatticeLabel; 
-    // https://stackoverflow.com/questions/19777910/how-make-int2-is-working
+    /** https://stackoverflow.com/questions/19777910/how-make-int2-is-working
+     * size of the mVector is the number of labels 
+     * mLabelPosition[i].x = curvilinear distance along the chain of a label
+     * mLabelPosition[i].y = chain ID
+     **/
     MirroredVector< T_RingCoordinates > * mLabelPosition;
-    //connectivity of the slide ring 
+    /**connectivity of the slide ring 
+     * size is the number of labels  
+     * mLabelBonds[i].x = Monomer Id the connected slip link (with new ID ) plus one
+     * the +1 helps to distinguish no connection from connected to ID 0.
+     * mLabelBonds[i].y = bond Id of the bond going to another slip link
+     **/
     MirroredVector< T_RingCoordinates > * mLabelBonds;
-    //can be either 0:standard moves for all monomers, 1: diagonal moves for all monomers, 2: diagonal moves for pending chain and standard moves for elastic chain monomers
+    /**can be either 
+     * 0:standard moves for all monomers, 
+     * 1: diagonal moves for all monomers, 
+     * 2: diagonal moves for pending chain and standard moves for elastic chain monomers
+     * NOTE: 2 does not work 
+     */
     int monomericMoveType;
-    //stores if the monomer can use diagonal moves or not
+    /**stores if the monomer can use diagonal moves or not
+     * used for monomericMoveType=2 
+     * at the moment unused because not working correctly
+     */
     MirroredTexture<  uint8_t > * moveType;
     ///////////////////////end label part    //////////////////
 public:
