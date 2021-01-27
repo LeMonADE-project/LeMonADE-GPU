@@ -365,37 +365,38 @@ void UpdaterGPUScBFM_TendomersConnection<T_UCoordinateCuda>::launch_MoveLabel(
      T_Id                const              nMonomers                ,
      uint64_t            const              rSeed                    ,
      uint64_t            const              rGlobalIteration         ,
+     BoxCheck                               bCheck, 
      Method              const              met
  ){
-     uint32_t rn;
-     int iGrid = 0;
-     for ( uint32_t iMonomer = blockIdx.x * blockDim.x + threadIdx.x;
-           iMonomer < nMonomers; iMonomer += gridDim.x * blockDim.x, ++iGrid )
-     {
-         auto const r0 = dpPolymerSystem[ iOffset + iMonomer ];
-   if ( dcCrossLinkMaxNumLinks == dpNeighborsSizesCrossLink[ iMonomer ] ) continue; //already max number of connections for the crosslinker
-         if ( iGrid % 1 == 0 ) //for what is this  
-         {
-     Saru rng(rGlobalIteration,iMonomer,rSeed);
-     rn =rng.rng32();
-         }
-         int direction = rn % 6;
-   /* select random direction. Do this with bitmasking instead of lookup ??? */
-   
-         typename CudaVec4< T_UCoordinateCuda >::value_type const r1 = {
-             T_UCoordinateCuda( r0.x + DXTable2_d[ direction ] ),
-             T_UCoordinateCuda( r0.y + DYTable2_d[ direction ] ),
-             T_UCoordinateCuda( r0.z + DZTable2_d[ direction ] ) };
- //implement a check for the absolut of the new connecting vector to be valid in the non periodic boundary case
- //there a monomer coult connect across one box size in this current implementation ,e .g 0 -2 =Box-1 , which is valid for peridoic but not for non periodic boxes!@!
-   auto const PartnerlatticeEntry = dLatticeIds[met.getCurve().linearizeBoxVectorIndex(r1.x,r1.y,r1.z )];
- // 	printf("ID_X=%d, ID_X=%d , IC_c=%d, (%d,%d,%d), (%d,%d,%d)\n", iOffset + iMonomer, iMonomer, PartnerlatticeEntry-1, r1.x,r1.y,r1.z ,r0.x,r0.y,r0.z);
-   //Partner Id start at 1!!!
-   if ( PartnerlatticeEntry == 0 ) continue; //is not reactive for 0  or cross link (do not allow connections betweeen cross links)
-   if ( dcChainMaxNumLinks == dpNeighborsSizesChain[ PartnerlatticeEntry -1 ] ) continue; //already max number of connections for the chain
-         dpFlag[ iMonomer + 1 ] = PartnerlatticeEntry ; 
-     }
- }
+    uint32_t rn;
+    int iGrid = 0;
+    for ( uint32_t iMonomer = blockIdx.x * blockDim.x + threadIdx.x;
+          iMonomer < nMonomers; iMonomer += gridDim.x * blockDim.x, ++iGrid ){
+        auto const r0 = dpPolymerSystem[ iOffset + iMonomer ];
+        if ( dcCrossLinkMaxNumLinks == dpNeighborsSizesCrossLink[ iMonomer ] ) continue; //already max number of connections for the crosslinker
+        if ( iGrid % 1 == 0 ) {//for what is this  
+            Saru rng(rGlobalIteration,iMonomer,rSeed);
+            rn =rng.rng32();
+        }
+        int direction = rn % 6;
+        /* select random direction. Do this with bitmasking instead of lookup ??? */
+        typename CudaVec4< T_UCoordinateCuda >::value_type const r1 = {
+            T_UCoordinateCuda( r0.x + DXTable2_d[ direction ] ),
+            T_UCoordinateCuda( r0.y + DYTable2_d[ direction ] ),
+            T_UCoordinateCuda( r0.z + DZTable2_d[ direction ] ) };
+        //-> need a statement to check wheter the new connection would cross the box
+        // otherwise a connection could establish across the box for nonperiodic boundary conditions
+        if ( bCheck(r1.x,r1.y,r1.z) ) continue; 
+        //implement a check for the absolut of the new connecting vector to be valid in the non periodic boundary case
+        //there a monomer coult connect across one box size in this current implementation ,e .g 0 -2 =Box-1 , which is valid for peridoic but not for non periodic boxes!@!
+        auto const PartnerlatticeEntry = dLatticeIds[met.getCurve().linearizeBoxVectorIndex(r1.x,r1.y,r1.z )];
+        // 	printf("ID_X=%d, ID_X=%d , IC_c=%d, (%d,%d,%d), (%d,%d,%d)\n", iOffset + iMonomer, iMonomer, PartnerlatticeEntry-1, r1.x,r1.y,r1.z ,r0.x,r0.y,r0.z);
+        //Partner Id start at 1!!!
+        if ( PartnerlatticeEntry == 0 ) continue; //is not reactive for 0  or cross link (do not allow connections betweeen cross links)
+        if ( dcChainMaxNumLinks == dpNeighborsSizesChain[ PartnerlatticeEntry -1 ] ) continue; //already max number of connections for the chain
+            dpFlag[ iMonomer + 1 ] = PartnerlatticeEntry ; 
+    }
+}
  template< typename T_UCoordinateCuda >
  void UpdaterGPUScBFM_TendomersConnection< T_UCoordinateCuda >::launch_CheckConnection(
    const size_t nBlocks, const size_t nThreads, 
@@ -411,7 +412,8 @@ void UpdaterGPUScBFM_TendomersConnection<T_UCoordinateCuda>::launch_MoveLabel(
        mNeighborsSortedSizes->gpu + mviSubGroupOffsets[ iSpeciesChain ], 
        mnElementsInGroup[ iSpeciesCrossLink ],                       
        seed, 
-       hGlobalIterator,                                         
+       hGlobalIterator,  
+       boxCheck,                                       
        met
    );
    hGlobalIterator++;

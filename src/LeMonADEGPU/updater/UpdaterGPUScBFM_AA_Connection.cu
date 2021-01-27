@@ -214,6 +214,7 @@ __global__ void kernelCheckConnection
     T_Id                const              nMonomers                ,
     uint64_t            const              rSeed                    ,
     uint64_t            const              rGlobalIteration         ,
+    BoxCheck                               bCheck, 
     Method              const              met
 ){
     uint32_t rn;
@@ -236,7 +237,9 @@ __global__ void kernelCheckConnection
             T_UCoordinateCuda( r0.x + DXTable2_d[ direction ] ),
             T_UCoordinateCuda( r0.y + DYTable2_d[ direction ] ),
             T_UCoordinateCuda( r0.z + DZTable2_d[ direction ] ) };
-
+//-> need a statement to check wheter the new connection would cross the box
+        // otherwise a connection could establish across the box for nonperiodic boundary conditions
+        if ( bCheck(r1.x,r1.y,r1.z) ) continue; 
 	auto const PartnerlatticeEntry = dLatticeIds[met.getCurve().linearizeBoxVectorIndex(r1.x,r1.y,r1.z )];
 	//Partner Id start at 1!!!
 	if ( PartnerlatticeEntry == 0 ) continue; //is not reactive for 0  or cross link (do not allow connections betweeen cross links)
@@ -258,7 +261,8 @@ void UpdaterGPUScBFM_AA_Connection< T_UCoordinateCuda >::launch_CheckConnection(
       mNeighborsSortedSizes->gpu + mviSubGroupOffsets[ iSpecies ], 
       mnElementsInGroup[ iSpecies ],                       
       seed, 
-      hGlobalIterator,                                         
+      hGlobalIterator, 
+      boxCheck,                                               
       met
   );
   hGlobalIterator++;
