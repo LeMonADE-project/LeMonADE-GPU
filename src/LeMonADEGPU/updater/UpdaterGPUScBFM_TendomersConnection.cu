@@ -386,7 +386,9 @@ void UpdaterGPUScBFM_TendomersConnection<T_UCoordinateCuda>::launch_MoveLabel(
             T_UCoordinateCuda( r0.z + DZTable2_d[ direction ] ) };
         //-> need a statement to check wheter the new connection would cross the box
         // otherwise a connection could establish across the box for nonperiodic boundary conditions
-        if ( bCheck(r1.x,r1.y,r1.z) ) continue; 
+        // if ( r1.x > 127 || r1.y > 127 || r1.z > 127  || r1.x ==0 || r1.y==0 || r1.z ==0) 
+          // printf("%d %d %d %d %d %d %d\n",r0.x,r0.y,r0.z,r1.x,r1.y,r1.z, ! bCheck(r1.x,r1.y,r1.z));
+        if ( ! bCheck(r1.x,r1.y,r1.z) ) continue; 
         //implement a check for the absolut of the new connecting vector to be valid in the non periodic boundary case
         //there a monomer coult connect across one box size in this current implementation ,e .g 0 -2 =Box-1 , which is valid for peridoic but not for non periodic boxes!@!
         auto const PartnerlatticeEntry = dLatticeIds[met.getCurve().linearizeBoxVectorIndex(r1.x,r1.y,r1.z )];
@@ -653,6 +655,7 @@ void UpdaterGPUScBFM_TendomersConnection<T_UCoordinateCuda>::initialize()
   CUDA_ERROR( cudaMemcpyToSymbol( DXTable2_d, tmp_DXTable2, sizeof( tmp_DXTable2 ) ) ); 
   CUDA_ERROR( cudaMemcpyToSymbol( DYTable2_d, tmp_DYTable2, sizeof( tmp_DXTable2 ) ) );
   CUDA_ERROR( cudaMemcpyToSymbol( DZTable2_d, tmp_DZTable2, sizeof( tmp_DXTable2 ) ) );
+
   mLog( "Info" )<< "Initialize baseclass.done. \n" ;
   /////////////////////////////////////////////////////////////////////////////
   //set things for the connection 

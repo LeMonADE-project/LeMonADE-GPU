@@ -77,6 +77,7 @@ public:
 // __device__ bool operator()(const T & x, const T &  y, const T & z) //throws a lot of warnings....because uint compares with 0 
   __device__ bool operator()(const int & x, const int &  y, const int & z)
   {
+    // printf("%d %d %d %d \n",dcBoxXM1,dcBoxYM1,dcBoxZM1, myperiodicmode);
     switch(myperiodicmode)
     { 
 	case periodic111: return  true                         ;
@@ -98,6 +99,7 @@ public:
   
   __device__ bool operator()(const uint & x, const uint &  y, const uint & z)
   {
+    // printf("%d %d %d %d \n",dcBoxXM1,dcBoxYM1,dcBoxZM1, myperiodicmode);
     switch(myperiodicmode)
     { 
 	case periodic111: return  true              ;
