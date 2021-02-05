@@ -60,6 +60,26 @@ message("LEMONADE_LIBRARY_DIR is not provided. If build fails, use -DLEMONADE_LI
 endif()
 MESSAGE("LEMONADE_LIBRARY_DIR is ${LEMONADE_LIBRARY_DIR}")
 
+# include gls library, e.g for fitting (shear)
+
+
+SET (GSLCBLAS_INCLUDE_DIR "${GSL_DIR}/include/")
+if (NOT DEFINED GSLCBLAS_INCLUDE_DIR)
+message("GSLCBLAS_INCLUDE_DIR is not provided. If build fails, use -DGSL_DIR=/path/to/gsl/headers/ or install to default location")
+endif()
+MESSAGE("GSLCBLAS_INCLUDE_DIR is ${GSLCBLAS_INCLUDE_DIR}")
+SET (GSLCBLAS_LIBRARY_DIR "${GSL_DIR}/lib64/")
+include_directories (${GSLCBLAS_INCLUDE_DIR})
+link_directories (${GSLCBLAS_LIBRARY_DIR})
+MESSAGE("GSLCBLAS_LIBRARY_DIR is ${GSLCBLAS_LIBRARY_DIR}")
+SET (GSL_INCLUDE_DIR "${GSL_DIR}/include/")
+MESSAGE("GSL_INCLUDE_DIR is ${GSL_INCLUDE_DIR}")
+SET (GSL_LIBRARY_DIR "${GSL_DIR}/lib64/")
+MESSAGE("GSL_LIBRARY_DIR is ${GSL_LIBRARY_DIR}")
+include_directories (${GSL_INCLUDE_DIR})
+link_directories (${GSL_LIBRARY_DIR})
+
+
 #define possible flags
 SET (CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -O3 -msse2 -mssse3 -fexpensive-optimizations -std=c++11 ")
 SET (CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -O3 -msse2 -mssse3 -fexpensive-optimizations -std=c++11 ")

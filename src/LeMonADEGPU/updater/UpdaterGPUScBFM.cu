@@ -57,6 +57,7 @@ using T_Coordinate       = UpdaterGPUScBFM< uint8_t >::T_Coordinate ;
 using T_Coordinates      = UpdaterGPUScBFM< uint8_t >::T_Coordinates;
 using T_Id               = UpdaterGPUScBFM< uint8_t >::T_Id         ;
 using getBitPackedTextureFunction = UpdaterGPUScBFM<uint8_t>::getBitPackedTextureFunction;
+__device__ __constant__ double prob_d;  // probability for the shear force 
 // __device__ getBitPackedTextureFunction functor = &BitPacking::bitPackedTextureGetStandard;        
 
 // typedef  T_Lattice (BitPacking::*getBitPackedTextureFunction)(cudaTextureObject_t tex, int i) const ; 
@@ -342,6 +343,35 @@ MAKEINSTANCE(int16_t);
 MAKEINSTANCE(int32_t);
 #undef MAKEINSTANCE
 
+/**
+ * @brief function calculating applying a shear force
+ * @details doing the Metropolis-criterion for movement
+ * dU = gamma*dr
+ * slice z=0 && z=1 -> right gamma=(1,0,0) -> dU = dx
+ * slice z is [Box/2-3;Box/2+1] -> left gamma=(-1,0,0) -> dU = -dx
+ * slice z=Box-1 && z=Box-2 -> right gamma=(1,0,0) -> dU = dx
+ * otherwise -> always allowed
+ */
+template <class T_UCoordinateCuda >
+__device__  bool shearForce( int32_t dx, T_UCoordinateCuda z, double random_number ){
+    if( dx == 0 ) return true;
+    //this should be either +1 or -1 
+    auto  prefactorPot = dx;
+    if(z < 2) prefactorPot *= 1;
+    else if((z <= (dcBoxZ/2+1)) && (z > (dcBoxZ/2-3)) ) prefactorPot *= -1;
+    else if(z >= (dcBoxZ-2) ) prefactorPot = +1;
+    else return true;
+
+    //  Metropolis-criterion is only necessary if the prefactor is +1
+    // otherwise the probability p=exp(-gamma*dr) is always greater one 
+    // and the move is possible, thus in direction of the force
+    if( prefactorPot == 1 ){
+        if( random_number < prob_d) return true;
+        else                        return false; 
+    }
+    return true;
+}
+
 namespace {
 
 /**
@@ -390,42 +420,43 @@ __global__ void kernelSimulationScBFMCheckSpecies
     BoxCheck                               bCheck, 
     Method              const              met,
     BondVectorSet       const              checkBondVector
-)
-{
+){
     uint32_t rn;
+    double rnd;
     int iGrid = 0;
     for ( auto iMonomer = blockIdx.x * blockDim.x + threadIdx.x;
-          iMonomer < nMonomers; iMonomer += gridDim.x * blockDim.x, ++iGrid )
-    {
+          iMonomer < nMonomers; iMonomer += gridDim.x * blockDim.x, ++iGrid ){
         auto const r0 = dpPolymerSystem[ iOffset + iMonomer ];
         /* upcast int3 to int4 in preparation to use PTX SIMD instructions */
         //int4 const r0 = { r0Raw.x, r0Raw.y, r0Raw.z, 0 }; // not faster nor slower
         //select random direction. Own implementation of an rng :S? But I think it at least# was initialized using the LeMonADE RNG ...
         if ( iGrid % 1 == 0 ) // 12 = floor( log(2^32) / log(6) )
         {
-	  Saru rng(rGlobalIteration,iMonomer,rSeed);
-	  rn =rng.rng32();
+            Saru rng(rGlobalIteration,iMonomer,rSeed);
+            rn =rng.rng32();
+            rnd=rng.rng_d();
         }
         int direction = rn % moveSize;
 
-         /* select random direction. Do this with bitmasking instead of lookup ??? */
+        /* select random direction. Do this with bitmasking instead of lookup ??? */
         typename CudaVec4< T_UCoordinateCuda >::value_type const r1 = {
             T_UCoordinateCuda( r0.x + DXTable_d[ direction ] ),
             T_UCoordinateCuda( r0.y + DYTable_d[ direction ] ),
             T_UCoordinateCuda( r0.z + DZTable_d[ direction ] )
         };
-	if (    bCheck(r1.x,r1.y,r1.z) && 
-	      ! checkNeighboringBonds<T_UCoordinateCuda>(dpNeighborsSizes, iMonomer, dpNeighbors, rNeighborsPitchElements, dpPolymerSystem, r1, checkBondVector ) && 
-	      ! checkFront( texLatticeRefOut, r0.x, r0.y, r0.z, direction, met, &BitPacking::bitPackedTextureGetStandard ) )
-	{
-	    /* everything fits so perform move on temporary lattice */
-	    /* can I do this ??? dpPolymerSystem is the device pointer to the read-only
-	      * texture used above. Won't this result in read-after-write race-conditions?
-	      * Then again the written / changed bits are never used in the above code ... */
-	    direction += T_Flags(32) /* can-move-flag */;
-	    met.getPacking().bitPackedSet(dpLatticeTmp, met.getCurve().linearizeBoxVectorIndex( r1.x, r1.y, r1.z ));
-	}
-
+        
+        if (    bCheck(r1.x,r1.y,r1.z) && 
+            ! checkNeighboringBonds<T_UCoordinateCuda>(dpNeighborsSizes, iMonomer, dpNeighbors, rNeighborsPitchElements, dpPolymerSystem, r1, checkBondVector ) && 
+            ! checkFront( texLatticeRefOut, r0.x, r0.y, r0.z, direction, met, &BitPacking::bitPackedTextureGetStandard )  && 
+            shearForce(DXTable_d[ direction ],r0.z& dcBoxXM1,rnd) 
+        ){
+            /* everything fits so perform move on temporary lattice */
+            /* can I do this ??? dpPolymerSystem is the device pointer to the read-only
+            * texture used above. Won't this result in read-after-write race-conditions?
+            * Then again the written / changed bits are never used in the above code ... */
+            direction += T_Flags(32) /* can-move-flag */;
+            met.getPacking().bitPackedSet(dpLatticeTmp, met.getCurve().linearizeBoxVectorIndex( r1.x, r1.y, r1.z ));
+        }
         dpPolymerFlags[ iMonomer ] = direction;
     }
 }
@@ -1160,22 +1191,19 @@ void UpdaterGPUScBFM< T_UCoordinateCuda >::initializeSpeciesSorting( void )
       // mGroupIds is std::vector< T_Color >, i.e., std::vector< uint32_t >
 
       /* split colors for the parallel -> serial transition tests */
-      if ( mnSplitColors > 0 )
-      {
+      if ( mnSplitColors > 0 ){
 	  /* count colors */
 	  std::map< T_Color, bool > usedColors;
 	  for ( auto const & x : mGroupIds )
 	      usedColors[ x ] = true;
 	  auto nColors = usedColors.size();
 	  /* assert that colors were given from 0 increasing */
-	  for ( auto i = 0u; i < nColors; ++i )
-	  {
+	  for ( auto i = 0u; i < nColors; ++i ){
 	      if ( !( usedColors.find( i ) != usedColors.end() ) )
 		  throw std::runtime_error( "The color splitting algorithm does not work if the initial colors are anything but 0,1,2,...,nColors-1" );
 	  }
 	  std::map< T_Color, bool > colorWasChanged;
-	  for ( auto i = 0u; i < mnSplitColors; ++i )
-	  {
+	  for ( auto i = 0u; i < mnSplitColors; ++i ){
 	      #if 1
 	      /* split in an interleaved fashion like ABCDABCDABCDABCD */
 	      for ( auto iColor = 0u; iColor < nColors; ++iColor )
@@ -1239,7 +1267,7 @@ void UpdaterGPUScBFM< T_UCoordinateCuda >::initializeSpeciesSorting( void )
 
 	      #endif
 	      nColors *= 2;
-	  }
+	    }
       }
     
       /* check automatic coloring with that given in BFM-file */
@@ -2201,7 +2229,12 @@ void UpdaterGPUScBFM< T_UCoordinateCuda >::initialize( void )
     CUDA_ERROR( cudaGetDevice( &miGpuToUse ) );
     CUDA_ERROR( cudaGetDeviceProperties( &mCudaProps, miGpuToUse ) );
 }
-
+template< typename T_UCoordinateCuda >
+void UpdaterGPUScBFM< T_UCoordinateCuda >::setShearForce
+( double shearForce ){
+    double  prob = exp(-shearForce);
+    CUDA_ERROR( cudaMemcpyToSymbol( prob_d, &prob, sizeof( prob ) ) );
+}
 
 template< typename T_UCoordinateCuda >
 void UpdaterGPUScBFM< T_UCoordinateCuda >::copyBondSet

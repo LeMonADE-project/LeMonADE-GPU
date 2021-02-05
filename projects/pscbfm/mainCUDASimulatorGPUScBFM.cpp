@@ -14,7 +14,7 @@
 #include <LeMonADE/feature/FeatureMoleculesIOUnsaveCheck.h>
 #include <LeMonADE/feature/FeatureAttributes.h>
 #include <LeMonADE/feature/FeatureExcludedVolumeSc.h>
-#include <LeMonADE/feature/FeatureFixedMonomers.h>
+#include <LeMonADE/feature/FeatureShearForce.h>
 #include <LeMonADE/utility/TaskManager.h>
 #include <LeMonADE/updater/UpdaterReadBfmFile.h>
 #include <LeMonADE/updater/UpdaterSimpleSimulator.h>
@@ -26,6 +26,8 @@
 #include "../analyzer/AnalyzerCrossLinkMSD.h"
 #include "../analyzer/AnalyzerMonomerMSD.h"
 #include "../analyzer/AnalyzerSystemMSD.h"
+
+#include "../analyzer/AnalyzerShearStrain.h"
 
 void printHelp(void)
 {
@@ -167,7 +169,8 @@ int main(int argc, char **argv)
         */
         //         typedef LOKI_TYPELIST_4( FeatureMoleculesIO, FeatureAttributes<>,
         //                                  FeatureExcludedVolumeSc<>, FeatureConnectionSc ) Features;
-        typedef LOKI_TYPELIST_4(FeatureMoleculesIOUnsaveCheck, FeatureAttributes<>, FeatureExcludedVolumeSc<>, FeatureConnectionSc) Features;
+        // typedef LOKI_TYPELIST_4(FeatureMoleculesIOUnsaveCheck, FeatureAttributes<>, FeatureExcludedVolumeSc<>, FeatureConnectionSc) Features;
+        typedef LOKI_TYPELIST_5(FeatureMoleculesIOUnsaveCheck, FeatureAttributes<>, FeatureExcludedVolumeSc<>, FeatureConnectionSc, FeatureShearForce) Features;
         // 	typedef LOKI_TYPELIST_3( FeatureMoleculesIOUnsaveCheck, FeatureAttributes<>, FeatureConnectionSc ) Features;
 
         typedef ConfigureSystem<VectorInt3, Features, 8> Config;
@@ -202,6 +205,7 @@ int main(int argc, char **argv)
             taskmanager.addAnalyzer(new AnalyzerMonomerMSD<Ing>(myIngredients, 0));
             taskmanager.addAnalyzer(new AnalyzerCrossLinkMSD<Ing>(myIngredients, 0));
         }
+        taskmanager.addAnalyzer(new AnalyzerShearStrain<Ing>(myIngredients, "shearStrain") );
         taskmanager.addAnalyzer(new AnalyzerWriteBfmFile<Ing>(outfile, myIngredients));
         taskmanager.addAnalyzer(new AnalyzerWriteBfmFile<Ing>("LastConfig.bfm", myIngredients, AnalyzerWriteBfmFile<Ing>::OVERWRITE));
 

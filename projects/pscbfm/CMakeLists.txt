@@ -49,8 +49,8 @@ cuda_add_executable( mainSimulator mainCUDASimulatorGPUScBFM.cpp )
 # make -j, i.e. target Example1 will only be compiled after target
 # libLeMonADE-static finished successfully
 if( ( NOT DEFINED project_build_static ) OR ( project_build_static ) )
-    target_link_libraries(mainSimulator libLeMonADEGPU-static LeMonADE cuda ${CUDA_curand_LIBRARY} )
+    target_link_libraries(mainSimulator libLeMonADEGPU-static LeMonADE cuda gsl gslcblas ${CUDA_curand_LIBRARY} )
 else()
     link_directories ("${CMAKE_BINARY_DIR}/lib/")
-    target_link_libraries(mainSimulator LeMonADEGPU LeMonADE cuda ${CUDA_curand_LIBRARY} )
+    target_link_libraries(mainSimulator LeMonADEGPU LeMonADE cuda gsl gslcblas ${CUDA_curand_LIBRARY} )
 endif()

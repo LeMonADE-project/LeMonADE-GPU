@@ -15,6 +15,7 @@
 #include <LeMonADE/feature/FeatureReactiveBonds.h>
 #include <LeMonADE/feature/FeatureAttributes.h>
 #include <LeMonADE/feature/FeatureExcludedVolumeSc.h>
+#include <LeMonADE/feature/FeatureShearForce.h>
 #include <LeMonADE/feature/FeatureLabel.h>
 #include <LeMonADE/utility/TaskManager.h>
 #include <LeMonADE/updater/UpdaterReadBfmFile.h>
@@ -28,6 +29,9 @@
 #include "../analyzer/AnalyzerCrossLinkMSD.h"
 #include "../analyzer/AnalyzerMonomerMSD.h"
 #include "../analyzer/AnalyzerSystemMSD.h"
+
+#include "../analyzer/AnalyzerShearStrain.h"
+#include "../analyzer/AnalyzerWriteBfmFileEachConfig.h"
 
 void printHelp( void )
 {
@@ -50,10 +54,16 @@ void printHelp( void )
         << "        Increase the box size if monomer touch the boundary.\n"
         << "    -o, --output <file path>\n"
         << "        All intermediate steps at each save-interval will be appended to this file even if it already exists\n"
-	<< "    -d, --diagonal <integer> \n"
+        << "    -c, --each-config <integer>\n"
+        << "        0: Append/newfile to the output and LastConfig.bfm\n"
+        << "        1: Append/newfile to the output, LastConfig.bfm and each mcs into a single file\n"
+        << "        2: Append/newfile to the output and each mcs into a single file\n"
+        << "    -t, --shear-strain-file <file path>\n"
+        << "        Name of the file for the shear strain vs mcs. "
+	    << "    -d, --diagonal <integer> \n"
         << "        0: use standard moves for all monomers \n"
-	<< "        1: use diagonal moves for all monomers \n"
-	<< "        2: use standard moves for all monomers in the elastic chain and diagonal moves for the pending chain \n"
+        << "        1: use diagonal moves for all monomers \n"
+        // << "        2: use standard moves for all monomers in the elastic chain and diagonal moves for the pending chain \n"
         << "    -v, --version\n"
         ;
     std::cout << msg.str();
@@ -73,6 +83,8 @@ int main( int argc, char ** argv )
     std::string seedFileName = "";
     int diagonalMoves        = 0; 
     uint32_t boundarySize(0);
+    int write_type(0);
+    std::string outfile_shear("ShearStrain.dat");
     try
     {
 
@@ -92,15 +104,17 @@ int main( int argc, char ** argv )
                 { "initial-state", required_argument, 0, 'i' },
                 { "max-mcs"      , required_argument, 0, 'm' },
                 { "output"       , required_argument, 0, 'o' },
+                { "write_type"   , required_argument, 0, 'c' },
+                { "outfile_shear", required_argument, 0, 't' },
                 { "boundary"     , required_argument, 0, 'b' },
                 { "rng"          , required_argument, 0, 'r' },
                 { "save-interval", required_argument, 0, 's' },
-		{ "diagonal", required_argument, 0, 'd' },
+		        { "diagonal", required_argument, 0, 'd' },
                 { 0, 0, 0, 0 }    // signal end of list
             };
             /* getopt_long stores the option index here. */
             int option_index = 0;
-            int c = getopt_long( argc, argv, "e:g:hi:m:o:b:r:s:d:", long_options, &option_index );
+            int c = getopt_long( argc, argv, "e:g:hi:m:o:c:t:b:r:s:d:", long_options, &option_index );
 
             if ( c == -1 )
                 break;
@@ -113,11 +127,13 @@ int main( int argc, char ** argv )
                 case 'i': infile        = std::string( optarg ); break;
                 case 'm': max_mcs       = std::atol  ( optarg ); break;
                 case 'o': outfile       = std::string( optarg ); break;
+                case 't': outfile_shear = std::string( optarg ); break;
+                case 'c': write_type    = std::atoi  ( optarg ); break;
                 case 'r': iRngToUse     = std::atoi  ( optarg ); break;
-                case 'b': boundarySize     = std::atoi  ( optarg ); break;
+                case 'b': boundarySize  = std::atoi  ( optarg ); break;
                 case 's': save_interval = std::atol  ( optarg ); break;
-		case 'd': diagonalMoves = std::atoi  ( optarg ); break;
-                    break;
+        		case 'd': diagonalMoves = std::atoi  ( optarg ); break;
+                break;
                 default:
                     std::cerr << "Unknown option encountered: " << optarg << "\n";
                     return 1;
@@ -148,8 +164,8 @@ int main( int argc, char ** argv )
 //                                  FeatureExcludedVolumeSc<>, FeatureConnectionSc ) Features;
 //         typedef LOKI_TYPELIST_5( FeatureMoleculesIOUnsaveCheck, FeatureAttributes<>,
 //                                  FeatureExcludedVolumeSc<>, FeatureConnectionSc, FeatureLabel ) Features;
-        typedef LOKI_TYPELIST_5( FeatureMoleculesIOUnsaveCheck, FeatureAttributes<>,
-                                 FeatureExcludedVolumeSc<>, FeatureLabel, FeatureReactiveBonds ) Features;
+        typedef LOKI_TYPELIST_6( FeatureMoleculesIOUnsaveCheck, FeatureAttributes<>,
+                                 FeatureExcludedVolumeSc<>, FeatureLabel, FeatureReactiveBonds, FeatureShearForce ) Features;
 				 
         typedef ConfigureSystem< VectorInt3, Features, 8 > Config;
         typedef Ingredients< Config > Ing;
@@ -172,8 +188,7 @@ int main( int argc, char ** argv )
 
         TaskManager taskmanager;
         taskmanager.addUpdater( new UpdaterReadBfmFile<Ing>( infile, myIngredients,UpdaterReadBfmFile<Ing>::READ_LAST_CONFIG_SAVE ), 0 );
-        //here you can choose to use MoveLocalBcc instead. Careful though: no real tests made yet
-        //(other than for latticeOccupation, valid bonds, frozen monomers...)
+        //if swelling simulations are done the box size can be adjusted here
         if ( boundarySize > 0 )
           taskmanager.addUpdater( new UpdaterSwellBox<Ing>( myIngredients, 800, 32, boundarySize ));
         taskmanager.addUpdater( pUpdaterGpu );
@@ -184,8 +199,29 @@ int main( int argc, char ** argv )
 // 	  taskmanager.addAnalyzer( new AnalyzerMonomerMSD  <Ing>( myIngredients, 0       ) );
 // 	  taskmanager.addAnalyzer( new AnalyzerCrossLinkMSD<Ing>( myIngredients, 0       ) );
 // 	}
+        //analyer for the shear strain (on the fly )
+        taskmanager.addAnalyzer(new AnalyzerShearStrain<Ing>(myIngredients, outfile_shear) );
+        //append/newfile to outfile
         taskmanager.addAnalyzer( new AnalyzerWriteBfmFile<Ing>( outfile, myIngredients ) );
-	taskmanager.addAnalyzer( new AnalyzerWriteBfmFile<Ing>( "LastConfig.bfm", myIngredients, AnalyzerWriteBfmFile<Ing>::OVERWRITE ) );
+
+        // erase the '.bfm' suffix from the outfile name to be used in the AanlyzerWriteBFM EachConfig 
+        std::string toErase(".bfm");
+        std::string basename(outfile);
+        size_t pos = basename.find(toErase);
+        if (pos != std::string::npos){
+            // If found then erase it from string
+            basename.erase(pos, toErase.length());
+        }
+        //append analyzer to the program:
+        switch (write_type){
+            case 0 : taskmanager.addAnalyzer( new AnalyzerWriteBfmFile<Ing>( "LastConfig.bfm", myIngredients, AnalyzerWriteBfmFile<Ing>::OVERWRITE ) ); 
+                     break; 
+            case 1 : taskmanager.addAnalyzer( new AnalyzerWriteBfmFile<Ing>( "LastConfig.bfm", myIngredients, AnalyzerWriteBfmFile<Ing>::OVERWRITE ) ); 
+                     taskmanager.addAnalyzer( new AnalyzerWriteBfmFileEachConfig<Ing>( basename , myIngredients ) );
+                     break; 
+            case 2 : taskmanager.addAnalyzer( new AnalyzerWriteBfmFileEachConfig<Ing>( basename , myIngredients ) );
+                     break; 
+        }
 
         taskmanager.initialize();
 

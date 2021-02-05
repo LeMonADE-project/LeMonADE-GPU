@@ -184,7 +184,10 @@ public:
 
         mLog("Info") << "[" << __FILENAME__ << "::initialize] set move type (either standard, diagonal moves or partial diagonal moves for pending chain)\n";
         mUpdaterGpu.setMoveType(mDiagMovesOn);
-
+        if ( mIngredients.isForceOn() )
+            mUpdaterGpu.setShearForce(mIngredients.getAmplitudeShearForce());
+        else 
+            mUpdaterGpu.setShearForce(0);
         Method met;
         met.modifyCurve().setBox(mIngredients.getBoxX(), mIngredients.getBoxY(), mIngredients.getBoxZ());
         met.modifyPacking().setBitPackingOn(false);         //only for power rof two lattices

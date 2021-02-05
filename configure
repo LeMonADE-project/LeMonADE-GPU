@@ -39,6 +39,11 @@ for arg in "$@"; do
 			TESTOPTION=${arg#*=}
 			echo "LeMonADE-lib is installed in "$TESTOPTION
 			;;
+	-DGSL_DIR=*)
+			CMAKE_ARGUMENTS+=${arg}" "
+			TESTOPTION=${arg#*=}
+			echo "GLS-lib is installed in "$TESTOPTION
+			;;
 	-DBUILDDIR=*)           
 			BUILDDIR=${arg#*=}
 			echo "Build directory set to "$BUILDDIR

@@ -64,7 +64,7 @@ private:
     bool mSetStepsBetweenSortings;
     uint8_t mnSplitColors;
     bool mDiagMovesOn; 
-
+    // double shearForce;
 protected:
     inline T_IngredientsType & getIngredients() { return mIngredients; }
 
@@ -80,7 +80,7 @@ public:
     (
         T_IngredientsType & rIngredients,
         uint32_t            rnSteps     ,
-	bool                mDiagMovesOn_ = false,
+	    bool                mDiagMovesOn_ = false,
         int                 riGpuToUse = 0
     )
     : mIngredients( rIngredients                   ),
@@ -90,7 +90,8 @@ public:
       mLog        ( __FILENAME__                   ),
       mSetStepsBetweenSortings( false ),
       mDiagMovesOn(mDiagMovesOn_),
-      mnSplitColors( 0 )
+      mnSplitColors( 0 )//,
+    //   shearForce (0.0)
     {
         mLog.deactivate( "Check"     );
         mLog.deactivate( "Error"     );
@@ -110,6 +111,7 @@ public:
         mLog.activate( sLevel );
     }
 
+    // inline void setShearForce(double shearForce_) {shearForce=shearForce_;}
     inline void setGpu( int riGpuToUse ){ miGpuToUse = riGpuToUse; }
     inline void setStepsBetweenSortings( int rnStepsBetweenSortings )
     {
@@ -131,7 +133,7 @@ public:
         UpdaterGPUScBFM< T_UCoordinateCuda > & mUpdaterGpu = mUpdatersGpu;
 
         mUpdaterGpu.setSplitColors( mnSplitColors );
-	mUpdaterGpu.setAutoColoring(true);
+	    mUpdaterGpu.setAutoColoring(true);
         mLog( "Info" ) << "Size of mUpdater: " << sizeof( mUpdaterGpu ) << " Byte\n";
         mLog( "Info" ) << "Size of WrappedTemplatedUpdaters: " << sizeof( WrappedTemplatedUpdaters ) << " Byte\n";
 
@@ -164,7 +166,7 @@ public:
         }
         mLog( "Info" ) << "[" << __FILENAME__ << "::initialize] mUpdaterGpu.setAttribute\n";
         for ( size_t i = 0u; i < mIngredients.getMolecules().size(); ++i )
-	  mUpdaterGpu.setAttributeTag( i, mIngredients.getMolecules()[i].getAttributeTag() );
+	        mUpdaterGpu.setAttributeTag( i, mIngredients.getMolecules()[i].getAttributeTag() );
 
         mLog( "Info" ) << "[" << __FILENAME__ << "::initialize] mUpdaterGpu.setConnectivity\n";
         for ( size_t i = 0u; i < mIngredients.getMolecules().size(); ++i )
@@ -186,14 +188,17 @@ public:
         }
         mLog( "Info" ) << "[" << __FILENAME__ << "::initialize] set move type (either standard or diagonal moves)\n";
         mUpdaterGpu.setDiagonalMovesOn(mDiagMovesOn);
-
-	Method met;
- 	met.modifyCurve().setMode(2);
- 	met.modifyCurve().setBox(mIngredients.getBoxX(),mIngredients.getBoxY(),mIngredients.getBoxZ());
-	met.modifyPacking().setBitPackingOn(true);
-	met.modifyPacking().setNBufferedTmpLatticeOn(true);
-	met.setOnGPUForOverhead(true);
- 	mUpdaterGpu.setMethod(met);
+        if ( mIngredients.isForceOn() )
+            mUpdaterGpu.setShearForce(mIngredients.getAmplitudeShearForce());
+        else 
+            mUpdaterGpu.setShearForce(0);
+        Method met;
+        met.modifyCurve().setMode(2);
+        met.modifyCurve().setBox(mIngredients.getBoxX(),mIngredients.getBoxY(),mIngredients.getBoxZ());
+        met.modifyPacking().setBitPackingOn(true);
+        met.modifyPacking().setNBufferedTmpLatticeOn(true);
+        met.setOnGPUForOverhead(true);
+        mUpdaterGpu.setMethod(met);
 
 	
         mLog( "Info" ) << "[" << __FILENAME__ << "::initialize] initialize GPU updater\n";
@@ -220,7 +225,7 @@ public:
         mLog( "Info" ) << "[" << __FILENAME__ << "] start simulation on GPU\n";
 
         mUpdaterGpu.setAge( mIngredients.modifyMolecules().getAge() );
-	mUpdaterGpu.runSimulationOnGPU( mnSteps ); 
+	    mUpdaterGpu.runSimulationOnGPU( mnSteps ); 
 
         // copy back positions of all monomers
         mLog( "Info" ) << "[" << __FILENAME__ << "] copy back monomers from GPU updater to CPU 'molecules' to be used with analyzers\n";

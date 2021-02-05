@@ -372,6 +372,7 @@ public:
     /* setter methods */
     void setGpu               ( int iGpuToUse );
     void copyBondSet          ( int dx, int dy, int dz, bool bondForbidden );
+    void setShearForce        ( double shearForce );
     void setNrOfAllMonomers   ( T_Id nAllMonomers );
     void setAutoColoring      ( bool bSetAutoColoring_);
     void setAttributeTag      ( T_Id i, int32_t attribute ); // this is to be NOT the coloring as needed for parallelizing the BFM, it is to be used for additional e.g. physical attributes like actual chemical types
