@@ -366,7 +366,8 @@ void UpdaterGPUScBFM_TendomersConnection<T_UCoordinateCuda>::launch_MoveLabel(
      uint64_t            const              rSeed                    ,
      uint64_t            const              rGlobalIteration         ,
      BoxCheck                               bCheck, 
-     Method              const              met
+     Method              const              met,
+     T_Id        const * const              dChainIDToFirstX
  ){
     uint32_t rn;
     int iGrid = 0;
@@ -394,7 +395,9 @@ void UpdaterGPUScBFM_TendomersConnection<T_UCoordinateCuda>::launch_MoveLabel(
         auto const PartnerlatticeEntry = dLatticeIds[met.getCurve().linearizeBoxVectorIndex(r1.x,r1.y,r1.z )];
         // 	printf("ID_X=%d, ID_X=%d , IC_c=%d, (%d,%d,%d), (%d,%d,%d)\n", iOffset + iMonomer, iMonomer, PartnerlatticeEntry-1, r1.x,r1.y,r1.z ,r0.x,r0.y,r0.z);
         //Partner Id start at 1!!!
+        //check if the cross link is already connected to the tendomer 
         if ( PartnerlatticeEntry == 0 ) continue; //is not reactive for 0  or cross link (do not allow connections betweeen cross links)
+        if ( dChainIDToFirstX[((PartnerlatticeEntry-1)-((PartnerlatticeEntry-1)%2))/2] == iOffset + iMonomer ) continue ;
         if ( dcChainMaxNumLinks == dpNeighborsSizesChain[ PartnerlatticeEntry -1 ] ) continue; //already max number of connections for the chain
             dpFlag[ iMonomer + 1 ] = PartnerlatticeEntry ; 
     }
@@ -416,7 +419,8 @@ void UpdaterGPUScBFM_TendomersConnection<T_UCoordinateCuda>::launch_MoveLabel(
        seed, 
        hGlobalIterator,  
        boxCheck,                                       
-       met
+       met,
+       mChainIDToFirstX->gpu
    );
    hGlobalIterator++;
    //reset vectors 
@@ -454,8 +458,9 @@ void UpdaterGPUScBFM_TendomersConnection<T_UCoordinateCuda>::launch_MoveLabel(
      uint32_t            const              rNeighborsPitchElementsPartner ,
      uint8_t           * const              dpNeighborsSizesMonomer ,
      uint8_t           * const              dpNeighborsSizesPartner ,
-     uint32_t 		const 		   iOffsetCrossLinks       ,
-     uint32_t 		const 		   iOffsetChains
+     uint32_t 		       const 		          iOffsetCrossLinks       ,
+     uint32_t 	         const 	      	    iOffsetChains,
+     T_Id              * const              dChainIDToFirstX
  ){
      for ( auto i = blockIdx.x * blockDim.x + threadIdx.x;
            i < flagArraySize; i += gridDim.x * blockDim.x )
@@ -470,6 +475,7 @@ void UpdaterGPUScBFM_TendomersConnection<T_UCoordinateCuda>::launch_MoveLabel(
        dpNeighborsPartner[ dpNeighborsSizesPartner[ iPartner ] * rNeighborsPitchElementsPartner + iPartner ] = iOffsetCrossLinks + iMonomer; 
        dpNeighborsSizesMonomer[ iMonomer ]++;
        dpNeighborsSizesPartner[ iPartner ]++; 
+       dChainIDToFirstX[(iPartner-( iPartner % 2))/2] = iOffsetCrossLinks + iMonomer;
  //       printf(" %d Connect monomers: %d with %d , %d ,%d ,%d ,%d \n", i,iMonomer, iPartner, 
  // 	     dpNeighborsMonomer[ (dpNeighborsSizesMonomer[ iMonomer ]-1) * rNeighborsPitchElementsMonomer + iMonomer ], 
  // 	     dpNeighborsPartner[ (dpNeighborsSizesPartner[ iPartner ]-1) * rNeighborsPitchElementsPartner + iPartner ],
@@ -497,7 +503,8 @@ void UpdaterGPUScBFM_TendomersConnection< T_UCoordinateCuda >::launch_ApplyConne
     mNeighborsSortedSizes->gpu + mviSubGroupOffsets[ MonomerSpecies ],
     mNeighborsSortedSizes->gpu + mviSubGroupOffsets[ PartnerSpecies ],
     mviSubGroupOffsets[ MonomerSpecies ],   
-    mviSubGroupOffsets[ PartnerSpecies ]
+    mviSubGroupOffsets[ PartnerSpecies ],
+    mChainIDToFirstX->gpu
   );
   CUDA_ERROR( cudaStreamSynchronize( mStream ) );
   tracker.trackConnections( mCrossLinkIDS, mCrossLinkFlags, flagArraySize, 
@@ -520,6 +527,7 @@ functionality         ( 0    ),
 mLatticeIds                 ( NULL ),
 mCrossLinkFlags             ( NULL ),
 mCrossLinkIDS               ( NULL ),
+mChainIDToFirstX            ( NULL ),
 nReactiveMonomers           ( 0    ),
 nReactiveMonomersChains     ( 0    ),
 nReactiveMonomersCrossLinks ( 0    )
@@ -588,9 +596,9 @@ void UpdaterGPUScBFM_TendomersConnection<T_UCoordinateCuda>::initialize()
   /*I assume a tendomer as a building block with m rings threaded between the slip link and one 
   *chain end. (ID with asterik are occupied by a slide ring/slip link)
   *             tendomer(IDs)                      tendomer(colors)
-  *   00*-01*-02-03*-04-05-06-07-08-x          A*-B*-A-B*-A-B-A-B-E-...
-  *     	   /  			 -->             /
-  * x-09-10-11-12*-13*-14-15*-16           ...E-C-D-C-D*-C*-D-C*-D
+  *   00*-01*-02-03*-04-05-06-07-08-x         E*-F*-E-F*-E-F-E-B-A-...
+  *     	       /              			 -->             /
+  * x-09-10-11-12*-13*-14-15*-16           ...A-B-D-C-D*-C*-D-C*-D
   */
    
   mGroupIds.resize(mnAllMonomers,0);
@@ -664,13 +672,18 @@ void UpdaterGPUScBFM_TendomersConnection<T_UCoordinateCuda>::initialize()
   initializeReactiveLattice();
   mLog( "Info" )<< "Initialize lattice.done. \n" ;
   tracker.init(10, flagArraySize, mStream, mBoxX, mBoxY,mBoxZ, nMonomersPerChain, nTendomers);
+  mChainIDToFirstX = new  MirroredVector< T_Id > ( nTendomers  );
+  miToiNew->pop();  
   // run over all crosslinks and check wheter they have already some connections to a  chain
   for (size_t i=2*nTendomers*nMonomersPerChain ;i<mnAllMonomers; i++ ){
     for (size_t j =0; j < BaseClass::getNumLinks(i); j++){
-      tracker.addCrosslinkConnection( BaseClass::getNeighborIdx(i,j), i );
+      auto monID(BaseClass::getNeighborIdx(i,j));
+      tracker.addCrosslinkConnection( monID, i );
+      auto ChainID = (monID/nMonomersPerChain - ( (monID/nMonomersPerChain) % 2) )/2;
+      mChainIDToFirstX->host[ChainID]=miToiNew->host[i]+1;
     }
   }
-  miToiNew->pop();
+  mChainIDToFirstX->pushAsync();
   CUDA_ERROR( cudaStreamSynchronize( mStream ) ); // finish e.g. initializations
   tracker.pushToGPU(miToiNew->host);
   mLog( "Info" ) << "nReactiveMonomersCrossLinks = " << nReactiveMonomersCrossLinks+1 <<"\n";

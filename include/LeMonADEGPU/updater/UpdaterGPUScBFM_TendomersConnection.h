@@ -148,6 +148,13 @@ private:
      * at the moment unused because not working correctly
      */
     MirroredTexture<  uint8_t > * moveType;
+    /**used to supress 1.order loops
+     * maps chain id to crosslinkid
+     * if a connection partner for a cross link is found 
+     * this partner is only accepted if the chain has not 
+     * already a connection to this particular cross link
+     */
+    MirroredVector < T_Id > * mChainIDToFirstX;
     ///////////////////////end label part    //////////////////
 public:
   
