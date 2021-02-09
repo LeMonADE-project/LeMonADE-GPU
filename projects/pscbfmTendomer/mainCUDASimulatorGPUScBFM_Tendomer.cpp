@@ -205,13 +205,11 @@ int main( int argc, char ** argv )
         taskmanager.addAnalyzer( new AnalyzerWriteBfmFile<Ing>( outfile, myIngredients ) );
 
         // erase the '.bfm' suffix from the outfile name to be used in the AanlyzerWriteBFM EachConfig 
-        std::string toErase(".bfm");
+        std::string toErase("MCS*.bfm");
         std::string basename(outfile);
         size_t pos = basename.find(toErase);
-        if (pos != std::string::npos){
-            // If found then erase it from string
-            basename.erase(pos, toErase.length());
-        }
+        if (pos != std::string::npos) basename.erase(pos, toErase.length());
+
         //append analyzer to the program:
         switch (write_type){
             case 0 : taskmanager.addAnalyzer( new AnalyzerWriteBfmFile<Ing>( "LastConfig.bfm", myIngredients, AnalyzerWriteBfmFile<Ing>::OVERWRITE ) ); 
