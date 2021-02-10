@@ -85,6 +85,7 @@ int main( int argc, char ** argv )
     uint32_t boundarySize(0);
     int write_type(0);
     std::string outfile_shear("ShearStrain.dat");
+    bool analyzeShearStrainON=false;
     try
     {
 
@@ -127,7 +128,7 @@ int main( int argc, char ** argv )
                 case 'i': infile        = std::string( optarg ); break;
                 case 'm': max_mcs       = std::atol  ( optarg ); break;
                 case 'o': outfile       = std::string( optarg ); break;
-                case 't': outfile_shear = std::string( optarg ); break;
+                case 't': outfile_shear = std::string( optarg );analyzeShearStrainON=true; break;
                 case 'c': write_type    = std::atoi  ( optarg ); break;
                 case 'r': iRngToUse     = std::atoi  ( optarg ); break;
                 case 'b': boundarySize  = std::atoi  ( optarg ); break;
@@ -191,6 +192,7 @@ int main( int argc, char ** argv )
         //if swelling simulations are done the box size can be adjusted here
         if ( boundarySize > 0 )
           taskmanager.addUpdater( new UpdaterSwellBox<Ing>( myIngredients, 800, 32, boundarySize ));
+        //updater for the moves of the monomers and labels 
         taskmanager.addUpdater( pUpdaterGpu );
         
 // 	if (analyzeON)
@@ -200,16 +202,18 @@ int main( int argc, char ** argv )
 // 	  taskmanager.addAnalyzer( new AnalyzerCrossLinkMSD<Ing>( myIngredients, 0       ) );
 // 	}
         //analyer for the shear strain (on the fly )
-        taskmanager.addAnalyzer(new AnalyzerShearStrain<Ing>(myIngredients, outfile_shear) );
+        if (analyzeShearStrainON)
+            taskmanager.addAnalyzer(new AnalyzerShearStrain<Ing>(myIngredients, outfile_shear) );
         //append/newfile to outfile
-        taskmanager.addAnalyzer( new AnalyzerWriteBfmFile<Ing>( outfile, myIngredients ) );
+        taskmanager.addAnalyzer( new AnalyzerWriteBfmFile<Ing>( outfile, myIngredients, AnalyzerWriteBfmFile<Ing>::APPEND ) );
 
         // erase the '.bfm' suffix from the outfile name to be used in the AanlyzerWriteBFM EachConfig 
-        std::string toErase("MCS*.bfm");
+        std::string toErase("_MCS");
         std::string basename(outfile);
         size_t pos = basename.find(toErase);
-        if (pos != std::string::npos) basename.erase(pos, toErase.length());
-
+        std::cout << "pos=" << pos << " basename=" << basename << " length=" << basename.length()-pos <<std::endl;
+        if (pos != std::string::npos) basename.erase(pos, basename.length()-pos);
+        std::cout << "basename=" <<basename <<std::endl;
         //append analyzer to the program:
         switch (write_type){
             case 0 : taskmanager.addAnalyzer( new AnalyzerWriteBfmFile<Ing>( "LastConfig.bfm", myIngredients, AnalyzerWriteBfmFile<Ing>::OVERWRITE ) ); 

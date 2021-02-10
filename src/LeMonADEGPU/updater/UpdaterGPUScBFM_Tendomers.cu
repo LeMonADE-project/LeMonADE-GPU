@@ -357,7 +357,7 @@ void UpdaterGPUScBFM_Tendomers<T_UCoordinateCuda>::initialize()
   {
     uint32_t curvilinearDist(i % (nMonomersPerChain+2)); // along the chain +2 for one position before and after the chain which marks the ends
     T_Id latticEntry(1);
-    if (curvilinearDist != 0 && curvilinearDist != nMonomersPerChain+1)// means at the border of the lattice and thus mark lattic entry as occupied
+    if (curvilinearDist != 0 && curvilinearDist != nMonomersPerChain+1 && curvilinearDist != 1)// means at the border of the lattice and thus mark lattic entry as occupied
     {
       uint32_t ChainID(( i-curvilinearDist ) /( nMonomersPerChain+2 ));  //even ID + next odd ID belong to the same tendomer
       uint32_t OldID(curvilinearDist-1+ChainID*nMonomersPerChain);
