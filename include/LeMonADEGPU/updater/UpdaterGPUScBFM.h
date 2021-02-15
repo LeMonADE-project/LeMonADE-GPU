@@ -314,7 +314,7 @@ protected:
     cudaDeviceProp mCudaProps;
     uint8_t mnSplitColors;
     bool diagMovesOn;
-    checkDensity densityChecker;
+    checkDensity<T_UCoordinateCuda> densityChecker;
  
 public:
     UpdaterGPUScBFM();

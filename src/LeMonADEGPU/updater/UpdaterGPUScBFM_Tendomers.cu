@@ -700,7 +700,8 @@ void UpdaterGPUScBFM_Tendomers< T_UCoordinateCuda >::runSimulationOnGPU
               launch_ZeroArraySpecies(nBlocks,nThreads,iSpecies);
             //
             densityChecker.launch_countMonomers(
-                mPolymerSystemSorted->gpu+mviSubGroupOffsets[ iSpecies ],
+                mPolymerSystemSorted,
+                mviSubGroupOffsets[ iSpecies ], 
                 mnElementsInGroup[ iSpecies ],
                 nBlocks,
                 nThreads

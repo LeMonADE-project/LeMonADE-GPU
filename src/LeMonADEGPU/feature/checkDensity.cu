@@ -2,8 +2,24 @@
 #include <LeMonADEGPU/core/constants.cuh>
 #include <LeMonADEGPU/utility/cudacommon.hpp>
 ////////////////////////////////////////////////////////////////////////////////
-
-
+// //device constants 
+// //! average number of monomers in 4 slices in the middle and in the boundaries
+// __device__ __constant__ float dAvMonomerNumberInShearVolume; 
+// __device__ __constant__ boxType dBoxX;
+// __device__ __constant__ boxType dBoxY;
+// __device__ __constant__ boxType dBoxZ;
+// //d-device 
+// //M-minus
+// //P-plu
+// //h-half
+// __device__ __constant__ boxType dBoxZM1;
+// __device__ __constant__ boxType dBoxZM2;
+// __device__ __constant__ boxType dBoxZM3;
+// __device__ __constant__ boxType dBoxZhP1;
+// __device__ __constant__ boxType dBoxZhP2;
+// __device__ __constant__ boxType dBoxZhM3;
+// __device__ __constant__ boxType dBoxZhM2;
+// __device__ __constant__ boxType dBoxZhP3;
 ////////////////////////////////////////////////////////////////////////////////
 ///some simple functions for the power handling/////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
@@ -27,9 +43,12 @@ uint32_t isPowerOfTwo (uint32_t x)
 #define MIN(x,y) ((x < y) ? x : y)
 #endif
 ////////////////////////////////////////////////////////////////////////////////
-//constructor
-checkDensity::checkDensity():BoxX(0),BoxY(0),BoxZ(0){};
-checkDensity::checkDensity(boxType BoxX_, boxType BoxY_, boxType BoxZ_)
+//constructor //////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+template <typename T_UCoordinateCuda >
+checkDensity<T_UCoordinateCuda>::checkDensity():BoxX(0),BoxY(0),BoxZ(0){};
+template <typename T_UCoordinateCuda >
+checkDensity<T_UCoordinateCuda>::checkDensity(boxType BoxX_, boxType BoxY_, boxType BoxZ_)
 {
     setBoxSizes(BoxX_,BoxY_,BoxZ_);
 };
@@ -37,25 +56,27 @@ checkDensity::checkDensity(boxType BoxX_, boxType BoxY_, boxType BoxZ_)
 ///member functions ////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
 //! set the box size and copy them to the constant memory
-void checkDensity::setBoxSizes(boxType BoxX_, boxType BoxY_, boxType BoxZ_){
+template <typename T_UCoordinateCuda >
+void checkDensity<T_UCoordinateCuda>::setBoxSizes(boxType BoxX_, boxType BoxY_, boxType BoxZ_){
 	BoxX=BoxX_;
 	BoxY=BoxY_;
 	BoxZ=BoxZ_;
 	// copy to constant device memory 
-    CUDA_ERROR(cudaMemcpyToSymbol(BoxX    , &dBoxX   , sizeof(boxType)));
-    CUDA_ERROR(cudaMemcpyToSymbol(BoxY    , &dBoxY   , sizeof(boxType)));
-    CUDA_ERROR(cudaMemcpyToSymbol(BoxZ    , &dBoxZ   , sizeof(boxType)));
-    CUDA_ERROR(cudaMemcpyToSymbol(BoxZ-1  , &dBoxZM1 , sizeof(boxType)));
-    CUDA_ERROR(cudaMemcpyToSymbol(BoxZ-2  , &dBoxZM2 , sizeof(boxType)));
-    CUDA_ERROR(cudaMemcpyToSymbol(BoxZ-3  , &dBoxZM3 , sizeof(boxType)));
-    CUDA_ERROR(cudaMemcpyToSymbol(BoxZ/2+1, &dBoxZhP1, sizeof(boxType)));
-    CUDA_ERROR(cudaMemcpyToSymbol(BoxZ/2+2, &dBoxZhP2, sizeof(boxType)));
-    CUDA_ERROR(cudaMemcpyToSymbol(BoxZ/2-3, &dBoxZhM3, sizeof(boxType)));
-    CUDA_ERROR(cudaMemcpyToSymbol(BoxZ/2-2, &dBoxZhM2, sizeof(boxType)));
-    CUDA_ERROR(cudaMemcpyToSymbol(BoxZ/2+3, &dBoxZhP3, sizeof(boxType)));
+    CUDA_ERROR(cudaMemcpyToSymbol(dBoxX   ,&BoxX    ,  sizeof(boxType)));
+    CUDA_ERROR(cudaMemcpyToSymbol(dBoxY   ,&BoxY    ,  sizeof(boxType)));
+    CUDA_ERROR(cudaMemcpyToSymbol(dBoxZ   ,&BoxZ    ,  sizeof(boxType)));
+    {decltype( BoxZ ) x =BoxZ-1  ; CUDA_ERROR(cudaMemcpyToSymbol(dBoxZM1 , &x, sizeof(boxType))); }
+    {decltype( BoxZ ) x =BoxZ-2  ; CUDA_ERROR(cudaMemcpyToSymbol(dBoxZM2 , &x, sizeof(boxType)));}
+    {decltype( BoxZ ) x =BoxZ-3  ; CUDA_ERROR(cudaMemcpyToSymbol(dBoxZM3 , &x, sizeof(boxType)));}
+    {decltype( BoxZ ) x =BoxZ/2+1; CUDA_ERROR(cudaMemcpyToSymbol(dBoxZhP1, &x, sizeof(boxType)));}
+    {decltype( BoxZ ) x =BoxZ/2+2; CUDA_ERROR(cudaMemcpyToSymbol(dBoxZhP2, &x, sizeof(boxType)));}
+    {decltype( BoxZ ) x =BoxZ/2-3; CUDA_ERROR(cudaMemcpyToSymbol(dBoxZhM3, &x, sizeof(boxType)));}
+    {decltype( BoxZ ) x =BoxZ/2-2; CUDA_ERROR(cudaMemcpyToSymbol(dBoxZhM2, &x, sizeof(boxType)));}
+    {decltype( BoxZ ) x =BoxZ/2+3; CUDA_ERROR(cudaMemcpyToSymbol(dBoxZhP3, &x, sizeof(boxType)));}
 }
 ////////////////////////////////////////////////////////////////////////////////
-void checkDensity::init(uint32_t NMonomers_, uint32_t nSortedMonomers, cudaDeviceProp&  mCudaProps ) {            
+template <typename T_UCoordinateCuda >
+void checkDensity<T_UCoordinateCuda>::init(uint32_t NMonomers_, uint32_t nSortedMonomers, cudaDeviceProp&  mCudaProps ) {            
     NMonomers=NMonomers_;
     //the average number of monomers in four slices of the box 
     float hAvMonomerNumberInShearVolume=static_cast<float>(NMonomers)*4.0/static_cast<float>(BoxZ);
@@ -112,22 +133,8 @@ void checkDensity::init(uint32_t NMonomers_, uint32_t nSortedMonomers, cudaDevic
     hMonomerNumber_in_ShearVolumeBoundary = 0;
     
 	for(uint32_t IDMonomer = 0; IDMonomer<arraySize; IDMonomer++){
-	//   if (IDMonomer < NMonomers){
-		// const intCUDA zPosMono = PolymerSystem_host[IDMonomer*4+2];
-		// const uint32_t zPosMonoAbs = ((zPosMono) & BoxZ-1 ());
 		mCountMiddleMonos->host[IDMonomer] = static_cast<intArray>(0);
         mCountBoundaryMonos->host[IDMonomer] = static_cast<intArray>(0);
-        
-		// if(zPosMonoAbs < 2 || zPosMonoAbs >= BoxZ-2 ) {
-        //     mCountBoundaryMonos->host[IDMonomer] = static_cast<intArray>(1);
-        //     hMonomerNumber_in_ShearVolumeBoundary++;
-        // }
-		// if((zPosMonoAbs <= (BoxZ/2+1)) && (zPosMonoAbs > (BoxZ/2-3)) ) {
-        //     mCountBoundaryMonos->host[IDMonomer] = static_cast<intArray>(1);
-        //     hMonomerNumber_in_ShearVolumeMiddle++;
-        // }
-
-	//   }
     }
     mCountMiddleMonos->pushAsync();
     mCountBoundaryMonos->pushAsync();
@@ -136,10 +143,7 @@ void checkDensity::init(uint32_t NMonomers_, uint32_t nSortedMonomers, cudaDevic
 	CUDA_ERROR(cudaMemcpy(dMonomerNumber_in_ShearVolumeMiddle, &hMonomerNumber_in_ShearVolumeMiddle,sizeof(uint32_t), cudaMemcpyHostToDevice) );	
 	std::cout << " number of monomer in boundaries "<<hMonomerNumber_in_ShearVolumeBoundary << std::endl;
 	std::cout << " number of monomer in middle of box "<<hMonomerNumber_in_ShearVolumeMiddle << std::endl;
-
 }
-
-
 ////////////////////////////////////////////////////////////////////////////////
 ///start kernel calculating the number density//////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
@@ -184,7 +188,8 @@ __global__ void reduction(intArray *g_idata, intArray *g_odata, unsigned int n )
   if (tid == 0) g_odata[blockIdx.x] = sdata[0];
 }
 ////////////////////////////////////////////////////////////////////////////////
-void checkDensity::calcDensity()
+template <typename T_UCoordinateCuda >
+void checkDensity<T_UCoordinateCuda>::calcDensity()
 {
     //call the kernel with the correct template parameter depending on the number of nThreads 
     switch(nThreads){
@@ -229,7 +234,6 @@ void checkDensity::calcDensity()
         hMonomerNumber_in_ShearVolumeBoundary += mReducedCountBoundaryMonos->host[i];
         hMonomerNumber_in_ShearVolumeMiddle   += mReducedCountMiddleMonos->host[i];
     }
-
     //copy to device 
     CUDA_ERROR(cudaMemcpy(dMonomerNumber_in_ShearVolumeBoundary, &hMonomerNumber_in_ShearVolumeBoundary,sizeof(uint32_t), cudaMemcpyHostToDevice) );
     CUDA_ERROR(cudaMemcpy(dMonomerNumber_in_ShearVolumeMiddle, &hMonomerNumber_in_ShearVolumeMiddle,sizeof(uint32_t), cudaMemcpyHostToDevice) );
@@ -238,7 +242,7 @@ void checkDensity::calcDensity()
     mReducedCountBoundaryMonos->memsetAsync(0);
     mReducedCountMiddleMonos->memsetAsync(0);
     mCountMiddleMonos->memsetAsync(0);
-    mCountBoundaryMonos->memsetAsync();
+    mCountBoundaryMonos->memsetAsync(0);
 }
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
@@ -246,7 +250,8 @@ void checkDensity::calcDensity()
 //end calculate number density
 template <typename T_UCoordinateCuda >
 __global__ void kernelCount( 
-    typename CudaVec4< T_UCoordinateCuda >::value_type const * const __restrict__ dpPolymerSystem,
+    typename CudaVec4< T_UCoordinateCuda >::value_type 
+            const * const __restrict__ dpPolymerSystem,
     intArray *dCountMiddleMonos,
     intArray *dCountBoundaryMonos, 
     uint32_t const nMons){
@@ -262,24 +267,27 @@ __global__ void kernelCount(
     }
 }
 template <typename T_UCoordinateCuda >
-void checkDensity::launch_countMonomers(
-    typename CudaVec4< T_UCoordinateCuda >::value_type const * const __restrict__ dpPolymerSystem,
+void checkDensity<T_UCoordinateCuda>::launch_countMonomers(
+    MirroredVector<T_UCoordinatesCuda> * mpPolymerSystem,
+    uint32_t offset,
     size_t nMons, 
     size_t const nBlocksSpecies,
     uint32_t const nThreadsSprecies){
 
-kernelCount<<<nBlocksSpecies,nThreadsSprecies >>> (
-    dpPolymerSystem, 
-    mCountMiddleMonos->gpu, 
-    mCountBoundaryMonos->gpu, 
-    nMons );
+    kernelCount<T_UCoordinateCuda> <<<nBlocksSpecies,nThreadsSprecies >>> (
+        mpPolymerSystem->gpu+offset, 
+        mCountMiddleMonos->gpu, 
+        mCountBoundaryMonos->gpu, 
+        nMons );
 } 
-// template void checkDensity::launch_countMonomers<uint8_t >(uint8_t  const * const,  size_t, const size_t, const uint32_t );     
-// template void checkDensity::launch_countMonomers<uint16_t>(uint16_t ,  size_t, const size_t, const uint32_t );
-// template void checkDensity::launch_countMonomers<uint32_t>(uint32_t ,  size_t, const size_t, const uint32_t );
-// template void checkDensity::launch_countMonomers<int16_t >(int16_t  ,  size_t, const size_t, const uint32_t );
-// template void checkDensity::launch_countMonomers<int32_t >(int32_t  ,  size_t, const size_t, const uint32_t );
-
+////////////////////////////////////////////////////////////////////////////////
+///Foreward class declaration //////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+template class checkDensity< uint8_t  >;
+template class checkDensity< uint16_t >;
+template class checkDensity< uint32_t >;
+template class checkDensity<  int16_t >;
+template class checkDensity<  int32_t >;
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////

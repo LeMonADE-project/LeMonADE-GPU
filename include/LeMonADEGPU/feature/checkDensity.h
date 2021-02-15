@@ -37,9 +37,11 @@ __device__ __constant__ boxType dBoxZhP3;
  * This class uses a reduction algorithm which ist explained in 
  * https://developer.download.nvidia.com/assets/cuda/files/reduction.pdf
  */
-class checkDensity
+template <typename T_UCoordinateCuda > class checkDensity
 {
 public:
+    //type for unsigned coordinates on the device 
+    using T_UCoordinatesCuda = typename CudaVec4< T_UCoordinateCuda >::value_type;
 	/** constructor 
 	 */
     checkDensity();
@@ -64,9 +66,9 @@ public:
             return true;  
     }
     //!
-    template< typename T_UCoordinateCuda >
     void launch_countMonomers( 
-        typename CudaVec4< T_UCoordinateCuda >::value_type const * const __restrict__ dpPolymerSystem,
+        MirroredVector<T_UCoordinatesCuda> * mpPolymerSystem,
+        uint32_t offset,
         size_t nMons,
         size_t const nBlocksSpecies,
         uint32_t const nThreadsSprecies );
@@ -79,8 +81,6 @@ public:
     //!
     void setDensityCheckON(bool checkOn_) {checkOn=checkOn_;}
 private:
-	// //!average number of monomers in the sheared volume 
-	// float averageMonomerNumber_in_ShearVolume;
 	//! count the number of monomers in the middle
 	MirroredVector<intArray>*  mCountMiddleMonos;
 	//! count the number of monomers in the boundary
