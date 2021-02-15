@@ -68,6 +68,7 @@ protected:
     using BaseClass::mPolymerFlags;
     using BaseClass::mLatticeOut;
     using BaseClass::boxCheck;
+    using BaseClass::densityChecker;
    
     
 public:

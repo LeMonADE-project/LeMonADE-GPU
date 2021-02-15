@@ -28,6 +28,7 @@
 #include <LeMonADEGPU/core/BondVectorSet.h>
 #include <LeMonADEGPU/core/Method.h>
 #include <LeMonADEGPU/feature/BoxCheck.h>
+#include <LeMonADEGPU/feature/checkDensity.h>
 
 //keep this 
 // #define USE_BIT_PACKING_TMP_LATTICE
@@ -313,6 +314,7 @@ protected:
     cudaDeviceProp mCudaProps;
     uint8_t mnSplitColors;
     bool diagMovesOn;
+    checkDensity densityChecker;
  
 public:
     UpdaterGPUScBFM();

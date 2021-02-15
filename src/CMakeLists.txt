@@ -30,6 +30,7 @@ SET ( project_SRCS
       ${CMAKE_CURRENT_SOURCE_DIR}/LeMonADEGPU/core/mainColorBFM.cpp
       ${CMAKE_CURRENT_SOURCE_DIR}/LeMonADEGPU/core/BondVectorSet.cu
       ${CMAKE_CURRENT_SOURCE_DIR}/LeMonADEGPU/core/kernelConnection.cu
+      ${CMAKE_CURRENT_SOURCE_DIR}/LeMonADEGPU/feature/checkDensity.cu
       ${CMAKE_CURRENT_SOURCE_DIR}/LeMonADEGPU/updater/UpdaterGPUScBFM.cu      
       ${CMAKE_CURRENT_SOURCE_DIR}/LeMonADEGPU/updater/UpdaterGPUScBFM_AB_Connection.cu
       ${CMAKE_CURRENT_SOURCE_DIR}/LeMonADEGPU/updater/UpdaterGPUScBFM_AA_Connection.cu

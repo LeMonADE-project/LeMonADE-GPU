@@ -497,7 +497,8 @@ void UpdaterGPUScBFM_Tendomers<T_UCoordinateCuda>::initialize()
     } 
     moveType -> pushAsync();
   }
-  
+  //density checker 
+  densityChecker.setDensityCheckON(true);
   
 }
 template< typename T_UCoordinateCuda >
@@ -697,8 +698,16 @@ void UpdaterGPUScBFM_Tendomers< T_UCoordinateCuda >::runSimulationOnGPU
             }
             else
               launch_ZeroArraySpecies(nBlocks,nThreads,iSpecies);
+            //
+            densityChecker.launch_countMonomers(
+                mPolymerSystemSorted->gpu+mviSubGroupOffsets[ iSpecies ],
+                mnElementsInGroup[ iSpecies ],
+                nBlocks,
+                nThreads
+            );
             chooseThreads.analyze(iSpecies,mStream);
         } // iSubstep
+        densityChecker.calcDensity();
     } // iStep
 
     std::clock_t const t1 = std::clock();

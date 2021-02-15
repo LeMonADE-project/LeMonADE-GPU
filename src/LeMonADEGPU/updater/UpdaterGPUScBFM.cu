@@ -419,7 +419,8 @@ __global__ void kernelSimulationScBFMCheckSpecies
     cudaTextureObject_t const              texLatticeRefOut        ,
     BoxCheck                               bCheck, 
     Method              const              met,
-    BondVectorSet       const              checkBondVector
+    BondVectorSet       const              checkBondVector,
+    checkDensity                           checkDens
 ){
     uint32_t rn;
     double rnd;
@@ -448,7 +449,8 @@ __global__ void kernelSimulationScBFMCheckSpecies
         if (    bCheck(r1.x,r1.y,r1.z) && 
             ! checkNeighboringBonds<T_UCoordinateCuda>(dpNeighborsSizes, iMonomer, dpNeighbors, rNeighborsPitchElements, dpPolymerSystem, r1, checkBondVector ) && 
             ! checkFront( texLatticeRefOut, r0.x, r0.y, r0.z, direction, met, &BitPacking::bitPackedTextureGetStandard )  && 
-            shearForce(DXTable_d[ direction ],r0.z& dcBoxXM1,rnd) 
+            shearForce(DXTable_d[ direction ],r0.z& dcBoxXM1,rnd) && 
+            checkDens(r0.z,DZTable_d[ direction ])
         ){
             /* everything fits so perform move on temporary lattice */
             /* can I do this ??? dpPolymerSystem is the device pointer to the read-only
@@ -888,7 +890,8 @@ void UpdaterGPUScBFM< T_UCoordinateCuda >::launch_CheckSpecies(
 	mLatticeOut->texture,
 	boxCheck, 
 	met,
-	checkBondVector
+    checkBondVector,
+    densityChecker
     );
   hGlobalIterator++;
 }
@@ -2228,6 +2231,11 @@ void UpdaterGPUScBFM< T_UCoordinateCuda >::initialize( void )
 
     CUDA_ERROR( cudaGetDevice( &miGpuToUse ) );
     CUDA_ERROR( cudaGetDeviceProperties( &mCudaProps, miGpuToUse ) );
+    // initialize the checkDensity:
+    densityChecker.setBoxSizes(mBoxX,mBoxY,mBoxZ);
+    densityChecker.init(mnAllMonomers, mnMonomersPadded, mCudaProps);
+    densityChecker.setDensityCheckON(false);
+
 }
 template< typename T_UCoordinateCuda >
 void UpdaterGPUScBFM< T_UCoordinateCuda >::setShearForce
