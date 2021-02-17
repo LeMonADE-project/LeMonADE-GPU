@@ -420,7 +420,7 @@ __global__ void kernelSimulationScBFMCheckSpecies
     BoxCheck                               bCheck, 
     Method              const              met,
     BondVectorSet       const              checkBondVector,
-    checkDensity<T_UCoordinateCuda>                           checkDens
+    checkDensity<T_UCoordinateCuda> const        checkDens
 ){
     uint32_t rn;
     double rnd;

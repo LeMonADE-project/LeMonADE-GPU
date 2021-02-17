@@ -3,11 +3,17 @@
 #define LEMONADEGPU_FEATURE_CHECK_DENSITY_H
 #include <LeMonADEGPU/utility/cudacommon.hpp>
 #include <cuda_profiler_api.h>              // cudaProfilerStop
+////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
 typedef uint8_t intArray;
 typedef uint32_t boxType;
+////////////////////////////////////////////////////////////////////////////////
 //device constants 
 //! average number of monomers in 4 slices in the middle and in the boundaries
-__device__ __constant__ float dAvMonomerNumberInShearVolume; 
+__device__ __constant__ uint32_t dAvMonomerNumberInShearVolume; 
+__device__ __constant__ uint32_t dMonomerNumber_in_ShearVolumeMiddle;
+__device__ __constant__ uint32_t dMonomerNumber_in_ShearVolumeBoundary;
 __device__ __constant__ boxType dBoxX;
 __device__ __constant__ boxType dBoxY;
 __device__ __constant__ boxType dBoxZ;
@@ -23,7 +29,9 @@ __device__ __constant__ boxType dBoxZhP2;
 __device__ __constant__ boxType dBoxZhM3;
 __device__ __constant__ boxType dBoxZhM2;
 __device__ __constant__ boxType dBoxZhP3;
-
+////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
 /**
  * @file checkDensity.h 
  * @class checkDensity
@@ -49,22 +57,39 @@ public:
 	/**
 	 * 
 	 */
-    __device__ bool operator()( uint8_t z, const int32_t & dz) {
+    __device__  bool operator()( uint8_t z0, int32_t dz) const 
+    {
+        
         if ( !checkOn) return true; 
-        z=z%dBoxZ;
+        if (dz == 0) return true;  
+        auto z=z0%dBoxZ;
+        //monomers moves up 
+        printf("op(): %d %d %d %d \n", dAvMonomerNumberInShearVolume,dMonomerNumber_in_ShearVolumeBoundary,dMonomerNumber_in_ShearVolumeMiddle, dBoxZ);
         if(dz == 1){
-            if(*dMonomerNumber_in_ShearVolumeBoundary < dAvMonomerNumberInShearVolume ){ if(z == 1) return false ;}
-            else{ if(z == dBoxZM3) return false ;}
-            if(*dMonomerNumber_in_ShearVolumeMiddle < dAvMonomerNumberInShearVolume){if(z == dBoxZhP2)return false ;}
-            else {if (z == dBoxZhM3) return false ;}
+            if(dMonomerNumber_in_ShearVolumeBoundary < dAvMonomerNumberInShearVolume ){ 
+                if(z == 1) return false ;
+            }else{ 
+                if(z == dBoxZM3) return false ;
+            }
+            if(dMonomerNumber_in_ShearVolumeMiddle < dAvMonomerNumberInShearVolume){
+                if(z == dBoxZhP2)return false ;
+            }else {
+                if (z == dBoxZhM3) return false ;
+            }
         }else if(dz == -1){
-            if(*dMonomerNumber_in_ShearVolumeBoundary < dAvMonomerNumberInShearVolume ){ if(z == dBoxZM2) return false ;}
-            else{ if(z == 2) return false ;}
-            if(*dMonomerNumber_in_ShearVolumeMiddle < dAvMonomerNumberInShearVolume){if(z == dBoxZhM2 )return false ;}
-            else {if (z == dBoxZhP3) return false ;}
-        }else 
-            return true;  
-    }
+            if(dMonomerNumber_in_ShearVolumeBoundary < dAvMonomerNumberInShearVolume ){ 
+                if(z == dBoxZM2) return false ;
+            }else{ 
+                if(z == 2) return false ;}
+            if(dMonomerNumber_in_ShearVolumeMiddle < dAvMonomerNumberInShearVolume){
+                if(z == dBoxZhM2 )return false ;
+            }else{
+                if (z == dBoxZhP3) return false ;
+            }
+        }
+    };
+    //!check the correct settin of the constants
+    void launch_checkConstantSetting();
     //!
     void launch_countMonomers( 
         MirroredVector<T_UCoordinatesCuda> * mpPolymerSystem,
@@ -97,10 +122,10 @@ private:
 	uint32_t hMonomerNumber_in_ShearVolumeMiddle;
 	//!
 	uint32_t hMonomerNumber_in_ShearVolumeBoundary;
-	//!
-	uint32_t * dMonomerNumber_in_ShearVolumeMiddle;
-	//!
-	uint32_t * dMonomerNumber_in_ShearVolumeBoundary;
+	// //!
+	// uint32_t * dMonomerNumber_in_ShearVolumeMiddle;
+	// //!
+	// uint32_t * dMonomerNumber_in_ShearVolumeBoundary;
 	//! box sizes in the three directions
 	boxType BoxX,BoxY,BoxZ; 
     //! number of monomers in the simulation box 

@@ -1,25 +1,6 @@
 #include <LeMonADEGPU/feature/checkDensity.h>
-#include <LeMonADEGPU/core/constants.cuh>
+// #include <LeMonADEGPU/core/constants.cuh>
 #include <LeMonADEGPU/utility/cudacommon.hpp>
-////////////////////////////////////////////////////////////////////////////////
-// //device constants 
-// //! average number of monomers in 4 slices in the middle and in the boundaries
-// __device__ __constant__ float dAvMonomerNumberInShearVolume; 
-// __device__ __constant__ boxType dBoxX;
-// __device__ __constant__ boxType dBoxY;
-// __device__ __constant__ boxType dBoxZ;
-// //d-device 
-// //M-minus
-// //P-plu
-// //h-half
-// __device__ __constant__ boxType dBoxZM1;
-// __device__ __constant__ boxType dBoxZM2;
-// __device__ __constant__ boxType dBoxZM3;
-// __device__ __constant__ boxType dBoxZhP1;
-// __device__ __constant__ boxType dBoxZhP2;
-// __device__ __constant__ boxType dBoxZhM3;
-// __device__ __constant__ boxType dBoxZhM2;
-// __device__ __constant__ boxType dBoxZhP3;
 ////////////////////////////////////////////////////////////////////////////////
 ///some simple functions for the power handling/////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
@@ -55,7 +36,7 @@ checkDensity<T_UCoordinateCuda>::checkDensity(boxType BoxX_, boxType BoxY_, boxT
 ////////////////////////////////////////////////////////////////////////////////
 ///member functions ////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
-//! set the box size and copy them to the constant memory
+// set the box size and copy them to the constant memory
 template <typename T_UCoordinateCuda >
 void checkDensity<T_UCoordinateCuda>::setBoxSizes(boxType BoxX_, boxType BoxY_, boxType BoxZ_){
 	BoxX=BoxX_;
@@ -75,12 +56,25 @@ void checkDensity<T_UCoordinateCuda>::setBoxSizes(boxType BoxX_, boxType BoxY_, 
     {decltype( BoxZ ) x =BoxZ/2+3; CUDA_ERROR(cudaMemcpyToSymbol(dBoxZhP3, &x, sizeof(boxType)));}
 }
 ////////////////////////////////////////////////////////////////////////////////
+__global__ void checkConstantSetting()//(uint32_t * countsBound, uint32_t * countsMiddle)
+{
+    printf("box=(%d,%d,%d)\n",dBoxX, dBoxY, dBoxZ);
+    printf("%d %d %d %d %d %d %d %d \n",dBoxZM1, dBoxZM2, dBoxZM3, dBoxZhM2, dBoxZhM3, dBoxZhP1, dBoxZhP2, dBoxZhP3);
+    printf("avDensity=%d\n", dAvMonomerNumberInShearVolume);
+    // printf("MonsBound=%d MonsMiddle=%d\n", *countsBound,*countsMiddle);
+    printf("MonsBound=%d MonsMiddle=%d\n", dMonomerNumber_in_ShearVolumeBoundary,dMonomerNumber_in_ShearVolumeMiddle);
+}
+template <typename T_UCoordinateCuda >
+void checkDensity<T_UCoordinateCuda>::launch_checkConstantSetting(){
+    checkConstantSetting<<<1,1>>>();//(dMonomerNumber_in_ShearVolumeBoundary,dMonomerNumber_in_ShearVolumeMiddle);
+}
+////////////////////////////////////////////////////////////////////////////////
 template <typename T_UCoordinateCuda >
 void checkDensity<T_UCoordinateCuda>::init(uint32_t NMonomers_, uint32_t nSortedMonomers, cudaDeviceProp&  mCudaProps ) {            
     NMonomers=NMonomers_;
     //the average number of monomers in four slices of the box 
-    float hAvMonomerNumberInShearVolume=static_cast<float>(NMonomers)*4.0/static_cast<float>(BoxZ);
-    CUDA_ERROR(cudaMemcpyToSymbol(dAvMonomerNumberInShearVolume, &hAvMonomerNumberInShearVolume, sizeof(float)));
+    uint32_t hAvMonomerNumberInShearVolume=static_cast<uint32_t>(static_cast<float>(NMonomers)*4.0/static_cast<float>(BoxZ));
+    CUDA_ERROR(cudaMemcpyToSymbol(dAvMonomerNumberInShearVolume, &hAvMonomerNumberInShearVolume, sizeof(uint32_t)));
     std::cout << "set average number of monomers in shear volume to  " << hAvMonomerNumberInShearVolume << std::endl;
 
     //parameter needed to start the kernel for the reduction 
@@ -91,7 +85,7 @@ void checkDensity<T_UCoordinateCuda>::init(uint32_t NMonomers_, uint32_t nSorted
     nThreads = (arraySize < maxThreads*2) ? nextPow2((arraySize + 1)/ 2) : maxThreads;
     nBlocks = (arraySize + (nThreads * 2 - 1)) / (nThreads * 2);
     //check wether the number of monomers can be handled
-	if ((float)nThreads*nBlocks > (float)mCudaProps.maxGridSize[0] * mCudaProps.maxThreadsPerBlock)
+	if ( nThreads*nBlocks > mCudaProps.maxGridSize[0] * mCudaProps.maxThreadsPerBlock)
 	    throw std::runtime_error("number of monomers is too large!\n");
     //check wether the calculated block and thread sizes fits 
 	if (nBlocks > mCudaProps.maxGridSize[0])
@@ -125,7 +119,7 @@ void checkDensity<T_UCoordinateCuda>::init(uint32_t NMonomers_, uint32_t nSorted
     
     //number of monoemrs in the sheared parts of the box 
 	CUDA_ERROR(cudaMalloc((void **) &dMonomerNumber_in_ShearVolumeBoundary, sizeof(uint32_t)));
-	CUDA_ERROR(cudaMalloc((void **) &dMonomerNumber_in_ShearVolumeMiddle, sizeof(uint32_t)));
+	CUDA_ERROR(cudaMalloc((void **) &dMonomerNumber_in_ShearVolumeMiddle  , sizeof(uint32_t)));
     ///////////////////////////////////////////////////////
     ///////////////////////////////////////////////////////
     //count monomers on host in the middle and the boundary
@@ -139,11 +133,15 @@ void checkDensity<T_UCoordinateCuda>::init(uint32_t NMonomers_, uint32_t nSorted
     mCountMiddleMonos->pushAsync();
     mCountBoundaryMonos->pushAsync();
 	//push the number of monomers in the sheared parts to the gpu 
-	CUDA_ERROR(cudaMemcpy(dMonomerNumber_in_ShearVolumeBoundary, &hMonomerNumber_in_ShearVolumeBoundary,sizeof(uint32_t), cudaMemcpyHostToDevice) );
-	CUDA_ERROR(cudaMemcpy(dMonomerNumber_in_ShearVolumeMiddle, &hMonomerNumber_in_ShearVolumeMiddle,sizeof(uint32_t), cudaMemcpyHostToDevice) );	
+	// CUDA_ERROR(cudaMemcpy(dMonomerNumber_in_ShearVolumeBoundary, &hMonomerNumber_in_ShearVolumeBoundary,sizeof(uint32_t), cudaMemcpyHostToDevice) );
+    // CUDA_ERROR(cudaMemcpy(dMonomerNumber_in_ShearVolumeMiddle  , &hMonomerNumber_in_ShearVolumeMiddle  ,sizeof(uint32_t), cudaMemcpyHostToDevice) );
+    CUDA_ERROR(cudaMemcpyToSymbol(dMonomerNumber_in_ShearVolumeBoundary ,&hMonomerNumber_in_ShearVolumeBoundary,  sizeof(uint32_t)));	
+    CUDA_ERROR(cudaMemcpyToSymbol(dMonomerNumber_in_ShearVolumeMiddle   ,&hMonomerNumber_in_ShearVolumeMiddle  ,  sizeof(uint32_t)));	
 	std::cout << " number of monomer in boundaries "<<hMonomerNumber_in_ShearVolumeBoundary << std::endl;
-	std::cout << " number of monomer in middle of box "<<hMonomerNumber_in_ShearVolumeMiddle << std::endl;
+    std::cout << " number of monomer in middle of box "<<hMonomerNumber_in_ShearVolumeMiddle << std::endl;
+    launch_checkConstantSetting();
 }
+
 ////////////////////////////////////////////////////////////////////////////////
 ///start kernel calculating the number density//////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
@@ -187,42 +185,42 @@ __global__ void reduction(intArray *g_idata, intArray *g_odata, unsigned int n )
   // write result for this block to global mem
   if (tid == 0) g_odata[blockIdx.x] = sdata[0];
 }
-////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////
 template <typename T_UCoordinateCuda >
 void checkDensity<T_UCoordinateCuda>::calcDensity()
 {
     //call the kernel with the correct template parameter depending on the number of nThreads 
     switch(nThreads){
         case 512:
-            reduction<512><<<nBlocks,nThreads,nThreads*sizeof(intArray)>>>(mCountMiddleMonos->gpu,mReducedCountMiddleMonos->gpu, NMonomers);
-            reduction<512><<<nBlocks,nThreads,nThreads*sizeof(intArray)>>>(mCountBoundaryMonos->gpu,mReducedCountBoundaryMonos->gpu, NMonomers);break;
+            reduction<512><<<nBlocks,nThreads,nThreads*sizeof(intArray)>>>(mCountMiddleMonos->gpu  ,mReducedCountMiddleMonos->gpu  , arraySize);
+            reduction<512><<<nBlocks,nThreads,nThreads*sizeof(intArray)>>>(mCountBoundaryMonos->gpu,mReducedCountBoundaryMonos->gpu, arraySize);break;
         case 256:
-            reduction<256><<<nBlocks,nThreads,nThreads*sizeof(intArray)>>>(mCountMiddleMonos->gpu,mReducedCountMiddleMonos->gpu, NMonomers);
-            reduction<256><<<nBlocks,nThreads,nThreads*sizeof(intArray)>>>(mCountBoundaryMonos->gpu,mReducedCountBoundaryMonos->gpu, NMonomers);break;
+            reduction<256><<<nBlocks,nThreads,nThreads*sizeof(intArray)>>>(mCountMiddleMonos->gpu  ,mReducedCountMiddleMonos->gpu  , arraySize);
+            reduction<256><<<nBlocks,nThreads,nThreads*sizeof(intArray)>>>(mCountBoundaryMonos->gpu,mReducedCountBoundaryMonos->gpu, arraySize);break;
         case 128:
-            reduction<128><<<nBlocks,nThreads,nThreads*sizeof(intArray)>>>(mCountMiddleMonos->gpu,mReducedCountMiddleMonos->gpu, NMonomers);
-            reduction<128><<<nBlocks,nThreads,nThreads*sizeof(intArray)>>>(mCountBoundaryMonos->gpu,mReducedCountBoundaryMonos->gpu, NMonomers);break;
+            reduction<128><<<nBlocks,nThreads,nThreads*sizeof(intArray)>>>(mCountMiddleMonos->gpu  ,mReducedCountMiddleMonos->gpu  , arraySize);
+            reduction<128><<<nBlocks,nThreads,nThreads*sizeof(intArray)>>>(mCountBoundaryMonos->gpu,mReducedCountBoundaryMonos->gpu, arraySize);break;
         case 64:
-            reduction<64><<<nBlocks,nThreads,nThreads*sizeof(intArray)>>>(mCountMiddleMonos->gpu,mReducedCountMiddleMonos->gpu, NMonomers);
-            reduction<64><<<nBlocks,nThreads,nThreads*sizeof(intArray)>>>(mCountBoundaryMonos->gpu,mReducedCountBoundaryMonos->gpu, NMonomers);break;
+            reduction< 64><<<nBlocks,nThreads,nThreads*sizeof(intArray)>>>(mCountMiddleMonos->gpu  ,mReducedCountMiddleMonos->gpu  , arraySize);
+            reduction< 64><<<nBlocks,nThreads,nThreads*sizeof(intArray)>>>(mCountBoundaryMonos->gpu,mReducedCountBoundaryMonos->gpu, arraySize);break;
         case 32:
-            reduction<32><<<nBlocks,nThreads,nThreads*sizeof(intArray)>>>(mCountMiddleMonos->gpu,mReducedCountMiddleMonos->gpu, NMonomers);
-            reduction<32><<<nBlocks,nThreads,nThreads*sizeof(intArray)>>>(mCountBoundaryMonos->gpu,mReducedCountBoundaryMonos->gpu, NMonomers);break;
+            reduction< 32><<<nBlocks,nThreads,nThreads*sizeof(intArray)>>>(mCountMiddleMonos->gpu  ,mReducedCountMiddleMonos->gpu  , arraySize);
+            reduction< 32><<<nBlocks,nThreads,nThreads*sizeof(intArray)>>>(mCountBoundaryMonos->gpu,mReducedCountBoundaryMonos->gpu, arraySize);break;
         case 16:
-            reduction<16><<<nBlocks,nThreads,nThreads*sizeof(intArray)>>>(mCountMiddleMonos->gpu,mReducedCountMiddleMonos->gpu, NMonomers);
-            reduction<16><<<nBlocks,nThreads,nThreads*sizeof(intArray)>>>(mCountBoundaryMonos->gpu,mReducedCountBoundaryMonos->gpu, NMonomers);break;
+            reduction< 16><<<nBlocks,nThreads,nThreads*sizeof(intArray)>>>(mCountMiddleMonos->gpu  ,mReducedCountMiddleMonos->gpu  , arraySize);
+            reduction< 16><<<nBlocks,nThreads,nThreads*sizeof(intArray)>>>(mCountBoundaryMonos->gpu,mReducedCountBoundaryMonos->gpu, arraySize);break;
         case 8:
-            reduction<8><<<nBlocks,nThreads,nThreads*sizeof(intArray)>>>(mCountMiddleMonos->gpu,mReducedCountMiddleMonos->gpu, NMonomers);
-            reduction<8><<<nBlocks,nThreads,nThreads*sizeof(intArray)>>>(mCountBoundaryMonos->gpu,mReducedCountBoundaryMonos->gpu, NMonomers);break;
+            reduction<  8><<<nBlocks,nThreads,nThreads*sizeof(intArray)>>>(mCountMiddleMonos->gpu  ,mReducedCountMiddleMonos->gpu  , arraySize);
+            reduction<  8><<<nBlocks,nThreads,nThreads*sizeof(intArray)>>>(mCountBoundaryMonos->gpu,mReducedCountBoundaryMonos->gpu, arraySize);break;
         case 4:
-            reduction<4><<<nBlocks,nThreads,nThreads*sizeof(intArray)>>>(mCountMiddleMonos->gpu,mReducedCountMiddleMonos->gpu, NMonomers);
-            reduction<4><<<nBlocks,nThreads,nThreads*sizeof(intArray)>>>(mCountBoundaryMonos->gpu,mReducedCountBoundaryMonos->gpu, NMonomers);break;
+            reduction<  4><<<nBlocks,nThreads,nThreads*sizeof(intArray)>>>(mCountMiddleMonos->gpu  ,mReducedCountMiddleMonos->gpu  , arraySize);
+            reduction<  4><<<nBlocks,nThreads,nThreads*sizeof(intArray)>>>(mCountBoundaryMonos->gpu,mReducedCountBoundaryMonos->gpu, arraySize);break;
         case 2:
-            reduction<2><<<nBlocks,nThreads,nThreads*sizeof(intArray)>>>(mCountMiddleMonos->gpu,mReducedCountMiddleMonos->gpu, NMonomers);
-            reduction<2><<<nBlocks,nThreads,nThreads*sizeof(intArray)>>>(mCountBoundaryMonos->gpu,mReducedCountBoundaryMonos->gpu, NMonomers);break;
+            reduction<  2><<<nBlocks,nThreads,nThreads*sizeof(intArray)>>>(mCountMiddleMonos->gpu  ,mReducedCountMiddleMonos->gpu  , arraySize);
+            reduction<  2><<<nBlocks,nThreads,nThreads*sizeof(intArray)>>>(mCountBoundaryMonos->gpu,mReducedCountBoundaryMonos->gpu, arraySize);break;
         case 1:
-            reduction<1><<<nBlocks,nThreads,nThreads*sizeof(intArray)>>>(mCountMiddleMonos->gpu,mReducedCountMiddleMonos->gpu, NMonomers);
-            reduction<1><<<nBlocks,nThreads,nThreads*sizeof(intArray)>>>(mCountBoundaryMonos->gpu,mReducedCountBoundaryMonos->gpu, NMonomers);break;
+            reduction<  1><<<nBlocks,nThreads,nThreads*sizeof(intArray)>>>(mCountMiddleMonos->gpu  ,mReducedCountMiddleMonos->gpu  , arraySize);
+            reduction<  1><<<nBlocks,nThreads,nThreads*sizeof(intArray)>>>(mCountBoundaryMonos->gpu,mReducedCountBoundaryMonos->gpu, arraySize);break;
     }
     //copy to host 
     mReducedCountBoundaryMonos->pop();
@@ -235,8 +233,10 @@ void checkDensity<T_UCoordinateCuda>::calcDensity()
         hMonomerNumber_in_ShearVolumeMiddle   += mReducedCountMiddleMonos->host[i];
     }
     //copy to device 
-    CUDA_ERROR(cudaMemcpy(dMonomerNumber_in_ShearVolumeBoundary, &hMonomerNumber_in_ShearVolumeBoundary,sizeof(uint32_t), cudaMemcpyHostToDevice) );
-    CUDA_ERROR(cudaMemcpy(dMonomerNumber_in_ShearVolumeMiddle, &hMonomerNumber_in_ShearVolumeMiddle,sizeof(uint32_t), cudaMemcpyHostToDevice) );
+    // CUDA_ERROR(cudaMemcpy(dMonomerNumber_in_ShearVolumeBoundary, &hMonomerNumber_in_ShearVolumeBoundary,sizeof(uint32_t), cudaMemcpyHostToDevice) );
+    // CUDA_ERROR(cudaMemcpy(dMonomerNumber_in_ShearVolumeMiddle  , &hMonomerNumber_in_ShearVolumeMiddle  ,sizeof(uint32_t), cudaMemcpyHostToDevice) );
+    CUDA_ERROR(cudaMemcpyToSymbol(dMonomerNumber_in_ShearVolumeBoundary ,&hMonomerNumber_in_ShearVolumeBoundary,  sizeof(uint32_t)));	
+    CUDA_ERROR(cudaMemcpyToSymbol(dMonomerNumber_in_ShearVolumeMiddle   ,&hMonomerNumber_in_ShearVolumeMiddle  ,  sizeof(uint32_t)));	
 
     //empty the mirrored vectors for the next step
     mReducedCountBoundaryMonos->memsetAsync(0);
@@ -273,11 +273,12 @@ void checkDensity<T_UCoordinateCuda>::launch_countMonomers(
     size_t nMons, 
     size_t const nBlocksSpecies,
     uint32_t const nThreadsSprecies){
+    // std::cout << "launch_countMonomers: offset="<<offset << " nMons=" << nMons  <<std::endl;
 
     kernelCount<T_UCoordinateCuda> <<<nBlocksSpecies,nThreadsSprecies >>> (
         mpPolymerSystem->gpu+offset, 
-        mCountMiddleMonos->gpu, 
-        mCountBoundaryMonos->gpu, 
+        mCountMiddleMonos->gpu+offset, 
+        mCountBoundaryMonos->gpu+offset, 
         nMons );
 } 
 ////////////////////////////////////////////////////////////////////////////////

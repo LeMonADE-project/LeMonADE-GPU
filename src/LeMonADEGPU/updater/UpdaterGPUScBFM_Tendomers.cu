@@ -698,18 +698,25 @@ void UpdaterGPUScBFM_Tendomers< T_UCoordinateCuda >::runSimulationOnGPU
             }
             else
               launch_ZeroArraySpecies(nBlocks,nThreads,iSpecies);
-            //
-            densityChecker.launch_countMonomers(
-                mPolymerSystemSorted,
-                mviSubGroupOffsets[ iSpecies ], 
-                mnElementsInGroup[ iSpecies ],
-                nBlocks,
-                nThreads
-            );
+            
             chooseThreads.analyze(iSpecies,mStream);
         } // iSubstep
+        //calculate the density in the sheared volumes:
+        for ( uint32_t i = 0; i < nSpecies; ++i ){
+          //
+          auto const nThreads = chooseThreads.getBestThread(i);
+          auto const nBlocks  = ceilDiv( mnElementsInGroup[ i ], nThreads );
+          densityChecker.launch_countMonomers(
+            mPolymerSystemSorted,
+            mviSubGroupOffsets[ i ], 
+            mnElementsInGroup[ i ],
+            nBlocks,
+            nThreads
+          );
+        }
         densityChecker.calcDensity();
     } // iStep
+    densityChecker.launch_checkConstantSetting();
 
     std::clock_t const t1 = std::clock();
     double const dt = float(t1-t0) / CLOCKS_PER_SEC;

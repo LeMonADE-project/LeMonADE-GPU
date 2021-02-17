@@ -34,5 +34,5 @@ FILE(_header
      ${CMAKE_SOURCE_DIR}/include/LeMonADEGPU/feature/checkDensity.h
     )
 # set_property(TARGET obj_updater PROPERTY CUDA_RESOLVE_DEVICE_SYMBOLS ON)
-set_target_properties(obj_updater PROPERTIES CUDA_SEPARABLE_COMPILATION ON)
-CUDA_ADD_LIBRARY(obj_updater OBJECT ${_src} ${_header} cuda )
+set_target_properties(obj_feature PROPERTIES CUDA_SEPARABLE_COMPILATION ON )
+CUDA_ADD_LIBRARY(obj_feature OBJECT ${_src} ${_header} cuda )
