@@ -86,6 +86,7 @@ int main( int argc, char ** argv )
     int write_type(0);
     std::string outfile_shear("ShearStrain.dat");
     bool analyzeShearStrainON=false;
+    bool densityCheckerOn=false;
     try
     {
 
@@ -110,12 +111,13 @@ int main( int argc, char ** argv )
                 { "boundary"     , required_argument, 0, 'b' },
                 { "rng"          , required_argument, 0, 'r' },
                 { "save-interval", required_argument, 0, 's' },
-		        { "diagonal", required_argument, 0, 'd' },
+		        { "diagonal"     , required_argument, 0, 'd' },
+                { "densityCheckerOn", no_argument   , 0, 'a' },
                 { 0, 0, 0, 0 }    // signal end of list
             };
             /* getopt_long stores the option index here. */
             int option_index = 0;
-            int c = getopt_long( argc, argv, "e:g:hi:m:o:c:t:b:r:s:d:", long_options, &option_index );
+            int c = getopt_long( argc, argv, "e:g:hi:m:o:c:t:b:r:s:d:a", long_options, &option_index );
 
             if ( c == -1 )
                 break;
@@ -134,6 +136,7 @@ int main( int argc, char ** argv )
                 case 'b': boundarySize  = std::atoi  ( optarg ); break;
                 case 's': save_interval = std::atol  ( optarg ); break;
         		case 'd': diagonalMoves = std::atoi  ( optarg ); break;
+                case 'a': densityCheckerOn=true; break;
                 break;
                 default:
                     std::cerr << "Unknown option encountered: " << optarg << "\n";
@@ -181,6 +184,7 @@ int main( int argc, char ** argv )
          *   GPUScBFM_AB_Type<Ing> gpuBfm( myIngredients, save_interval, iGpuToUse );
          */
         auto const pUpdaterGpu = new GPUScBFM_Tendomers<Ing>( myIngredients, save_interval, diagonalMoves );
+        pUpdaterGpu->setDensityCheckOn(densityCheckerOn);
         pUpdaterGpu->setGpu( iGpuToUse );
         pUpdaterGpu->activateLogging( "Error"     );
         pUpdaterGpu->activateLogging( "Stats"      );

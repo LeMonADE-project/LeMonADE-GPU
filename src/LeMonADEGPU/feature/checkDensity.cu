@@ -1,6 +1,4 @@
 #include <LeMonADEGPU/feature/checkDensity.h>
-// #include <LeMonADEGPU/core/constants.cuh>
-#include <LeMonADEGPU/utility/cudacommon.hpp>
 ////////////////////////////////////////////////////////////////////////////////
 ///some simple functions for the power handling/////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
@@ -33,6 +31,13 @@ checkDensity<T_UCoordinateCuda>::checkDensity(boxType BoxX_, boxType BoxY_, boxT
 {
     setBoxSizes(BoxX_,BoxY_,BoxZ_);
 };
+template <typename T_UCoordinateCuda >
+checkDensity<T_UCoordinateCuda>::~checkDensity()
+{
+    // cudaFree(dAvMonomerNumberInShearVolume);
+    // cudaFree(dMonomerNumber_in_ShearVolumeMiddle);
+    // cudaFree(dMonomerNumber_in_ShearVolumeBoundary);
+}
 ////////////////////////////////////////////////////////////////////////////////
 ///member functions ////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
@@ -42,7 +47,7 @@ void checkDensity<T_UCoordinateCuda>::setBoxSizes(boxType BoxX_, boxType BoxY_, 
 	BoxX=BoxX_;
 	BoxY=BoxY_;
 	BoxZ=BoxZ_;
-	// copy to constant device memory 
+	// // copy to constant device memory 
     CUDA_ERROR(cudaMemcpyToSymbol(dBoxX   ,&BoxX    ,  sizeof(boxType)));
     CUDA_ERROR(cudaMemcpyToSymbol(dBoxY   ,&BoxY    ,  sizeof(boxType)));
     CUDA_ERROR(cudaMemcpyToSymbol(dBoxZ   ,&BoxZ    ,  sizeof(boxType)));
@@ -53,13 +58,13 @@ void checkDensity<T_UCoordinateCuda>::setBoxSizes(boxType BoxX_, boxType BoxY_, 
     {decltype( BoxZ ) x =BoxZ/2+2; CUDA_ERROR(cudaMemcpyToSymbol(dBoxZhP2, &x, sizeof(boxType)));}
     {decltype( BoxZ ) x =BoxZ/2-3; CUDA_ERROR(cudaMemcpyToSymbol(dBoxZhM3, &x, sizeof(boxType)));}
     {decltype( BoxZ ) x =BoxZ/2-2; CUDA_ERROR(cudaMemcpyToSymbol(dBoxZhM2, &x, sizeof(boxType)));}
-    {decltype( BoxZ ) x =BoxZ/2+3; CUDA_ERROR(cudaMemcpyToSymbol(dBoxZhP3, &x, sizeof(boxType)));}
+    // {decltype( BoxZ ) x =BoxZ/2+3; CUDA_ERROR(cudaMemcpyToSymbol(dBoxZhP3, &x, sizeof(boxType)));}
 }
 ////////////////////////////////////////////////////////////////////////////////
 __global__ void checkConstantSetting()//(uint32_t * countsBound, uint32_t * countsMiddle)
 {
-    printf("box=(%d,%d,%d)\n",dBoxX, dBoxY, dBoxZ);
-    printf("%d %d %d %d %d %d %d %d \n",dBoxZM1, dBoxZM2, dBoxZM3, dBoxZhM2, dBoxZhM3, dBoxZhP1, dBoxZhP2, dBoxZhP3);
+    // printf("box=(%d,%d,%d)\n",dBoxX, dBoxY, dBoxZ);
+    // printf("%d %d %d %d %d %d %d %d \n",dBoxZM1, dBoxZM2, dBoxZM3, dBoxZhM2, dBoxZhM3, dBoxZhP1, dBoxZhP2, dBoxZhP3);
     printf("avDensity=%d\n", dAvMonomerNumberInShearVolume);
     // printf("MonsBound=%d MonsMiddle=%d\n", *countsBound,*countsMiddle);
     printf("MonsBound=%d MonsMiddle=%d\n", dMonomerNumber_in_ShearVolumeBoundary,dMonomerNumber_in_ShearVolumeMiddle);
@@ -73,8 +78,10 @@ template <typename T_UCoordinateCuda >
 void checkDensity<T_UCoordinateCuda>::init(uint32_t NMonomers_, uint32_t nSortedMonomers, cudaDeviceProp&  mCudaProps ) {            
     NMonomers=NMonomers_;
     //the average number of monomers in four slices of the box 
-    uint32_t hAvMonomerNumberInShearVolume=static_cast<uint32_t>(static_cast<float>(NMonomers)*4.0/static_cast<float>(BoxZ));
+    hAvMonomerNumberInShearVolume=static_cast<uint32_t>(static_cast<float>(NMonomers)*4.0/static_cast<float>(BoxZ));
     CUDA_ERROR(cudaMemcpyToSymbol(dAvMonomerNumberInShearVolume, &hAvMonomerNumberInShearVolume, sizeof(uint32_t)));
+    // CUDA_ERROR(cudaMalloc( (void **) &dAvMonomerNumberInShearVolume,  sizeof(uint32_t) ));
+    // CUDA_ERROR(cudaMemcpy(dAvMonomerNumberInShearVolume, &hAvMonomerNumberInShearVolume, sizeof(uint32_t), cudaMemcpyHostToDevice));
     std::cout << "set average number of monomers in shear volume to  " << hAvMonomerNumberInShearVolume << std::endl;
 
     //parameter needed to start the kernel for the reduction 
@@ -133,15 +140,27 @@ void checkDensity<T_UCoordinateCuda>::init(uint32_t NMonomers_, uint32_t nSorted
     mCountMiddleMonos->pushAsync();
     mCountBoundaryMonos->pushAsync();
 	//push the number of monomers in the sheared parts to the gpu 
-	// CUDA_ERROR(cudaMemcpy(dMonomerNumber_in_ShearVolumeBoundary, &hMonomerNumber_in_ShearVolumeBoundary,sizeof(uint32_t), cudaMemcpyHostToDevice) );
-    // CUDA_ERROR(cudaMemcpy(dMonomerNumber_in_ShearVolumeMiddle  , &hMonomerNumber_in_ShearVolumeMiddle  ,sizeof(uint32_t), cudaMemcpyHostToDevice) );
+	// CUDA_ERROR(cudaMemcpy(dMonomerNumber_in_ShearVolumeMiddle  , &hMonomerNumber_in_ShearVolumeMiddle  ,sizeof(uint32_t), cudaMemcpyHostToDevice) );
+    // CUDA_ERROR(cudaMemcpy(dMonomerNumber_in_ShearVolumeBoundary, &hMonomerNumber_in_ShearVolumeBoundary,sizeof(uint32_t), cudaMemcpyHostToDevice) );
     CUDA_ERROR(cudaMemcpyToSymbol(dMonomerNumber_in_ShearVolumeBoundary ,&hMonomerNumber_in_ShearVolumeBoundary,  sizeof(uint32_t)));	
     CUDA_ERROR(cudaMemcpyToSymbol(dMonomerNumber_in_ShearVolumeMiddle   ,&hMonomerNumber_in_ShearVolumeMiddle  ,  sizeof(uint32_t)));	
-	std::cout << " number of monomer in boundaries "<<hMonomerNumber_in_ShearVolumeBoundary << std::endl;
-    std::cout << " number of monomer in middle of box "<<hMonomerNumber_in_ShearVolumeMiddle << std::endl;
     launch_checkConstantSetting();
+    // printResults();
 }
-
+////////////////////////////////////////////////////////////////////////////////
+template <typename T_UCoordinateCuda >
+void checkDensity<T_UCoordinateCuda>::setDensityCheckON(bool checkOn_) {
+    checkOn=checkOn_;
+    CUDA_ERROR(cudaMemcpyToSymbol(dIsOn   ,&checkOn    ,  sizeof(bool)));
+    std::cout << "checkDensity<T_UCoordinateCuda>::setDensityCheckON=" << checkOn << std::endl;
+}
+////////////////////////////////////////////////////////////////////////////////
+template <typename T_UCoordinateCuda >
+void checkDensity<T_UCoordinateCuda>::printResults( ){
+    std::cout << "Number of monomer in boundaries   :"<<hMonomerNumber_in_ShearVolumeBoundary<< std::endl;
+    std::cout << "Number of monomer in middle part  :"<<hMonomerNumber_in_ShearVolumeMiddle  << std::endl;
+    std::cout << "Average of monomer in shear volume:"<<hAvMonomerNumberInShearVolume        << std::endl;
+}
 ////////////////////////////////////////////////////////////////////////////////
 ///start kernel calculating the number density//////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
@@ -233,11 +252,11 @@ void checkDensity<T_UCoordinateCuda>::calcDensity()
         hMonomerNumber_in_ShearVolumeMiddle   += mReducedCountMiddleMonos->host[i];
     }
     //copy to device 
+	// CUDA_ERROR(cudaMemcpy(dMonomerNumber_in_ShearVolumeMiddle  , &hMonomerNumber_in_ShearVolumeMiddle  ,sizeof(uint32_t), cudaMemcpyHostToDevice) );
     // CUDA_ERROR(cudaMemcpy(dMonomerNumber_in_ShearVolumeBoundary, &hMonomerNumber_in_ShearVolumeBoundary,sizeof(uint32_t), cudaMemcpyHostToDevice) );
-    // CUDA_ERROR(cudaMemcpy(dMonomerNumber_in_ShearVolumeMiddle  , &hMonomerNumber_in_ShearVolumeMiddle  ,sizeof(uint32_t), cudaMemcpyHostToDevice) );
     CUDA_ERROR(cudaMemcpyToSymbol(dMonomerNumber_in_ShearVolumeBoundary ,&hMonomerNumber_in_ShearVolumeBoundary,  sizeof(uint32_t)));	
     CUDA_ERROR(cudaMemcpyToSymbol(dMonomerNumber_in_ShearVolumeMiddle   ,&hMonomerNumber_in_ShearVolumeMiddle  ,  sizeof(uint32_t)));	
-
+    // printResults();
     //empty the mirrored vectors for the next step
     mReducedCountBoundaryMonos->memsetAsync(0);
     mReducedCountMiddleMonos->memsetAsync(0);

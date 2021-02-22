@@ -64,7 +64,7 @@ private:
     bool mSetStepsBetweenSortings;
     uint8_t mnSplitColors;
     bool mDiagMovesOn; 
-    // double shearForce;
+    bool densityCheckerON;
 protected:
     inline T_IngredientsType & getIngredients() { return mIngredients; }
 
@@ -90,8 +90,8 @@ public:
       mLog        ( __FILENAME__                   ),
       mSetStepsBetweenSortings( false ),
       mDiagMovesOn(mDiagMovesOn_),
-      mnSplitColors( 0 )//,
-    //   shearForce (0.0)
+      mnSplitColors( 0 ),
+      densityCheckerON(false)
     {
         mLog.deactivate( "Check"     );
         mLog.deactivate( "Error"     );
@@ -111,7 +111,7 @@ public:
         mLog.activate( sLevel );
     }
 
-    // inline void setShearForce(double shearForce_) {shearForce=shearForce_;}
+    void setDensityCheckerON( bool densityCheckerON_ ){densityCheckerON=densityCheckerON_;}
     inline void setGpu( int riGpuToUse ){ miGpuToUse = riGpuToUse; }
     inline void setStepsBetweenSortings( int rnStepsBetweenSortings )
     {
@@ -192,6 +192,7 @@ public:
             mUpdaterGpu.setShearForce(mIngredients.getAmplitudeShearForce());
         else 
             mUpdaterGpu.setShearForce(0);
+        mUpdaterGpu.setDensityCheckerON(densityCheckerON);
         Method met;
         met.modifyCurve().setMode(2);
         met.modifyCurve().setBox(mIngredients.getBoxX(),mIngredients.getBoxY(),mIngredients.getBoxZ());

@@ -71,6 +71,7 @@ int main(int argc, char **argv)
     int nSplitColors = 0;
     bool analyzeON = false;
     bool diagMovesOn = false;
+    bool densityCheckerOn=false;
 
     try
     {
@@ -85,65 +86,42 @@ int main(int argc, char **argv)
         while (true)
         {
             static struct option long_options[] = {
-                {"colors", required_argument, 0, 'c'},
-                {"seeds", required_argument, 0, 'e'},
-                {"gpu", required_argument, 0, 'g'},
-                {"help", no_argument, 0, 'h'},
-                {"initial-state", required_argument, 0, 'i'},
-                {"diagMovesON", required_argument, 0, 'd'},
-                {"max-mcs", required_argument, 0, 'm'},
-                {"output", required_argument, 0, 'o'},
-                {"rng", required_argument, 0, 'r'},
-                {"analyze", required_argument, 0, 'a'},
-                {"save-interval", required_argument, 0, 's'},
+                {"colors"           , required_argument, 0, 'c'},
+                {"seeds"            , required_argument, 0, 'e'},
+                {"gpu"              , required_argument, 0, 'g'},
+                {"help"             , no_argument      , 0, 'h'},
+                {"initial-state"    , required_argument, 0, 'i'},
+                {"diagMovesON"      , required_argument, 0, 'd'},
+                {"max-mcs"          , required_argument, 0, 'm'},
+                {"output"           , required_argument, 0, 'o'},
+                {"rng"              , required_argument, 0, 'r'},
+                {"analyze"          , required_argument, 0, 'z'},
+                {"save-interval"    , required_argument, 0, 's'},
+                {"densityCheckerOn" , no_argument      , 0, 'a'},
                 {0, 0, 0, 0} // signal end of list
             };
             /* getopt_long stores the option index here. */
             int option_index = 0;
-            int c = getopt_long(argc, argv, "c:e:g:hi:dm:o:r:a:s:", long_options, &option_index);
+            int c = getopt_long(argc, argv, "c:e:g:hi:dm:o:r:as:z:", long_options, &option_index);
 
             if (c == -1)
                 break;
 
             switch (c)
             {
-            case 'c':
-                nSplitColors = std::atoi(optarg);
-                break;
-            case 'e':
-                seedFileName = std::string(optarg);
-                break;
-            case 'h':
-                printHelp();
-                return 0;
-            case 'g':
-                iGpuToUse = std::atoi(optarg);
-                break;
-            case 'i':
-                infile = std::string(optarg);
-                break;
-            case 'd':
-                diagMovesOn = true;
-                break;
-            case 'm':
-                max_mcs = std::atol(optarg);
-                break;
-            case 'o':
-                outfile = std::string(optarg);
-                break;
-            case 'r':
-                iRngToUse = std::atoi(optarg);
-                break;
-            case 'a':
-                analyzeON = std::atoi(optarg);
-                break;
-            case 's':
-                save_interval = std::atol(optarg);
-                break;
-                break;
-            default:
-                std::cerr << "Unknown option encountered: " << optarg << "\n";
-                return 1;
+            case 'c': nSplitColors = std::atoi(optarg); break;
+            case 'e': seedFileName = std::string(optarg); break;
+            case 'h': printHelp(); return 0;
+            case 'g': iGpuToUse = std::atoi(optarg); break;
+            case 'i': infile = std::string(optarg); break;
+            case 'd': diagMovesOn = true; break;
+            case 'm': max_mcs = std::atol(optarg); break;
+            case 'o': outfile = std::string(optarg); break;
+            case 'r': iRngToUse = std::atoi(optarg); break;
+            case 'z': analyzeON = std::atoi(optarg);break;
+            case 's': save_interval = std::atol(optarg);break;
+            case 'a': densityCheckerOn=true; break;
+            default: std::cerr << "Unknown option encountered: " << optarg << "\n"; return 1;
             }
         }
         std::cout << "Diagonal moves are turned " << diagMovesOn << std::endl;
@@ -187,6 +165,7 @@ int main(int argc, char **argv)
          */
         auto const pUpdaterGpu = new GPUScBFM<Ing>(myIngredients, save_interval, diagMovesOn);
         pUpdaterGpu->setGpu(iGpuToUse);
+        pUpdaterGpu->setDensityCheckerON(densityCheckerOn);
         pUpdaterGpu->activateLogging("Error");
         //pUpdaterGpu->activateLogging( "Stats"      );
         pUpdaterGpu->activateLogging("Info");

@@ -261,16 +261,16 @@ void UpdaterGPUScBFM_AB_Breaking< T_UCoordinateCuda >::runSimulationOnGPU
 	    {
 		this-> template launch_CheckSpecies<6>(nBlocks, nThreads, iSpecies, iOffsetLatticeTmp, seed);
 		if ( useCudaMemset )
-		    launch_PerformSpeciesAndApply(nBlocks, nThreads, iSpecies, texLatticeTmp);
+		    launch_PerformSpeciesAndApply(nBlocks, nThreads, iSpecies, texLatticeTmp,seed );
 		else
-		    launch_PerformSpecies(nBlocks,nThreads,iSpecies,texLatticeTmp);
+		    launch_PerformSpecies(nBlocks,nThreads,iSpecies,texLatticeTmp,seed );
 	    }else 
 	    {
 		this-> template launch_CheckSpecies<18>(nBlocks, nThreads, iSpecies, iOffsetLatticeTmp, seed);
 		if ( useCudaMemset )
-		    launch_PerformSpeciesAndApply(nBlocks, nThreads, iSpecies, texLatticeTmp);
+		    launch_PerformSpeciesAndApply(nBlocks, nThreads, iSpecies, texLatticeTmp,seed );
 		else
-		    launch_PerformSpecies(nBlocks,nThreads,iSpecies,texLatticeTmp);
+		    launch_PerformSpecies(nBlocks,nThreads,iSpecies,texLatticeTmp,seed );
 	    }
 
             if ( useCudaMemset ){

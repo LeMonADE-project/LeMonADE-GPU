@@ -29,6 +29,7 @@
 #include <LeMonADEGPU/core/Method.h>
 #include <LeMonADEGPU/feature/BoxCheck.h>
 #include <LeMonADEGPU/feature/checkDensity.h>
+// #include <LeMonADEGPU/feature/checkDensity.cu>
 
 //keep this 
 // #define USE_BIT_PACKING_TMP_LATTICE
@@ -315,6 +316,7 @@ protected:
     uint8_t mnSplitColors;
     bool diagMovesOn;
     checkDensity<T_UCoordinateCuda> densityChecker;
+    bool setDensityCheckerOn;
  
 public:
     UpdaterGPUScBFM();
@@ -356,14 +358,16 @@ protected:
     void doCopyBackConnectivity(); 
     void doCopyBackMonomerPositions();
     
-    template< int MoveSize > void launch_CheckSpecies          (const size_t nBlocks, const size_t nThreads, const size_t iSpecies, const size_t iOffsetLatticeTmp, const uint64_t seed );
-    void launch_CheckSpeciesWithMonomericMoveType          (const size_t nBlocks, const size_t nThreads, const size_t iSpecies, const size_t iOffsetLatticeTmp, const uint64_t seed, cudaTextureObject_t const texAllowedToMoveInSpecies);
-    template< int MoveSize > void launch_CheckReactiveSpecies  (const size_t nBlocks, const size_t nThreads, const size_t iSpecies, const size_t iOffsetLatticeTmp, const uint64_t seed, uint32_t AASpeciesFlag, cudaTextureObject_t const texAllowedToMoveInSpecies);
-    void launch_PerformSpecies        (const size_t nBlocks, const size_t nThreads, const size_t iSpecies, cudaTextureObject_t texLatticeTmp );
-    void launch_PerformSpeciesAndApply(const size_t nBlocks, const size_t nThreads, const size_t iSpecies, cudaTextureObject_t texLatticeTmp );
-    void launch_ZeroArraySpecies      (const size_t nBlocks, const size_t nThreads, const size_t iSpecies );
-    void launch_CountFilteredCheck    (const size_t nBlocks, const size_t nThreads, const size_t iSpecies, cudaTextureObject_t texLatticeTmp, unsigned long long int * dpFiltered , const size_t iOffsetLatticeTmp);
-    void launch_countFilteredPerform  (const size_t nBlocks, const size_t nThreads, const size_t iSpecies, cudaTextureObject_t texLatticeTmp, unsigned long long int * dpFiltered );
+    template< int MoveSize > 
+    void launch_CheckSpecies                      (const size_t nBlocks, const size_t nThreads, const size_t iSpecies, const size_t iOffsetLatticeTmp, const uint64_t seed );
+    void launch_CheckSpeciesWithMonomericMoveType (const size_t nBlocks, const size_t nThreads, const size_t iSpecies, const size_t iOffsetLatticeTmp, const uint64_t seed, cudaTextureObject_t const texAllowedToMoveInSpecies);
+    template< int MoveSize > 
+    void launch_CheckReactiveSpecies              (const size_t nBlocks, const size_t nThreads, const size_t iSpecies, const size_t iOffsetLatticeTmp, const uint64_t seed, uint32_t AASpeciesFlag, cudaTextureObject_t const texAllowedToMoveInSpecies);
+    void launch_PerformSpecies                    (const size_t nBlocks, const size_t nThreads, const size_t iSpecies, cudaTextureObject_t texLatticeTmp, const uint64_t seed );
+    void launch_PerformSpeciesAndApply            (const size_t nBlocks, const size_t nThreads, const size_t iSpecies, cudaTextureObject_t texLatticeTmp, const uint64_t seed );
+    void launch_ZeroArraySpecies                  (const size_t nBlocks, const size_t nThreads, const size_t iSpecies );
+    void launch_CountFilteredCheck                (const size_t nBlocks, const size_t nThreads, const size_t iSpecies, cudaTextureObject_t texLatticeTmp, unsigned long long int * dpFiltered , const size_t iOffsetLatticeTmp);
+    void launch_countFilteredPerform              (const size_t nBlocks, const size_t nThreads, const size_t iSpecies, cudaTextureObject_t texLatticeTmp, unsigned long long int * dpFiltered );
 
 public:
 
@@ -375,6 +379,7 @@ public:
     void setGpu               ( int iGpuToUse );
     void copyBondSet          ( int dx, int dy, int dz, bool bondForbidden );
     void setShearForce        ( double shearForce );
+    void setDensityCheckerON  ( bool   setDensityCheckerOn_   );
     void setNrOfAllMonomers   ( T_Id nAllMonomers );
     void setAutoColoring      ( bool bSetAutoColoring_);
     void setAttributeTag      ( T_Id i, int32_t attribute ); // this is to be NOT the coloring as needed for parallelizing the BFM, it is to be used for additional e.g. physical attributes like actual chemical types

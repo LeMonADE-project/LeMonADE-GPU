@@ -29,6 +29,7 @@
 
 #include <LeMonADEGPU/utility/DeleteMirroredObject.h>
 #include <LeMonADEGPU/core/BondVectorSet.h>
+// #include <LeMonADEGPU/feature/checkDensity.cu>
 
 using T_Flags            = UpdaterGPUScBFM_Tendomers< uint8_t >::T_Flags;
 using T_Lattice          = UpdaterGPUScBFM< uint8_t >::T_Lattice        ;
@@ -498,7 +499,7 @@ void UpdaterGPUScBFM_Tendomers<T_UCoordinateCuda>::initialize()
     moveType -> pushAsync();
   }
   //density checker 
-  densityChecker.setDensityCheckON(true);
+  densityChecker.setDensityCheckON(setDensityCheckerOn);
   
 }
 template< typename T_UCoordinateCuda >
@@ -514,6 +515,7 @@ void UpdaterGPUScBFM_Tendomers<T_UCoordinateCuda>::setNTendomers             ( u
     nTendomers = nTendomers_;
     mLog( "Info" ) << "Nr of tendomers    "<< nTendomers  <<"\n";
 }
+
 template< typename T_UCoordinateCuda >
 void UpdaterGPUScBFM_Tendomers<T_UCoordinateCuda>::setNumCrossLinkers        ( uint32_t nCrossLinks_           )
 {
@@ -666,21 +668,21 @@ void UpdaterGPUScBFM_Tendomers< T_UCoordinateCuda >::runSimulationOnGPU
             {
             case 0: this-> template launch_CheckSpecies<6>(nBlocks, nThreads, iSpecies, iOffsetLatticeTmp, seed);
                     if ( useCudaMemset )
-                      launch_PerformSpeciesAndApply(nBlocks, nThreads, iSpecies, texLatticeTmp);
+                      launch_PerformSpeciesAndApply(nBlocks, nThreads, iSpecies, texLatticeTmp,seed );
                     else
-                      launch_PerformSpecies(nBlocks,nThreads,iSpecies,texLatticeTmp);
+                      launch_PerformSpecies(nBlocks,nThreads,iSpecies,texLatticeTmp,seed );
                     break;
             case 1: this-> template launch_CheckSpecies<18>(nBlocks, nThreads, iSpecies, iOffsetLatticeTmp, seed);
                     if ( useCudaMemset )
-                      launch_PerformSpeciesAndApply(nBlocks, nThreads, iSpecies, texLatticeTmp);
+                      launch_PerformSpeciesAndApply(nBlocks, nThreads, iSpecies, texLatticeTmp,seed );
                     else
-                      launch_PerformSpecies(nBlocks,nThreads,iSpecies,texLatticeTmp);
+                      launch_PerformSpecies(nBlocks,nThreads,iSpecies,texLatticeTmp,seed );
                     break;
             case 2: this-> launch_CheckSpeciesWithMonomericMoveType(nBlocks, nThreads, iSpecies, iOffsetLatticeTmp, seed, moveType -> texture);
                     if ( useCudaMemset )
-                      launch_PerformSpeciesAndApply(nBlocks, nThreads, iSpecies, texLatticeTmp);
+                      launch_PerformSpeciesAndApply(nBlocks, nThreads, iSpecies, texLatticeTmp,seed );
                     else
-                      launch_PerformSpecies(nBlocks,nThreads,iSpecies,texLatticeTmp);
+                      launch_PerformSpecies(nBlocks,nThreads,iSpecies,texLatticeTmp,seed );
                     break;
             }
 
@@ -716,7 +718,8 @@ void UpdaterGPUScBFM_Tendomers< T_UCoordinateCuda >::runSimulationOnGPU
         }
         densityChecker.calcDensity();
     } // iStep
-    densityChecker.launch_checkConstantSetting();
+    // densityChecker.launch_checkConstantSetting();
+    densityChecker.printResults();
 
     std::clock_t const t1 = std::clock();
     double const dt = float(t1-t0) / CLOCKS_PER_SEC;

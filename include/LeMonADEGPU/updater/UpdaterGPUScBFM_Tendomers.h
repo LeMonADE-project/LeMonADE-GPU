@@ -6,6 +6,7 @@
 #include <LeMonADEGPU/utility/SelectiveLogger.hpp>
 #include <LeMonADEGPU/utility/cudacommon.hpp>
 #include <LeMonADEGPU/core/constants.cuh>
+#include <LeMonADEGPU/feature/checkDensity.h>
 
 template< typename T_UCoordinateCuda >
 class UpdaterGPUScBFM_Tendomers: public UpdaterGPUScBFM<T_UCoordinateCuda>
@@ -69,6 +70,7 @@ protected:
     using BaseClass::mLatticeOut;
     using BaseClass::boxCheck;
     using BaseClass::densityChecker;
+    using BaseClass::setDensityCheckerOn;
    
     
 public:
@@ -95,7 +97,7 @@ private:
     int monomericMoveType;
     //stores if the monomer can use diagonal moves or not
     MirroredTexture<  uint8_t > * moveType;
-
+    
 public:
   
     //setter functions 

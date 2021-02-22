@@ -49,7 +49,8 @@
 
 #include <LeMonADEGPU/utility/DeleteMirroredObject.h>
 #include <LeMonADEGPU/core/BondVectorSet.h>
-
+// #include <LeMonADEGPU/feature/checkDensity.h>
+#include "../feature/checkDensity.cu"
 /* shorten full type names for kernels (assuming these are independent of the template parameter) */
 using T_Flags            = UpdaterGPUScBFM< uint8_t >::T_Flags      ;
 using T_Lattice          = UpdaterGPUScBFM< uint8_t >::T_Lattice    ;
@@ -351,21 +352,34 @@ MAKEINSTANCE(int32_t);
  * slice z is [Box/2-3;Box/2+1] -> left gamma=(-1,0,0) -> dU = -dx
  * slice z=Box-1 && z=Box-2 -> right gamma=(1,0,0) -> dU = dx
  * otherwise -> always allowed
+ * Make an example, to choose the correct boundaries!
+ * BoxSize=16
+ * 00 01 02 03 04 05 06 07 08 09 10 11 12 13 14 15 (0)
+ *  x  x  0  0  0  0  x  x  x  x  0  0  0  0  x  x 
+ * x refers to where the force is applied and where the 
+ * density needs to keept constant.
+ * dBoxZM3 =13 
+ * dBoxZM2 =14
+ * dBoxZhM3=5
+ * dBoxZhM2=6
+ * dBoxZhP1=9
+ * dBoxZhP2=10
  */
 template <class T_UCoordinateCuda >
 __device__  bool shearForce( int32_t dx, T_UCoordinateCuda z, double random_number ){
     if( dx == 0 ) return true;
     //this should be either +1 or -1 
     auto  prefactorPot = dx;
-    if(z < 2) prefactorPot *= 1;
+    z=z%dcBoxZ;
+    if(z < 2 || z >= (dcBoxZ-2) ) prefactorPot *= 1;
     else if((z <= (dcBoxZ/2+1)) && (z > (dcBoxZ/2-3)) ) prefactorPot *= -1;
-    else if(z >= (dcBoxZ-2) ) prefactorPot = +1;
     else return true;
 
     //  Metropolis-criterion is only necessary if the prefactor is +1
     // otherwise the probability p=exp(-gamma*dr) is always greater one 
     // and the move is possible, thus in direction of the force
     if( prefactorPot == 1 ){
+        // printf("probabilty=%f rnd=%f",prob_d, random_number);
         if( random_number < prob_d) return true;
         else                        return false; 
     }
@@ -435,7 +449,7 @@ __global__ void kernelSimulationScBFMCheckSpecies
         {
             Saru rng(rGlobalIteration,iMonomer,rSeed);
             rn =rng.rng32();
-            rnd=rng.rng_d();
+            // rnd=rng.rng_d();
         }
         int direction = rn % moveSize;
 
@@ -448,9 +462,9 @@ __global__ void kernelSimulationScBFMCheckSpecies
         
         if (    bCheck(r1.x,r1.y,r1.z) && 
             ! checkNeighboringBonds<T_UCoordinateCuda>(dpNeighborsSizes, iMonomer, dpNeighbors, rNeighborsPitchElements, dpPolymerSystem, r1, checkBondVector ) && 
-            ! checkFront( texLatticeRefOut, r0.x, r0.y, r0.z, direction, met, &BitPacking::bitPackedTextureGetStandard )  && 
-            shearForce(DXTable_d[ direction ],r0.z& dcBoxXM1,rnd) && 
-            checkDens(r0.z,DZTable_d[ direction ])
+            ! checkFront( texLatticeRefOut, r0.x, r0.y, r0.z, direction, met, &BitPacking::bitPackedTextureGetStandard )  //&& 
+            // shearForce(DXTable_d[ direction ],r0.z,rnd) 
+            && checkDens(r0.z,DZTable_d[ direction ])
         ){
             /* everything fits so perform move on temporary lattice */
             /* can I do this ??? dpPolymerSystem is the device pointer to the read-only
@@ -646,12 +660,14 @@ template< typename T_UCoordinateCuda   >
 __global__ void kernelSimulationScBFMPerformSpecies
 (
     typename CudaVec4< T_UCoordinateCuda >::value_type
-                        const * const              dpPolymerSystem,
-    T_Flags                   * const              dpPolymerFlags ,
-    T_Lattice                 * const __restrict__ dpLattice      ,
-    T_Id                        const              nMonomers      ,
-    cudaTextureObject_t         const              texLatticeTmp  ,
-    Method                      const              met 
+                        const * const              dpPolymerSystem ,
+    T_Flags                   * const              dpPolymerFlags  ,
+    T_Lattice                 * const __restrict__ dpLattice       ,
+    T_Id                        const              nMonomers       ,
+    cudaTextureObject_t         const              texLatticeTmp   ,
+    Method                      const              met             ,
+    uint64_t                    const              rSeed           ,
+    uint64_t                    const              rGlobalIteration        
 )
 {
     for ( auto iMonomer = blockIdx.x * blockDim.x + threadIdx.x;
@@ -660,14 +676,16 @@ __global__ void kernelSimulationScBFMPerformSpecies
         auto const properties = dpPolymerFlags[ iMonomer ];
         if ( ( properties & T_Flags(32) ) == T_Flags(0) ) // impossible move
             continue;
-
+        Saru rng(rGlobalIteration,iMonomer,rSeed);
         auto const r0 = dpPolymerSystem[ iMonomer ];
         //uint3 const r0 = { r0Raw.x, r0Raw.y, r0Raw.z }; // slower
         auto const direction = properties & T_Flags(31); // 7=0b111 31=0b11111
         uint32_t iOldPos;
-	//if check Front is true (there is a monomer) : go to next monomer in the grid 
+	    //if check Front is true (there is a monomer) : go to next monomer in the grid 
         if ( checkFront( texLatticeTmp, r0.x, r0.y, r0.z, direction, met,  &BitPacking::bitPackedTextureGet, &iOldPos ) )
-	  continue;
+            continue;
+        if ( ! shearForce(DXTable_d[ direction ],r0.z,rng.rng_d() ) )
+            continue;
 
         /* If possible, perform move now on normal lattice */
         dpPolymerFlags[ iMonomer ] = properties | T_Flags(64); // indicating allowed move
@@ -687,12 +705,14 @@ template< typename T_UCoordinateCuda   >
 __global__ void kernelSimulationScBFMPerformSpeciesAndApply
 (
     typename CudaVec4< T_UCoordinateCuda >::value_type
-                        * const              dpPolymerSystem,
-    T_Flags             * const              dpPolymerFlags ,
-    T_Lattice           * const __restrict__ dpLattice      ,
-    T_Id                  const              nMonomers      ,
-    cudaTextureObject_t   const              texLatticeTmp,
-    Method 				     met 
+                        * const              dpPolymerSystem ,
+    T_Flags             * const              dpPolymerFlags  ,
+    T_Lattice           * const __restrict__ dpLattice       ,
+    T_Id                  const              nMonomers       ,
+    cudaTextureObject_t   const              texLatticeTmp   ,
+    Method 				  const              met             ,
+    uint64_t              const              rSeed           ,
+    uint64_t              const              rGlobalIteration        
 )
 {
     for ( auto iMonomer = blockIdx.x * blockDim.x + threadIdx.x;
@@ -701,11 +721,13 @@ __global__ void kernelSimulationScBFMPerformSpeciesAndApply
         auto const properties = dpPolymerFlags[ iMonomer ];
         if ( ! ( properties & T_Flags(32) ) ) // check if can-move flag is set
             continue;
-
+        Saru rng(rGlobalIteration,iMonomer,rSeed);
         auto const r0 = dpPolymerSystem[ iMonomer ];
         auto const direction = properties & T_Flags(31); // 7=0b111 31=0b11111
         uint32_t iOldPos;
         if ( checkFront( texLatticeTmp, r0.x, r0.y, r0.z, direction, met, &BitPacking::bitPackedTextureGet, &iOldPos ) )
+            continue;
+        if ( ! shearForce(DXTable_d[ direction ],r0.z,rng.rng_d() ) )
             continue;
 
         /* @todo this is slower on Kepler when using DXTableUintCuda_d
@@ -1003,7 +1025,7 @@ void UpdaterGPUScBFM< T_UCoordinateCuda >::launch_CountFilteredCheck(
 template< typename T_UCoordinateCuda> 
 void UpdaterGPUScBFM< T_UCoordinateCuda >::launch_PerformSpecies(
     const size_t nBlocks, const size_t nThreads, 
-    const size_t iSpecies, cudaTextureObject_t texLatticeTmp )
+    const size_t iSpecies, cudaTextureObject_t texLatticeTmp,const uint64_t seed )
 {
 
     kernelSimulationScBFMPerformSpecies< T_UCoordinateCuda >
@@ -1012,14 +1034,18 @@ void UpdaterGPUScBFM< T_UCoordinateCuda >::launch_PerformSpecies(
         mPolymerFlags->gpu + mviSubGroupOffsets[ iSpecies ],
         mLatticeOut->gpu,
         mnElementsInGroup[ iSpecies ],
-        texLatticeTmp, met 
+        texLatticeTmp, 
+        met, 
+        seed, 
+        hGlobalIterator 
     );
+    hGlobalIterator++;
 }
 
 template< typename T_UCoordinateCuda> 
 void UpdaterGPUScBFM< T_UCoordinateCuda >::launch_PerformSpeciesAndApply(
     const size_t nBlocks, const size_t nThreads, 
-    const size_t iSpecies, cudaTextureObject_t texLatticeTmp )
+    const size_t iSpecies, cudaTextureObject_t texLatticeTmp,const uint64_t seed )
 {
     kernelSimulationScBFMPerformSpeciesAndApply< T_UCoordinateCuda >
     <<< nBlocks, nThreads, 0, mStream >>>(
@@ -1027,9 +1053,12 @@ void UpdaterGPUScBFM< T_UCoordinateCuda >::launch_PerformSpeciesAndApply(
         mPolymerFlags->gpu + mviSubGroupOffsets[ iSpecies ],
         mLatticeOut->gpu,
         mnElementsInGroup[ iSpecies ],
-        texLatticeTmp, met 
+        texLatticeTmp, 
+        met,
+        seed, 
+        hGlobalIterator
     );
-
+    hGlobalIterator++;
 }
 
 template< typename T_UCoordinateCuda  >
@@ -1086,7 +1115,8 @@ UpdaterGPUScBFM< T_UCoordinateCuda >::UpdaterGPUScBFM()
    mnSplitColors                    ( 0    ),
    hGlobalIterator                  ( 0    ),
    bSetAutoColoring                 ( true ),
-   diagMovesOn                      ( false)
+   diagMovesOn                      ( false),
+   setDensityCheckerOn              ( false)
 {
     /**
      * Log control.
@@ -1133,6 +1163,7 @@ void UpdaterGPUScBFM< T_UCoordinateCuda >::destruct()
     //         << prettyPrintBytes( deletePointer.nBytesFreed )
     //         << " on GPU and host RAM.\n";
     // }
+
 }
 
 template< typename T_UCoordinateCuda >
@@ -2234,16 +2265,22 @@ void UpdaterGPUScBFM< T_UCoordinateCuda >::initialize( void )
     // initialize the checkDensity:
     densityChecker.setBoxSizes(mBoxX,mBoxY,mBoxZ);
     densityChecker.init(mnAllMonomers, mnMonomersPadded, mCudaProps);
-    densityChecker.setDensityCheckON(false);
+    densityChecker.setDensityCheckON(setDensityCheckerOn);
 
 }
 template< typename T_UCoordinateCuda >
-void UpdaterGPUScBFM< T_UCoordinateCuda >::setShearForce
-( double shearForce ){
+void UpdaterGPUScBFM< T_UCoordinateCuda >::setShearForce ( double shearForce ){
+    std::cout << "UpdaterGPUScBFM< T_UCoordinateCuda >::setShearForce=" << shearForce << std::endl;
     double  prob = exp(-shearForce);
+    std::cout << "UpdaterGPUScBFM< T_UCoordinateCuda >::setShearForce prob=" << prob << std::endl;
     CUDA_ERROR( cudaMemcpyToSymbol( prob_d, &prob, sizeof( prob ) ) );
 }
-
+template< typename T_UCoordinateCuda >
+void UpdaterGPUScBFM<T_UCoordinateCuda>::setDensityCheckerON       ( bool     setDensityCheckerOn_   )
+{
+    setDensityCheckerOn=setDensityCheckerOn_;
+    std::cout << "UpdaterGPUScBFM<T_UCoordinateCuda>::setDensityCheckerON=" << setDensityCheckerOn << std::endl;
+}
 template< typename T_UCoordinateCuda >
 void UpdaterGPUScBFM< T_UCoordinateCuda >::copyBondSet
 ( int dx, int dy, int dz, bool bondForbidden )
@@ -2802,9 +2839,9 @@ void UpdaterGPUScBFM< T_UCoordinateCuda >::runSimulationOnGPU
 		    launch_countFilteredPerform(nBlocks,nThreads, iSpecies, texLatticeTmp, dpFiltered);
 
 		if ( useCudaMemset )
-		    launch_PerformSpeciesAndApply(nBlocks, nThreads, iSpecies, texLatticeTmp);
+		    launch_PerformSpeciesAndApply(nBlocks, nThreads, iSpecies, texLatticeTmp, seed);
 		else
-		    launch_PerformSpecies(nBlocks,nThreads,iSpecies,texLatticeTmp);
+		    launch_PerformSpecies(nBlocks,nThreads,iSpecies,texLatticeTmp,seed );
 	    }else 
 	    {
 		launch_CheckSpecies<18>(nBlocks, nThreads, iSpecies, iOffsetLatticeTmp, seed);
@@ -2822,9 +2859,9 @@ void UpdaterGPUScBFM< T_UCoordinateCuda >::runSimulationOnGPU
 		    launch_countFilteredPerform(nBlocks,nThreads, iSpecies, texLatticeTmp, dpFiltered);
 
 		if ( useCudaMemset )
-		    launch_PerformSpeciesAndApply(nBlocks, nThreads, iSpecies, texLatticeTmp);
+		    launch_PerformSpeciesAndApply(nBlocks, nThreads, iSpecies, texLatticeTmp,seed );
 		else
-		    launch_PerformSpecies(nBlocks,nThreads,iSpecies,texLatticeTmp);
+		    launch_PerformSpecies(nBlocks,nThreads,iSpecies,texLatticeTmp,seed );
 	    }
 	    
 	    if ( useCudaMemset ){
@@ -2930,7 +2967,22 @@ void UpdaterGPUScBFM< T_UCoordinateCuda >::runSimulationOnGPU
                 }
             }
         } // iSubstep
+        //calculate the density in the sheared volumes:
+        for ( uint32_t i = 0; i < nSpecies; ++i ){
+            //
+            auto const nThreads = vnThreadsToTry.at( benchmarkInfo[ i ].iBestThreadCount );
+            auto const nBlocks  = ceilDiv( mnElementsInGroup[ i ], nThreads );
+            densityChecker.launch_countMonomers(
+              mPolymerSystemSorted,
+              mviSubGroupOffsets[ i ], 
+              mnElementsInGroup[ i ],
+              nBlocks,
+              nThreads
+            );
+          }
+          densityChecker.calcDensity();
     } // iStep
+    densityChecker.printResults();
     if ( mLog.isActive( "Stats" ) && dpFiltered != NULL )
     {
         if ( mnElementsInGroup.size() <= 8 )

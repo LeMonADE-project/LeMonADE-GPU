@@ -14,9 +14,10 @@ typedef uint32_t boxType;
 __device__ __constant__ uint32_t dAvMonomerNumberInShearVolume; 
 __device__ __constant__ uint32_t dMonomerNumber_in_ShearVolumeMiddle;
 __device__ __constant__ uint32_t dMonomerNumber_in_ShearVolumeBoundary;
-__device__ __constant__ boxType dBoxX;
-__device__ __constant__ boxType dBoxY;
-__device__ __constant__ boxType dBoxZ;
+__device__ __constant__ bool     dIsOn;
+__device__ __constant__ boxType  dBoxX;
+__device__ __constant__ boxType  dBoxY;
+__device__ __constant__ boxType  dBoxZ;
 //d-device 
 //M-minus
 //P-plu
@@ -28,7 +29,7 @@ __device__ __constant__ boxType dBoxZhP1;
 __device__ __constant__ boxType dBoxZhP2;
 __device__ __constant__ boxType dBoxZhM3;
 __device__ __constant__ boxType dBoxZhM2;
-__device__ __constant__ boxType dBoxZhP3;
+// __device__ __constant__ boxType dBoxZhP3;
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
@@ -54,42 +55,66 @@ public:
 	 */
     checkDensity();
 	checkDensity(uint32_t BoxX_, uint32_t BoxY_, uint32_t BoxZ_);
+    ~checkDensity();
 	/**
 	 * 
 	 */
-    __device__  bool operator()( uint8_t z0, int32_t dz) const 
+    
+    __device__ inline bool operator()( uint8_t const  z,  int32_t const dz) const 
     {
-        
-        if ( !checkOn) return true; 
+        if ( !dIsOn) return true; 
         if (dz == 0) return true;  
-        auto z=z0%dBoxZ;
+        // auto z=z0%dBoxZ;
+        // auto z=z0%BoxZ;
         //monomers moves up 
-        printf("op(): %d %d %d %d \n", dAvMonomerNumberInShearVolume,dMonomerNumber_in_ShearVolumeBoundary,dMonomerNumber_in_ShearVolumeMiddle, dBoxZ);
+        // printf("z=%d z0=%d dz=%d\n",z,z0,dz );
+        // printf("box=(%d,%d,%d)\n",dBoxX, dBoxY, dBoxZ);
+        // printf("%d %d %d %d %d %d %d %d \n",dBoxZM1, dBoxZM2, dBoxZM3, dBoxZhM2, dBoxZhM3, dBoxZhP1, dBoxZhP2, dBoxZhP3);
+        // printf("op(): %d %d %d %d \n", dAvMonomerNumberInShearVolume,dMonomerNumber_in_ShearVolumeBoundary,dMonomerNumber_in_ShearVolumeMiddle, dBoxZ);
+        /**
+         * Make an example, to choose the correct boundaries!
+         * BoxSize=16
+         * 00 01 02 03 04 05 06 07 08 09 10 11 12 13 14 15 (0)
+         *  x  x  0  0  0  0  x  x  x  x  0  0  0  0  x  x 
+         * x refers to where the force is applied and where the 
+         * density needs to keept constant.
+         * dBoxZM3 =13 
+         * dBoxZM2 =14
+         * dBoxZhM3=5
+         * dBoxZhM2=6
+         * dBoxZhP1=9
+         * dBoxZhP2=10
+         */
         if(dz == 1){
+            //density in the lowest layer is smaller than the average 
             if(dMonomerNumber_in_ShearVolumeBoundary < dAvMonomerNumberInShearVolume ){ 
                 if(z == 1) return false ;
-            }else{ 
+            }else{ //density in toplayer is greater than the average 
                 if(z == dBoxZM3) return false ;
             }
+            //density in the middle layer is smaller than the average 
             if(dMonomerNumber_in_ShearVolumeMiddle < dAvMonomerNumberInShearVolume){
-                if(z == dBoxZhP2)return false ;
-            }else {
+                if(z == dBoxZhP1) return false ;
+            }else { //density in middle is greater than the average 
                 if (z == dBoxZhM3) return false ;
             }
         }else if(dz == -1){
             if(dMonomerNumber_in_ShearVolumeBoundary < dAvMonomerNumberInShearVolume ){ 
                 if(z == dBoxZM2) return false ;
             }else{ 
-                if(z == 2) return false ;}
+                if(z == 2) return false ;
+            }
             if(dMonomerNumber_in_ShearVolumeMiddle < dAvMonomerNumberInShearVolume){
                 if(z == dBoxZhM2 )return false ;
             }else{
-                if (z == dBoxZhP3) return false ;
+                if (z == dBoxZhP2) return false ;
             }
         }
+        return true;
     };
     //!check the correct settin of the constants
     void launch_checkConstantSetting();
+    void printResults();
     //!
     void launch_countMonomers( 
         MirroredVector<T_UCoordinatesCuda> * mpPolymerSystem,
@@ -104,7 +129,7 @@ public:
 	//! 
 	void setBoxSizes(uint32_t BoxX_, uint32_t BoxY_, uint32_t BoxZ_);
     //!
-    void setDensityCheckON(bool checkOn_) {checkOn=checkOn_;}
+    void setDensityCheckON(bool checkOn_);
 private:
 	//! count the number of monomers in the middle
 	MirroredVector<intArray>*  mCountMiddleMonos;
@@ -118,10 +143,14 @@ private:
 	uint32_t threads;
 	//! size of the mirrored vectors 
 	uint32_t arraySize;
+    //!
+    uint32_t hAvMonomerNumberInShearVolume;
 	//! number of 
 	uint32_t hMonomerNumber_in_ShearVolumeMiddle;
 	//!
 	uint32_t hMonomerNumber_in_ShearVolumeBoundary;
+    // //!
+    // uint32_t * dAvMonomerNumberInShearVolume;
 	// //!
 	// uint32_t * dMonomerNumber_in_ShearVolumeMiddle;
 	// //!

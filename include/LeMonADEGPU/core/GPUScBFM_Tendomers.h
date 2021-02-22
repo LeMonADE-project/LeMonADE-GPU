@@ -61,7 +61,7 @@ private:
     bool mSetStepsBetweenSortings;
     uint8_t mnSplitColors;
     int mDiagMovesOn;
-
+    bool checkDensityOn;
 protected:
     inline T_IngredientsType &getIngredients() { return mIngredients; }
 
@@ -106,6 +106,7 @@ public:
     }
 
     inline void setGpu(int riGpuToUse) { miGpuToUse = riGpuToUse; }
+    void setDensityCheckOn(bool checkDensityOn_){checkDensityOn=checkDensityOn_;}
     inline void setStepsBetweenSortings(int rnStepsBetweenSortings)
     {
         mSetStepsBetweenSortings = true;
@@ -188,6 +189,7 @@ public:
             mUpdaterGpu.setShearForce(mIngredients.getAmplitudeShearForce());
         else 
             mUpdaterGpu.setShearForce(0);
+        mUpdaterGpu.setDensityCheckerON(checkDensityOn);
         Method met;
         met.modifyCurve().setBox(mIngredients.getBoxX(), mIngredients.getBoxY(), mIngredients.getBoxZ());
         met.modifyPacking().setBitPackingOn(false);         //only for power rof two lattices
