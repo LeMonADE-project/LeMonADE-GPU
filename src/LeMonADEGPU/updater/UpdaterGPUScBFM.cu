@@ -370,7 +370,7 @@ __device__  bool shearForce( int32_t dx, T_UCoordinateCuda z, double random_numb
     if( dx == 0 ) return true;
     //this should be either +1 or -1 
     auto  prefactorPot = dx;
-    z=z%dcBoxZ;
+    z=static_cast<uint32_t>(z%dcBoxZ);
     if(z < 2 || z >= (dcBoxZ-2) ) prefactorPot *= 1;
     else if((z <= (dcBoxZ/2+1)) && (z > (dcBoxZ/2-3)) ) prefactorPot *= -1;
     else return true;
@@ -1116,7 +1116,7 @@ UpdaterGPUScBFM< T_UCoordinateCuda >::UpdaterGPUScBFM()
    hGlobalIterator                  ( 0    ),
    bSetAutoColoring                 ( true ),
    diagMovesOn                      ( false),
-   setDensityCheckerOn              ( false)
+   densityCheckerOn              ( false)
 {
     /**
      * Log control.
@@ -2265,7 +2265,7 @@ void UpdaterGPUScBFM< T_UCoordinateCuda >::initialize( void )
     // initialize the checkDensity:
     densityChecker.setBoxSizes(mBoxX,mBoxY,mBoxZ);
     densityChecker.init(mnAllMonomers, mnMonomersPadded, mCudaProps);
-    densityChecker.setDensityCheckON(setDensityCheckerOn);
+    densityChecker.setDensityCheckON(densityCheckerOn);
 
 }
 template< typename T_UCoordinateCuda >
@@ -2276,10 +2276,10 @@ void UpdaterGPUScBFM< T_UCoordinateCuda >::setShearForce ( double shearForce ){
     CUDA_ERROR( cudaMemcpyToSymbol( prob_d, &prob, sizeof( prob ) ) );
 }
 template< typename T_UCoordinateCuda >
-void UpdaterGPUScBFM<T_UCoordinateCuda>::setDensityCheckerON       ( bool     setDensityCheckerOn_   )
+void UpdaterGPUScBFM<T_UCoordinateCuda>::setDensityCheckerON       ( bool     densityCheckerOn_   )
 {
-    setDensityCheckerOn=setDensityCheckerOn_;
-    std::cout << "UpdaterGPUScBFM<T_UCoordinateCuda>::setDensityCheckerON=" << setDensityCheckerOn << std::endl;
+    densityCheckerOn=densityCheckerOn_;
+    std::cout << "UpdaterGPUScBFM<T_UCoordinateCuda>::setDensityCheckerON=" << densityCheckerOn << std::endl;
 }
 template< typename T_UCoordinateCuda >
 void UpdaterGPUScBFM< T_UCoordinateCuda >::copyBondSet

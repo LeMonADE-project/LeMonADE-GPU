@@ -499,7 +499,7 @@ void UpdaterGPUScBFM_Tendomers<T_UCoordinateCuda>::initialize()
     moveType -> pushAsync();
   }
   //density checker 
-  densityChecker.setDensityCheckON(setDensityCheckerOn);
+  densityChecker.setDensityCheckON(densityCheckerOn);
   
 }
 template< typename T_UCoordinateCuda >
@@ -703,23 +703,26 @@ void UpdaterGPUScBFM_Tendomers< T_UCoordinateCuda >::runSimulationOnGPU
             
             chooseThreads.analyze(iSpecies,mStream);
         } // iSubstep
-        //calculate the density in the sheared volumes:
-        for ( uint32_t i = 0; i < nSpecies; ++i ){
-          //
-          auto const nThreads = chooseThreads.getBestThread(i);
-          auto const nBlocks  = ceilDiv( mnElementsInGroup[ i ], nThreads );
-          densityChecker.launch_countMonomers(
-            mPolymerSystemSorted,
-            mviSubGroupOffsets[ i ], 
-            mnElementsInGroup[ i ],
-            nBlocks,
-            nThreads
-          );
+        if (densityCheckerOn){
+            //calculate the density in the sheared volumes:
+            for ( uint32_t i = 0; i < nSpecies; ++i ){
+              //
+              auto const nThreads = chooseThreads.getBestThread(i);
+              auto const nBlocks  = ceilDiv( mnElementsInGroup[ i ], nThreads );
+              densityChecker.launch_countMonomers(
+                mPolymerSystemSorted,
+                mviSubGroupOffsets[ i ], 
+                mnElementsInGroup[ i ],
+                nBlocks,
+                nThreads
+              );
+            }
+            densityChecker.calcDensity();
         }
-        densityChecker.calcDensity();
     } // iStep
     // densityChecker.launch_checkConstantSetting();
-    densityChecker.printResults();
+    if (densityCheckerOn)
+        densityChecker.printResults();
 
     std::clock_t const t1 = std::clock();
     double const dt = float(t1-t0) / CLOCKS_PER_SEC;

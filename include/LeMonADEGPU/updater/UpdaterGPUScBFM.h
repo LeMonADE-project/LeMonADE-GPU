@@ -316,7 +316,7 @@ protected:
     uint8_t mnSplitColors;
     bool diagMovesOn;
     checkDensity<T_UCoordinateCuda> densityChecker;
-    bool setDensityCheckerOn;
+    bool densityCheckerOn;
  
 public:
     UpdaterGPUScBFM();

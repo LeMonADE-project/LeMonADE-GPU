@@ -70,7 +70,7 @@ protected:
     using BaseClass::mLatticeOut;
     using BaseClass::boxCheck;
     using BaseClass::densityChecker;
-    using BaseClass::setDensityCheckerOn;
+    using BaseClass::densityCheckerOn;
    
     
 public:
