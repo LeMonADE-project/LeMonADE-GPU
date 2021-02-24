@@ -1013,7 +1013,7 @@ void UpdaterGPUScBFM< T_UCoordinateCuda >::launch_CountFilteredCheck(
 template< typename T_UCoordinateCuda> 
 void UpdaterGPUScBFM< T_UCoordinateCuda >::launch_PerformSpecies(
     const size_t nBlocks, const size_t nThreads, 
-    const size_t iSpecies, cudaTextureObject_t texLatticeTmp,const uint64_t seed )
+    const size_t iSpecies, cudaTextureObject_t texLatticeTmp)
 {
 
     kernelSimulationScBFMPerformSpecies< T_UCoordinateCuda >
@@ -1031,7 +1031,7 @@ void UpdaterGPUScBFM< T_UCoordinateCuda >::launch_PerformSpecies(
 template< typename T_UCoordinateCuda> 
 void UpdaterGPUScBFM< T_UCoordinateCuda >::launch_PerformSpeciesAndApply(
     const size_t nBlocks, const size_t nThreads, 
-    const size_t iSpecies, cudaTextureObject_t texLatticeTmp,const uint64_t seed )
+    const size_t iSpecies, cudaTextureObject_t texLatticeTmp)
 {
     kernelSimulationScBFMPerformSpeciesAndApply< T_UCoordinateCuda >
     <<< nBlocks, nThreads, 0, mStream >>>(
@@ -2823,9 +2823,9 @@ void UpdaterGPUScBFM< T_UCoordinateCuda >::runSimulationOnGPU
 		    launch_countFilteredPerform(nBlocks,nThreads, iSpecies, texLatticeTmp, dpFiltered);
 
 		if ( useCudaMemset )
-		    launch_PerformSpeciesAndApply(nBlocks, nThreads, iSpecies, texLatticeTmp, seed);
+		    launch_PerformSpeciesAndApply(nBlocks, nThreads, iSpecies, texLatticeTmp);
 		else
-		    launch_PerformSpecies(nBlocks,nThreads,iSpecies,texLatticeTmp,seed );
+		    launch_PerformSpecies(nBlocks,nThreads,iSpecies,texLatticeTmp );
 	    }else 
 	    {
 		launch_CheckSpecies<18>(nBlocks, nThreads, iSpecies, iOffsetLatticeTmp, seed);
@@ -2843,9 +2843,9 @@ void UpdaterGPUScBFM< T_UCoordinateCuda >::runSimulationOnGPU
 		    launch_countFilteredPerform(nBlocks,nThreads, iSpecies, texLatticeTmp, dpFiltered);
 
 		if ( useCudaMemset )
-		    launch_PerformSpeciesAndApply(nBlocks, nThreads, iSpecies, texLatticeTmp,seed );
+		    launch_PerformSpeciesAndApply(nBlocks, nThreads, iSpecies, texLatticeTmp );
 		else
-		    launch_PerformSpecies(nBlocks,nThreads,iSpecies,texLatticeTmp,seed );
+		    launch_PerformSpecies(nBlocks,nThreads,iSpecies,texLatticeTmp );
 	    }
 	    
 	    if ( useCudaMemset ){
