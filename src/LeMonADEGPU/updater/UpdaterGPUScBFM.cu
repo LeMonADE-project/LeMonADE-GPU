@@ -665,9 +665,7 @@ __global__ void kernelSimulationScBFMPerformSpecies
     T_Lattice                 * const __restrict__ dpLattice       ,
     T_Id                        const              nMonomers       ,
     cudaTextureObject_t         const              texLatticeTmp   ,
-    Method                      const              met            // ,
-    // uint64_t                    const              rSeed           ,
-    // uint64_t                    const              rGlobalIteration        
+    Method                      const              met            
 )
 {
     for ( auto iMonomer = blockIdx.x * blockDim.x + threadIdx.x;
@@ -676,16 +674,12 @@ __global__ void kernelSimulationScBFMPerformSpecies
         auto const properties = dpPolymerFlags[ iMonomer ];
         if ( ( properties & T_Flags(32) ) == T_Flags(0) ) // impossible move
             continue;
-        // Saru rng(rGlobalIteration,iMonomer,rSeed);
         auto const r0 = dpPolymerSystem[ iMonomer ];
-        //uint3 const r0 = { r0Raw.x, r0Raw.y, r0Raw.z }; // slower
         auto const direction = properties & T_Flags(31); // 7=0b111 31=0b11111
         uint32_t iOldPos;
 	    //if check Front is true (there is a monomer) : go to next monomer in the grid 
         if ( checkFront( texLatticeTmp, r0.x, r0.y, r0.z, direction, met,  &BitPacking::bitPackedTextureGet, &iOldPos ) )
             continue;
-        // if ( ! shearForce(DXTable_d[ direction ],r0.z,rng.rng_d() ) )
-        //     continue;
 
         /* If possible, perform move now on normal lattice */
         dpPolymerFlags[ iMonomer ] = properties | T_Flags(64); // indicating allowed move
@@ -710,9 +704,7 @@ __global__ void kernelSimulationScBFMPerformSpeciesAndApply
     T_Lattice           * const __restrict__ dpLattice       ,
     T_Id                  const              nMonomers       ,
     cudaTextureObject_t   const              texLatticeTmp   ,
-    Method 				  const              met             //,
-    // uint64_t              const              rSeed           ,
-    // uint64_t              const              rGlobalIteration        
+    Method 				  const              met                   
 )
 {
     for ( auto iMonomer = blockIdx.x * blockDim.x + threadIdx.x;
@@ -721,15 +713,11 @@ __global__ void kernelSimulationScBFMPerformSpeciesAndApply
         auto const properties = dpPolymerFlags[ iMonomer ];
         if ( ! ( properties & T_Flags(32) ) ) // check if can-move flag is set
             continue;
-        // Saru rng(rGlobalIteration,iMonomer,rSeed);
         auto const r0 = dpPolymerSystem[ iMonomer ];
         auto const direction = properties & T_Flags(31); // 7=0b111 31=0b11111
         uint32_t iOldPos;
         if ( checkFront( texLatticeTmp, r0.x, r0.y, r0.z, direction, met, &BitPacking::bitPackedTextureGet, &iOldPos ) )
             continue;
-        // if ( ! shearForce(DXTable_d[ direction ],r0.z,rng.rng_d() ) )
-        //     continue;
-
         /* @todo this is slower on Kepler when using DXTableUintCuda_d
          *       not sure why ... but on Pascal it might trigger
          *       uint8 calculation speedup! */
@@ -1035,9 +1023,7 @@ void UpdaterGPUScBFM< T_UCoordinateCuda >::launch_PerformSpecies(
         mLatticeOut->gpu,
         mnElementsInGroup[ iSpecies ],
         texLatticeTmp, 
-        met//, 
-        // seed, 
-        // hGlobalIterator 
+        met
     );
     hGlobalIterator++;
 }
@@ -1054,9 +1040,7 @@ void UpdaterGPUScBFM< T_UCoordinateCuda >::launch_PerformSpeciesAndApply(
         mLatticeOut->gpu,
         mnElementsInGroup[ iSpecies ],
         texLatticeTmp, 
-        met//,
-        // seed, 
-        // hGlobalIterator
+        met
     );
     hGlobalIterator++;
 }
