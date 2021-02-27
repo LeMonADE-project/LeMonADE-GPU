@@ -628,8 +628,7 @@ void UpdaterGPUScBFM_Tendomers< T_UCoordinateCuda >::runSimulationOnGPU
             }
         }
 	      //move labels 
-        for ( uint32_t iSubStep = 0; iSubStep < labelOffset.size(); ++iSubStep ) 
-	      {
+        for ( uint32_t iSubStep = 0; iSubStep < labelOffset.size(); ++iSubStep ) {
             /* randomly choose which monomer group to advance */
             auto const iSpecies = randomNumbers.r250_rand32() % (labelOffset.size());
             auto const nThreads = 128;
@@ -645,13 +644,13 @@ void UpdaterGPUScBFM_Tendomers< T_UCoordinateCuda >::runSimulationOnGPU
       	{
             auto const iStepTotal = iStep * nSpecies + iSubStep;
             //remember: mnLatticeTmpBuffers=2
-            auto  iOffsetLatticeTmp = ( iStepTotal % mnLatticeTmpBuffers ) * ( mBoxX * mBoxY * mBoxZ * sizeof( mLatticeTmp->gpu[0] ));
+            auto  iOffsetLatticeTmp = ( iStepTotal % mnLatticeTmpBuffers ) 
+            * ( mBoxX * mBoxY * mBoxZ * sizeof( mLatticeTmp->gpu[0] ));
             if (met.getPacking().getBitPackingOn()) 
                 iOffsetLatticeTmp /= CHAR_BIT;
             auto texLatticeTmp = mvtLatticeTmp[ iStepTotal % mnLatticeTmpBuffers ];
 
-            if (met.getPacking().getNBufferedTmpLatticeOn()) 
-            {
+            if (met.getPacking().getNBufferedTmpLatticeOn()) {
                 iOffsetLatticeTmp = 0u;
                 texLatticeTmp = mLatticeTmp->texture;
             }

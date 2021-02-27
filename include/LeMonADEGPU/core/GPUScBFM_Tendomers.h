@@ -192,7 +192,8 @@ public:
         mUpdaterGpu.setDensityCheckerON(checkDensityOn);
         Method met;
         met.modifyCurve().setBox(mIngredients.getBoxX(), mIngredients.getBoxY(), mIngredients.getBoxZ());
-        met.modifyPacking().setBitPackingOn(false);         //only for power rof two lattices
+        //seems that the simulations show a wrong behaviour without the bitpacking!!!
+        met.modifyPacking().setBitPackingOn(true);         //only for power rof two lattices
         met.modifyPacking().setNBufferedTmpLatticeOn(true); // should always be true!
         met.setOnGPUForOverhead(true);
         mUpdaterGpu.setMethod(met);

@@ -2774,21 +2774,18 @@ void UpdaterGPUScBFM< T_UCoordinateCuda >::runSimulationOnGPU
         /* one Monte-Carlo step:
          *  - tries to move on average all particles one time
          *  - each particle could be touched, not just one group */
-        for ( uint32_t iSubStep = 0; iSubStep < nSpecies; ++iSubStep )
-        {
-	    auto const iStepTotal = iStep * nSpecies + iSubStep;
-	    auto  iOffsetLatticeTmp = ( iStepTotal % mnLatticeTmpBuffers )
-		* ( mBoxX * mBoxY * mBoxZ * sizeof( mLatticeTmp->gpu[0] ));
-	    if (met.getPacking().getBitPackingOn()) 
-	      iOffsetLatticeTmp /= CHAR_BIT;
-	    auto texLatticeTmp = mvtLatticeTmp[ iStepTotal % mnLatticeTmpBuffers ];
+        for ( uint32_t iSubStep = 0; iSubStep < nSpecies; ++iSubStep ){
+            auto const iStepTotal = iStep * nSpecies + iSubStep;
+            auto  iOffsetLatticeTmp = ( iStepTotal % mnLatticeTmpBuffers )
+            * ( mBoxX * mBoxY * mBoxZ * sizeof( mLatticeTmp->gpu[0] ));
+            if (met.getPacking().getBitPackingOn()) 
+            iOffsetLatticeTmp /= CHAR_BIT;
+            auto texLatticeTmp = mvtLatticeTmp[ iStepTotal % mnLatticeTmpBuffers ];
 
-	    if (met.getPacking().getNBufferedTmpLatticeOn()) {
-                iOffsetLatticeTmp = 0u;
-                texLatticeTmp = mLatticeTmp->texture;
-	    }
-
-
+            if (met.getPacking().getNBufferedTmpLatticeOn()) {
+                    iOffsetLatticeTmp = 0u;
+                    texLatticeTmp = mLatticeTmp->texture;
+            }
             /* randomly choose which monomer group to advance */
             auto const iSpecies = randomNumbers.r250_rand32() % nSpecies;
             auto const seed     = randomNumbers.r250_rand32();
@@ -2807,166 +2804,166 @@ void UpdaterGPUScBFM< T_UCoordinateCuda >::runSimulationOnGPU
             if ( iStep < 3 )
                 mLog( "Info" ) << "Calling Check-Kernel for species " << iSpecies << " for uint32_t * " << (void*) mNeighborsSorted->gpu << " + " << mNeighborsSortedInfo.getMatrixOffsetElements( iSpecies ) << " = " << (void*)( mNeighborsSorted->gpu + mNeighborsSortedInfo.getMatrixOffsetElements( iSpecies ) ) << " with pitch " << mNeighborsSortedInfo.getMatrixPitchElements( iSpecies ) << "\n";
             */
-	    if (!diagMovesOn)  
-	    {
-		launch_CheckSpecies<6>(nBlocks, nThreads, iSpecies, iOffsetLatticeTmp, seed);
-		/** The counting kernel can come after the Check-kernel, because the
-		* Check-kernel only modifies the polymer flags which it does not
-		* read itself. It actually wouldn't work else, because the count
-		* kernel needs to query the drawn direction 
-		* @todo find the bug !!!
-		*/
-		//somehow it does not work with the boxCheck method. 
-    // 	    launch_CountFilteredCheck(nBlocks,nThreads,iSpecies, texLatticeTmp, dpFiltered, iOffsetLatticeTmp);
+            if (!diagMovesOn) {
+                launch_CheckSpecies<6>(nBlocks, nThreads, iSpecies, iOffsetLatticeTmp, seed);
+                /** The counting kernel can come after the Check-kernel, because the
+                * Check-kernel only modifies the polymer flags which it does not
+                * read itself. It actually wouldn't work else, because the count
+                * kernel needs to query the drawn direction 
+                * @todo find the bug !!!
+                */
+                //somehow it does not work with the boxCheck method. 
+            // 	    launch_CountFilteredCheck(nBlocks,nThreads,iSpecies, texLatticeTmp, dpFiltered, iOffsetLatticeTmp);
 
-		if ( mLog.isActive( "Stats" ) )
-		    launch_countFilteredPerform(nBlocks,nThreads, iSpecies, texLatticeTmp, dpFiltered);
+                if ( mLog.isActive( "Stats" ) )
+                    launch_countFilteredPerform(nBlocks,nThreads, iSpecies, texLatticeTmp, dpFiltered);
 
-		if ( useCudaMemset )
-		    launch_PerformSpeciesAndApply(nBlocks, nThreads, iSpecies, texLatticeTmp);
-		else
-		    launch_PerformSpecies(nBlocks,nThreads,iSpecies,texLatticeTmp );
-	    }else 
-	    {
-		launch_CheckSpecies<18>(nBlocks, nThreads, iSpecies, iOffsetLatticeTmp, seed);
+                if ( useCudaMemset )
+                    launch_PerformSpeciesAndApply(nBlocks, nThreads, iSpecies, texLatticeTmp);
+                else
+                    launch_PerformSpecies(nBlocks,nThreads,iSpecies,texLatticeTmp );
+            }else{
+                launch_CheckSpecies<18>(nBlocks, nThreads, iSpecies, iOffsetLatticeTmp, seed);
 
-		/** The counting kernel can come after the Check-kernel, because the
-		* Check-kernel only modifies the polymer flags which it does not
-		* read itself. It actually wouldn't work else, because the count
-		* kernel needs to query the drawn direction 
-		* @todo find the bug !!!
-		*/
-		//somehow it does not work with the boxCheck method. 
-    // 	    launch_CountFilteredCheck(nBlocks,nThreads,iSpecies, texLatticeTmp, dpFiltered, iOffsetLatticeTmp);
+                /** The counting kernel can come after the Check-kernel, because the
+                * Check-kernel only modifies the polymer flags which it does not
+                * read itself. It actually wouldn't work else, because the count
+                * kernel needs to query the drawn direction 
+                * @todo find the bug !!!
+                */
+                //somehow it does not work with the boxCheck method. 
+            // 	    launch_CountFilteredCheck(nBlocks,nThreads,iSpecies, texLatticeTmp, dpFiltered, iOffsetLatticeTmp);
 
-		if ( mLog.isActive( "Stats" ) )
-		    launch_countFilteredPerform(nBlocks,nThreads, iSpecies, texLatticeTmp, dpFiltered);
+                if ( mLog.isActive( "Stats" ) )
+                    launch_countFilteredPerform(nBlocks,nThreads, iSpecies, texLatticeTmp, dpFiltered);
 
-		if ( useCudaMemset )
-		    launch_PerformSpeciesAndApply(nBlocks, nThreads, iSpecies, texLatticeTmp );
-		else
-		    launch_PerformSpecies(nBlocks,nThreads,iSpecies,texLatticeTmp );
-	    }
-	    
-	    if ( useCudaMemset ){
-		if(met.getPacking().getNBufferedTmpLatticeOn()){
-		    /* we only need to delete when buffers will wrap around and
-			* on the last loop, so that on next runSimulationOnGPU
-			* call mLatticeTmp is clean */
-		    if ( ( iStepTotal % mnLatticeTmpBuffers == 0 ) ||
-			( iStep == nMonteCarloSteps-1 && iSubStep == nSpecies-1 ) )
-		    {
-			cudaMemsetAsync( (void*) mLatticeTmp->gpu, 0, mLatticeTmp->nBytes, mStream );
-		    }
-		}else
-		    mLatticeTmp->memsetAsync(0);
-	    }
-	    else
-		launch_ZeroArraySpecies(nBlocks,nThreads,iSpecies);
+                if ( useCudaMemset )
+                    launch_PerformSpeciesAndApply(nBlocks, nThreads, iSpecies, texLatticeTmp );
+                else
+                    launch_PerformSpecies(nBlocks,nThreads,iSpecies,texLatticeTmp );
+            }
+            
+            if ( useCudaMemset ){
+                if(met.getPacking().getNBufferedTmpLatticeOn()){
+                    /* we only need to delete when buffers will wrap around and
+                    * on the last loop, so that on next runSimulationOnGPU
+                    * call mLatticeTmp is clean */
+                    if ( ( iStepTotal % mnLatticeTmpBuffers == 0 ) ||
+                    ( iStep == nMonteCarloSteps-1 && iSubStep == nSpecies-1 ) ) 
+                        cudaMemsetAsync( (void*) mLatticeTmp->gpu, 0, mLatticeTmp->nBytes, mStream );
+                    
+                }else
+                    mLatticeTmp->memsetAsync(0);
+            }
+            else
+            launch_ZeroArraySpecies(nBlocks,nThreads,iSpecies);
 
-	    if ( needToBenchmark )
-	    {
-		auto & info = benchmarkInfo[ iSpecies ];
-		cudaEventRecord( tOneGpuLoop1, mStream );
-		cudaEventSynchronize( tOneGpuLoop1 );
-		float milliseconds = 0;
-		cudaEventElapsedTime( & milliseconds, tOneGpuLoop0, tOneGpuLoop1 );
-		auto const iThreadCount = info.iBestThreadCount;
-		auto & oldTiming = info.timings.at( useCudaMemset ).at( iThreadCount );
-		oldTiming = std::min( oldTiming, milliseconds );
-
-		mLog( "Info" )
-		<< "Using " << nThreads << " threads (" << nBlocks << " blocks)"
-		<< " and using " << ( useCudaMemset ? "cudaMemset" : "kernelZeroArray" )
-		<< " for species " << iSpecies << " took " << milliseconds << "ms\n";
-
-		auto & nStillToRepeat = info.nRepeatTimings.at( useCudaMemset ).at( iThreadCount );
-		if ( nStillToRepeat > 0 )
-		    --nStillToRepeat;
-		else if ( ! info.decidedAboutThreadCount )
-		{
-		    /* if not the first timing, then decide whether we got slower,
-			* i.e. whether we found the minimum in the last step and
-			* have to roll back */
-		    if ( iThreadCount > 0 )
-		    {
-			if ( info.timings.at( useCudaMemset ).at( iThreadCount-1 ) < milliseconds )
-			{
-			    --info.iBestThreadCount;
-			    info.decidedAboutThreadCount = true;
-			}
-			else
-			    ++info.iBestThreadCount;
-		    }
-		    else
-			++info.iBestThreadCount;
-		    /* if we can't increment anymore, then we are finished */
-		    assert( (size_t) info.iBestThreadCount <= vnThreadsToTry.size() );
-		    if ( (size_t) info.iBestThreadCount == vnThreadsToTry.size() )
-		    {
-			--info.iBestThreadCount;
-			info.decidedAboutThreadCount = true;
-		    }
-		    if ( info.decidedAboutThreadCount )
-		    {
-			/* then in the next term try out changing cudaMemset
-			    * version to custom kernel version (or vice-versa) */
-			if ( ! info.decidedAboutCudaMemset )
-			    info.useCudaMemset = ! info.useCudaMemset;
-			mLog( "Info" )
-			<< "Using " << vnThreadsToTry.at( info.iBestThreadCount )
-			<< " threads per block is the fastest for species "
-			<< iSpecies << ".\n";
-		    }
-		}
-		else if ( ! info.decidedAboutCudaMemset )
-		{
-		    info.decidedAboutCudaMemset = true;
-		    if ( info.timings.at( ! useCudaMemset ).at( iThreadCount ) < milliseconds )
-			info.useCudaMemset = ! useCudaMemset;
-		    if ( info.decidedAboutCudaMemset )
-		    {
-			mLog( "Info" )
-			<< "Using " << ( info.useCudaMemset ? "cudaMemset" : "kernelZeroArray" )
-			<< " is the fastest for species " << iSpecies << ".\n";
-		    }
-		}
-	    }
-
-            if ( mLog.isActive( "Stats" ) )
+            if ( needToBenchmark )
             {
-                CUDA_ERROR( cudaMemcpyAsync( (void*) &vFiltered.at(0), (void*) dpFiltered,
-                    nFilters * sizeof( *dpFiltered ), cudaMemcpyDeviceToHost, mStream ) );
-                CUDA_ERROR( cudaStreamSynchronize( mStream ) );
-                CUDA_ERROR( cudaMemsetAsync( (void*) dpFiltered, 0, nFilters * sizeof( *dpFiltered ), mStream ) );
+            auto & info = benchmarkInfo[ iSpecies ];
+            cudaEventRecord( tOneGpuLoop1, mStream );
+            cudaEventSynchronize( tOneGpuLoop1 );
+            float milliseconds = 0;
+            cudaEventElapsedTime( & milliseconds, tOneGpuLoop0, tOneGpuLoop1 );
+            auto const iThreadCount = info.iBestThreadCount;
+            auto & oldTiming = info.timings.at( useCudaMemset ).at( iThreadCount );
+            oldTiming = std::min( oldTiming, milliseconds );
 
-                for ( auto iFilter = 0u; iFilter < nFilters; ++iFilter )
+            mLog( "Info" )
+            << "Using " << nThreads << " threads (" << nBlocks << " blocks)"
+            << " and using " << ( useCudaMemset ? "cudaMemset" : "kernelZeroArray" )
+            << " for species " << iSpecies << " took " << milliseconds << "ms\n";
+
+            auto & nStillToRepeat = info.nRepeatTimings.at( useCudaMemset ).at( iThreadCount );
+            if ( nStillToRepeat > 0 )
+                --nStillToRepeat;
+            else if ( ! info.decidedAboutThreadCount )
+            {
+                /* if not the first timing, then decide whether we got slower,
+                * i.e. whether we found the minimum in the last step and
+                * have to roll back */
+                if ( iThreadCount > 0 )
                 {
-                    double const x = vFiltered.at( iFilter );
-                    sums .at( iSpecies ).at( iFilter ) += x;
-                    sums2.at( iSpecies ).at( iFilter ) += x*x;
-                    mins .at( iSpecies ).at( iFilter ) = std::min( mins.at( iSpecies ).at( iFilter ), x );
-                    maxs .at( iSpecies ).at( iFilter ) = std::max( maxs.at( iSpecies ).at( iFilter ), x );
-                    ns   .at( iSpecies ).at( iFilter ) += 1;
+                if ( info.timings.at( useCudaMemset ).at( iThreadCount-1 ) < milliseconds )
+                {
+                    --info.iBestThreadCount;
+                    info.decidedAboutThreadCount = true;
+                }
+                else
+                    ++info.iBestThreadCount;
+                }
+                else
+                ++info.iBestThreadCount;
+                /* if we can't increment anymore, then we are finished */
+                assert( (size_t) info.iBestThreadCount <= vnThreadsToTry.size() );
+                if ( (size_t) info.iBestThreadCount == vnThreadsToTry.size() )
+                {
+                --info.iBestThreadCount;
+                info.decidedAboutThreadCount = true;
+                }
+                if ( info.decidedAboutThreadCount )
+                {
+                /* then in the next term try out changing cudaMemset
+                    * version to custom kernel version (or vice-versa) */
+                if ( ! info.decidedAboutCudaMemset )
+                    info.useCudaMemset = ! info.useCudaMemset;
+                mLog( "Info" )
+                << "Using " << vnThreadsToTry.at( info.iBestThreadCount )
+                << " threads per block is the fastest for species "
+                << iSpecies << ".\n";
                 }
             }
+            else if ( ! info.decidedAboutCudaMemset )
+            {
+                info.decidedAboutCudaMemset = true;
+                if ( info.timings.at( ! useCudaMemset ).at( iThreadCount ) < milliseconds )
+                info.useCudaMemset = ! useCudaMemset;
+                if ( info.decidedAboutCudaMemset )
+                {
+                mLog( "Info" )
+                << "Using " << ( info.useCudaMemset ? "cudaMemset" : "kernelZeroArray" )
+                << " is the fastest for species " << iSpecies << ".\n";
+                }
+            }
+            }
+
+                if ( mLog.isActive( "Stats" ) )
+                {
+                    CUDA_ERROR( cudaMemcpyAsync( (void*) &vFiltered.at(0), (void*) dpFiltered,
+                        nFilters * sizeof( *dpFiltered ), cudaMemcpyDeviceToHost, mStream ) );
+                    CUDA_ERROR( cudaStreamSynchronize( mStream ) );
+                    CUDA_ERROR( cudaMemsetAsync( (void*) dpFiltered, 0, nFilters * sizeof( *dpFiltered ), mStream ) );
+
+                    for ( auto iFilter = 0u; iFilter < nFilters; ++iFilter )
+                    {
+                        double const x = vFiltered.at( iFilter );
+                        sums .at( iSpecies ).at( iFilter ) += x;
+                        sums2.at( iSpecies ).at( iFilter ) += x*x;
+                        mins .at( iSpecies ).at( iFilter ) = std::min( mins.at( iSpecies ).at( iFilter ), x );
+                        maxs .at( iSpecies ).at( iFilter ) = std::max( maxs.at( iSpecies ).at( iFilter ), x );
+                        ns   .at( iSpecies ).at( iFilter ) += 1;
+                    }
+                }
         } // iSubstep
         //calculate the density in the sheared volumes:
-        for ( uint32_t i = 0; i < nSpecies; ++i ){
-            //
-            auto const nThreads = vnThreadsToTry.at( benchmarkInfo[ i ].iBestThreadCount );
-            auto const nBlocks  = ceilDiv( mnElementsInGroup[ i ], nThreads );
-            densityChecker.launch_countMonomers(
-              mPolymerSystemSorted,
-              mviSubGroupOffsets[ i ], 
-              mnElementsInGroup[ i ],
-              nBlocks,
-              nThreads
-            );
-          }
-          densityChecker.calcDensity();
+        if (densityCheckerOn){
+            for ( uint32_t i = 0; i < nSpecies; ++i ){
+                //
+                auto const nThreads = vnThreadsToTry.at( benchmarkInfo[ i ].iBestThreadCount );
+                auto const nBlocks  = ceilDiv( mnElementsInGroup[ i ], nThreads );
+                densityChecker.launch_countMonomers(
+                mPolymerSystemSorted,
+                mviSubGroupOffsets[ i ], 
+                mnElementsInGroup[ i ],
+                nBlocks,
+                nThreads
+                );
+            }
+            densityChecker.calcDensity();
+        }
     } // iStep
-    densityChecker.printResults();
+    if (densityCheckerOn)
+        densityChecker.printResults();
     if ( mLog.isActive( "Stats" ) && dpFiltered != NULL )
     {
         if ( mnElementsInGroup.size() <= 8 )
