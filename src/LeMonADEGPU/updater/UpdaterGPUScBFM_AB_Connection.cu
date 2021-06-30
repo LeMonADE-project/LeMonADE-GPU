@@ -243,18 +243,18 @@ void UpdaterGPUScBFM_AB_Connection< T_UCoordinateCuda >::launch_CheckConnection(
   const size_t nBlocks, const size_t nThreads, 
   const size_t iSpeciesCrossLink, const size_t iSpeciesChain, const uint64_t seed )
 {
-   kernelCheckConnection< T_UCoordinateCuda > 
-  <<<nBlocks, nThreads, 0, mStream>>>(                
-      mPolymerSystemSorted->gpu,       
-      mviSubGroupOffsets[ iSpeciesCrossLink ], 
-      mLatticeIds->gpu,
-      mCrossLinkFlags,
-      mNeighborsSortedSizes->gpu + mviSubGroupOffsets[ iSpeciesCrossLink ], 
-      mNeighborsSortedSizes->gpu + mviSubGroupOffsets[ iSpeciesChain ], 
-      mnElementsInGroup[ iSpeciesCrossLink ],                       
-      seed, 
-      hGlobalIterator,                                         
-      met
+   	kernelCheckConnection< T_UCoordinateCuda > 
+ 	<<<nBlocks, nThreads, 0, mStream>>>(                
+		mPolymerSystemSorted->gpu,       
+		mviSubGroupOffsets[ iSpeciesCrossLink ], 
+		mLatticeIds->gpu,
+		mCrossLinkFlags,
+		mNeighborsSortedSizes->gpu + mviSubGroupOffsets[ iSpeciesCrossLink ], 
+		mNeighborsSortedSizes->gpu + mviSubGroupOffsets[ iSpeciesChain ], 
+		mnElementsInGroup[ iSpeciesCrossLink ],                       
+		seed, 
+		hGlobalIterator,                                         
+		met
   );
   hGlobalIterator++;
   //reset vectors 
@@ -275,7 +275,7 @@ void UpdaterGPUScBFM_AB_Connection< T_UCoordinateCuda >::launch_CheckConnection(
       auto const  r0(mPolymerSystemSorted->host[hCrossLinks[i]-1+mviSubGroupOffsets[ 0 ]]);
       auto const  r1(mPolymerSystemSorted->host[hCrossLinkFlags[i]-1+mviSubGroupOffsets[ 1 ]]);
       if (hCrossLinkFlags[i]>0)
-	mLog("Check") << "ID= " << miNewToi->host[ hCrossLinks[i]-1 ]<< " Flags= " << miNewToi->host[ hCrossLinkFlags[i]-1 ] <<"\n";
+	        mLog("Check") << "ID= " << miNewToi->host[ hCrossLinks[i]-1 ]<< " Flags= " << miNewToi->host[ hCrossLinkFlags[i]-1 ] <<"\n";
     }
   }
 }
@@ -308,7 +308,8 @@ __global__ void kernelApplyConnection
       dpNeighborsMonomer[ dpNeighborsSizesMonomer[ iMonomer ] * rNeighborsPitchElementsMonomer + iMonomer ] = iOffsetChains + iPartner; 
       dpNeighborsPartner[ dpNeighborsSizesPartner[ iPartner ] * rNeighborsPitchElementsPartner + iPartner ] = iOffsetCrossLinks + iMonomer; 
       dpNeighborsSizesMonomer[ iMonomer ]++;
-      dpNeighborsSizesPartner[ iPartner ]++; 
+	  dpNeighborsSizesPartner[ iPartner ]++; 
+	  
 //       printf(" %d Connect monomers: %d with %d , %d ,%d ,%d ,%d \n", i,iMonomer, iPartner, 
 // 	     dpNeighborsMonomer[ (dpNeighborsSizesMonomer[ iMonomer ]-1) * rNeighborsPitchElementsMonomer + iMonomer ], 
 // 	     dpNeighborsPartner[ (dpNeighborsSizesPartner[ iPartner ]-1) * rNeighborsPitchElementsPartner + iPartner ],
