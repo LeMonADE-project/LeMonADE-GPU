@@ -584,7 +584,7 @@ void UpdaterGPUScBFM_AB_Connection< T_UCoordinateCuda >::runSimulationOnGPU
          *  - tries to move on average all particles one time
          *  - each particle could be touched, not just one group */
         for ( uint32_t iSubStep = 0; iSubStep < nSpecies; ++iSubStep ) 
-	{
+		{
             auto const iStepTotal = iStep * nSpecies + iSubStep;
             auto  iOffsetLatticeTmp = ( iStepTotal % mnLatticeTmpBuffers )
             * ( mBoxX * mBoxY * mBoxZ * sizeof( mLatticeTmp->gpu[0] ));
@@ -605,21 +605,19 @@ void UpdaterGPUScBFM_AB_Connection< T_UCoordinateCuda >::runSimulationOnGPU
             chooseThreads.addRecord(iSpecies, mStream);
 
             nSpeciesChosen[ iSpecies ] += 1;
-	    if (!diagMovesOn)  
-	    {
-		this-> template launch_CheckSpecies<6>(nBlocks, nThreads, iSpecies, iOffsetLatticeTmp, seed);
-		if ( useCudaMemset )
-		    launch_PerformSpeciesAndApply(nBlocks, nThreads, iSpecies, texLatticeTmp );
-		else
-		    launch_PerformSpecies(nBlocks,nThreads,iSpecies,texLatticeTmp );
-	    }else 
-	    {
-		this-> template launch_CheckSpecies<18>(nBlocks, nThreads, iSpecies, iOffsetLatticeTmp, seed);
-		if ( useCudaMemset )
-		    launch_PerformSpeciesAndApply(nBlocks, nThreads, iSpecies, texLatticeTmp );
-		else
-		    launch_PerformSpecies(nBlocks,nThreads,iSpecies,texLatticeTmp );
-	    }
+			if (!diagMovesOn) {
+				this-> template launch_CheckSpecies<6>(nBlocks, nThreads, iSpecies, iOffsetLatticeTmp, seed);
+				if ( useCudaMemset )
+					launch_PerformSpeciesAndApply(nBlocks, nThreads, iSpecies, texLatticeTmp );
+				else
+					launch_PerformSpecies(nBlocks,nThreads,iSpecies,texLatticeTmp );
+			}else{
+				this-> template launch_CheckSpecies<18>(nBlocks, nThreads, iSpecies, iOffsetLatticeTmp, seed);
+				if ( useCudaMemset )
+					launch_PerformSpeciesAndApply(nBlocks, nThreads, iSpecies, texLatticeTmp );
+				else
+					launch_PerformSpecies(nBlocks,nThreads,iSpecies,texLatticeTmp );
+			}
             if ( useCudaMemset ){
                 if(met.getPacking().getNBufferedTmpLatticeOn()){
                     /* we only need to delete when buffers will wrap around and
@@ -637,19 +635,19 @@ void UpdaterGPUScBFM_AB_Connection< T_UCoordinateCuda >::runSimulationOnGPU
                 launch_ZeroArraySpecies(nBlocks,nThreads,iSpecies);
             chooseThreads.analyze(iSpecies,mStream);
         } // iSubstep
-	//here we could again benchmark for a better performance gain...
-        auto const nThreads = chooseThreads.getBestThread(ChainEndSpecies);
-	auto const nBlocks  = ceilDiv( mnElementsInGroup[ ChainEndSpecies ], nThreads );
-	launch_initializeReactiveLattice( nBlocks, nThreads, ChainEndSpecies);
-	
-	if (mLog( "Check" ).isActive())
-	  checkReactiveLatticeOccupation();
-	auto const nThreads_c = 128;
-	auto const nBlocks_c  = ceilDiv( nReactiveMonomersCrossLinks, nThreads_c );
-	auto const seed     = randomNumbers.r250_rand32();
-        launch_CheckConnection(nBlocks_c,nThreads_c,CrossLinkSpecies, ChainEndSpecies,seed);
-	launch_ApplyConnection(nBlocks_c,nThreads_c,CrossLinkSpecies, ChainEndSpecies);
-	launch_resetReactiveLattice( nBlocks, nThreads, ChainEndSpecies);
+		//here we could again benchmark for a better performance gain...
+		auto const nThreads = chooseThreads.getBestThread(ChainEndSpecies);
+		auto const nBlocks  = ceilDiv( mnElementsInGroup[ ChainEndSpecies ], nThreads );
+		launch_initializeReactiveLattice( nBlocks, nThreads, ChainEndSpecies);
+		
+		if (mLog( "Check" ).isActive())
+		checkReactiveLatticeOccupation();
+		auto const nThreads_c = 128;
+		auto const nBlocks_c  = ceilDiv( nReactiveMonomersCrossLinks, nThreads_c );
+		auto const seed     = randomNumbers.r250_rand32();
+		launch_CheckConnection(nBlocks_c,nThreads_c,CrossLinkSpecies, ChainEndSpecies,seed);
+		launch_ApplyConnection(nBlocks_c,nThreads_c,CrossLinkSpecies, ChainEndSpecies);
+		launch_resetReactiveLattice( nBlocks, nThreads, ChainEndSpecies);
 	
     } // iStep
     

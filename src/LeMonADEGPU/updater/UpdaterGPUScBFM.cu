@@ -58,7 +58,7 @@ using T_Coordinate       = UpdaterGPUScBFM< uint8_t >::T_Coordinate ;
 using T_Coordinates      = UpdaterGPUScBFM< uint8_t >::T_Coordinates;
 using T_Id               = UpdaterGPUScBFM< uint8_t >::T_Id         ;
 using getBitPackedTextureFunction = UpdaterGPUScBFM<uint8_t>::getBitPackedTextureFunction;
-__device__ __constant__ double prob_d;  // probability for the shear force 
+__device__ __constant__ double prob_d=1;  // probability for the shear force 
 // __device__ getBitPackedTextureFunction functor = &BitPacking::bitPackedTextureGetStandard;        
 
 // typedef  T_Lattice (BitPacking::*getBitPackedTextureFunction)(cudaTextureObject_t tex, int i) const ; 
