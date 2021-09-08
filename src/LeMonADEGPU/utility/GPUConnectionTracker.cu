@@ -1,4 +1,29 @@
+/*--------------------------------------------------------------------------------
+    ooo      L   attice-based  |
+  o\.|./o    e   xtensible     | LeMonADE: An Open Source Implementation of the
+ o\.\|/./o   Mon te-Carlo      |           Bond-Fluctuation-Model for Polymers
+oo--GPU--oo  A   lgorithm and  |
+ o/./|\.\o   D   evelopment    | Copyright (C) 2013-2015 by
+  o/.|.\o    E   nvironment    | LeMonADE Principal Developers (see AUTHORS)
+    ooo                        |
+----------------------------------------------------------------------------------
 
+This file is part of LeMonADEGPU.
+
+LeMonADE is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+LeMonADE is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with LeMonADE.  If not, see <http://www.gnu.org/licenses/>.
+
+--------------------------------------------------------------------------------*/
 #include <LeMonADEGPU/utility/GPUConnectionTracker.h>
 #include <LeMonADEGPU/utility/cudacommon.hpp>
 #include <LeMonADEGPU/utility/DeleteMirroredObject.h>
@@ -410,29 +435,4 @@ void Tracker<T_UCoordinateCuda>::dumpReactions()
 				}
 				// vec.push_back(std::min(Mon1,Mon2));   
 				// vec.push_back(std::max(Mon1,Mon2));
-				BaseClass::addConnection(vec);
-				BondHistoryID1->host[index].w=0;
-				BondHistoryID1->host[index].x=0;
-				BondHistoryID1->host[index].y=0;
-				BondHistoryID1->host[index].z=0;
-				BondHistoryID2->host[index].w=0;
-				BondHistoryID2->host[index].x=0;
-				BondHistoryID2->host[index].y=0;
-				BondHistoryID2->host[index].z=0;
-				mChainID->host[index]=0;
-			}
-		}
-	}
-	BaseClass::dumpReactions();
-	counter=0;
-	age.resize(0);
-	BondHistoryID1->push();
-	BondHistoryID2->push();
-	mChainID->push();
-	
-}
-template class Tracker< uint8_t  >;
-template class Tracker< uint16_t >;
-template class Tracker< uint32_t >;
-template class Tracker<  int16_t >;
-template class Tracker<  int32_t >;
+				

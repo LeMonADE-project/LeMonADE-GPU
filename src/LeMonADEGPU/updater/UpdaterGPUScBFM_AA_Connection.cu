@@ -1,4 +1,29 @@
+/*--------------------------------------------------------------------------------
+    ooo      L   attice-based  |
+  o\.|./o    e   xtensible     | LeMonADE: An Open Source Implementation of the
+ o\.\|/./o   Mon te-Carlo      |           Bond-Fluctuation-Model for Polymers
+oo--GPU--oo  A   lgorithm and  |
+ o/./|\.\o   D   evelopment    | Copyright (C) 2013-2015 by
+  o/.|.\o    E   nvironment    | LeMonADE Principal Developers (see AUTHORS)
+    ooo                        |
+----------------------------------------------------------------------------------
 
+This file is part of LeMonADEGPU.
+
+LeMonADE is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+LeMonADE is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with LeMonADE.  If not, see <http://www.gnu.org/licenses/>.
+
+--------------------------------------------------------------------------------*/
 
 /*
  * UpdaterGPUScBFM_AA_Connection.cu
@@ -828,28 +853,4 @@ void UpdaterGPUScBFM_AA_Connection< T_UCoordinateCuda >::checkSystem() const
 {
     if ( ! mLog.isActive( "Check" ) )
         return;
-    this -> checkLatticeOccupation();
-    for (auto i = 0; i < mnAllMonomers; i++)
-    {
-      if (mGroupIds[i] == 0 )
-      {
-      	if (mNeighbors->host[i].size ==0 || mNeighbors->host[i].size > 2  )
-	{
-	  std::stringstream error_message;
-	  error_message << "Exceeds the maximum number of bonds of " << 2 << " for crossLinks at monomer Id "
-		        <<  i << " with " << mNeighbors->host[i].size << "\n";
-	  for (size_t j =0 ; j < mNeighbors->host[i].size; j++ )
-	    error_message <<"Neighbor[" <<j << "]= " <<  mNeighbors->host[i].neighborIds[j] << "\n";
-	  throw std::runtime_error(error_message.str());
-	}
-      }
-    }
-    
-    checkBonds();
-}
-
-template class UpdaterGPUScBFM_AA_Connection< uint8_t  >;
-template class UpdaterGPUScBFM_AA_Connection< uint16_t >;
-template class UpdaterGPUScBFM_AA_Connection< uint32_t >;
-template class UpdaterGPUScBFM_AA_Connection<  int16_t >;
-template class UpdaterGPUScBFM_AA_Connection<  int32_t >;
+    thi

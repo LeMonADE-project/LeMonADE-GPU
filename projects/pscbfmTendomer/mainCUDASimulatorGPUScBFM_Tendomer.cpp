@@ -1,4 +1,29 @@
+/*--------------------------------------------------------------------------------
+    ooo      L   attice-based  |
+  o\.|./o    e   xtensible     | LeMonADE: An Open Source Implementation of the
+ o\.\|/./o   Mon te-Carlo      |           Bond-Fluctuation-Model for Polymers
+oo--GPU--oo  A   lgorithm and  |
+ o/./|\.\o   D   evelopment    | Copyright (C) 2013-2015 by
+  o/.|.\o    E   nvironment    | LeMonADE Principal Developers (see AUTHORS)
+    ooo                        |
+----------------------------------------------------------------------------------
 
+This file is part of LeMonADEGPU.
+
+LeMonADE is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+LeMonADE is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with LeMonADE.  If not, see <http://www.gnu.org/licenses/>.
+
+--------------------------------------------------------------------------------*/
 #include <chrono>                       // std::chrono::high_resolution_clock
 #include <cstring>
 //#include <cstdint>                      // uint32_t (C++11)
@@ -222,32 +247,4 @@ int main( int argc, char ** argv )
         switch (write_type){
             case 0 : taskmanager.addAnalyzer( new AnalyzerWriteBfmFile<Ing>( "LastConfig.bfm", myIngredients, AnalyzerWriteBfmFile<Ing>::OVERWRITE ) ); 
                      break; 
-            case 1 : taskmanager.addAnalyzer( new AnalyzerWriteBfmFile<Ing>( "LastConfig.bfm", myIngredients, AnalyzerWriteBfmFile<Ing>::OVERWRITE ) ); 
-                     taskmanager.addAnalyzer( new AnalyzerWriteBfmFileEachConfig<Ing>( basename , myIngredients ) );
-                     break; 
-            case 2 : taskmanager.addAnalyzer( new AnalyzerWriteBfmFileEachConfig<Ing>( basename , myIngredients ) );
-                     break; 
-        }
-
-        taskmanager.initialize();
-
-        auto const tTasks0 = hrclock::now();
-        taskmanager.run( max_mcs / save_interval );
-        auto const tTasks1 = hrclock::now();
-        std::stringstream sBuffered;
-        sBuffered << "tTaskLoop = " << std::chrono::duration<double>( tTasks1 - tTasks0 ).count() << "s\n";
-        std::cerr << sBuffered.str();
-
-        taskmanager.cleanup();
-    }
-    catch( std::exception const & e )
-    {
-        std::cerr << "[" << __FILENAME__ << "] Caught exception: " << e.what() << std::endl;;
-    }
-
-    auto const tProgram1 = hrclock::now();
-    std::stringstream sBuffered;
-    sBuffered << "tProgram = " << std::chrono::duration<double>( tProgram1 - tProgram0 ).count() << "s\n";
-    std::cerr << sBuffered.str();
-    return 0;
-}
+            case 1 : taskmanager.addAnal
