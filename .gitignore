@@ -43,3 +43,4 @@ bin/
 # Makefile
 Makefile
 .vscode/
+token.txt
