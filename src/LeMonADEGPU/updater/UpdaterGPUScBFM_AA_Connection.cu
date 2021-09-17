@@ -853,4 +853,28 @@ void UpdaterGPUScBFM_AA_Connection< T_UCoordinateCuda >::checkSystem() const
 {
     if ( ! mLog.isActive( "Check" ) )
         return;
-    thi
+        this -> checkLatticeOccupation();
+    for (auto i = 0; i < mnAllMonomers; i++)
+    {
+      if (mGroupIds[i] == 0 )
+      {
+      	if (mNeighbors->host[i].size ==0 || mNeighbors->host[i].size > 2  )
+	{
+	  std::stringstream error_message;
+	  error_message << "Exceeds the maximum number of bonds of " << 2 << " for crossLinks at monomer Id "
+		        <<  i << " with " << mNeighbors->host[i].size << "\n";
+	  for (size_t j =0 ; j < mNeighbors->host[i].size; j++ )
+	    error_message <<"Neighbor[" <<j << "]= " <<  mNeighbors->host[i].neighborIds[j] << "\n";
+	  throw std::runtime_error(error_message.str());
+	}
+      }
+    }
+    
+    checkBonds();
+}
+
+template class UpdaterGPUScBFM_AA_Connection< uint8_t  >;
+template class UpdaterGPUScBFM_AA_Connection< uint16_t >;
+template class UpdaterGPUScBFM_AA_Connection< uint32_t >;
+template class UpdaterGPUScBFM_AA_Connection<  int16_t >;
+template class UpdaterGPUScBFM_AA_Connection<  int32_t >;

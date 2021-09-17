@@ -247,4 +247,32 @@ int main( int argc, char ** argv )
         switch (write_type){
             case 0 : taskmanager.addAnalyzer( new AnalyzerWriteBfmFile<Ing>( "LastConfig.bfm", myIngredients, AnalyzerWriteBfmFile<Ing>::OVERWRITE ) ); 
                      break; 
-            case 1 : taskmanager.addAnal
+            case 1 : taskmanager.addAnalyzer( new AnalyzerWriteBfmFile<Ing>( "LastConfig.bfm", myIngredients, AnalyzerWriteBfmFile<Ing>::OVERWRITE ) ); 
+                     taskmanager.addAnalyzer( new AnalyzerWriteBfmFileEachConfig<Ing>( basename , myIngredients ) );
+                     break; 
+            case 2 : taskmanager.addAnalyzer( new AnalyzerWriteBfmFileEachConfig<Ing>( basename , myIngredients ) );
+                     break; 
+        }
+
+        taskmanager.initialize();
+
+        auto const tTasks0 = hrclock::now();
+        taskmanager.run( max_mcs / save_interval );
+        auto const tTasks1 = hrclock::now();
+        std::stringstream sBuffered;
+        sBuffered << "tTaskLoop = " << std::chrono::duration<double>( tTasks1 - tTasks0 ).count() << "s\n";
+        std::cerr << sBuffered.str();
+
+        taskmanager.cleanup();
+    }
+    catch( std::exception const & e )
+    {
+        std::cerr << "[" << __FILENAME__ << "] Caught exception: " << e.what() << std::endl;;
+    }
+
+    auto const tProgram1 = hrclock::now();
+    std::stringstream sBuffered;
+    sBuffered << "tProgram = " << std::chrono::duration<double>( tProgram1 - tProgram0 ).count() << "s\n";
+    std::cerr << sBuffered.str();
+    return 0;
+}

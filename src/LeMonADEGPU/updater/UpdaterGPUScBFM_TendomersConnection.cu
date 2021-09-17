@@ -1268,4 +1268,16 @@ void UpdaterGPUScBFM_TendomersConnection< T_UCoordinateCuda >::checkSystem() con
           error_message << "Exceeds the maximum number of bonds of " << 2 << " for chain ends at monomer Id "
                   <<  i << " with " << mNeighbors->host[i].size << "\n";
           for (size_t j =0 ; j < mNeighbors->host[i].size; j++ )
-            error_message <<"Neighbor[" <<j << "]= " <<  mNeighbors->ho
+            error_message <<"Neighbor[" <<j << "]= " <<  mNeighbors->host[i].neighborIds[j] << "\n";
+          throw std::runtime_error(error_message.str());
+        }
+      }
+    }
+    checkBonds();
+}
+
+template class UpdaterGPUScBFM_TendomersConnection< uint8_t  >;
+template class UpdaterGPUScBFM_TendomersConnection< uint16_t >;
+template class UpdaterGPUScBFM_TendomersConnection< uint32_t >;
+template class UpdaterGPUScBFM_TendomersConnection<  int16_t >;
+template class UpdaterGPUScBFM_TendomersConnection<  int32_t >;

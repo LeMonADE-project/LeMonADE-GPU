@@ -484,4 +484,36 @@ void TrackerTendomer<T_UCoordinateCuda>::dumpReactions()
           vec.push_back(Mon2.y);
           vec.push_back(Mon2.z);
           vec.push_back(MonID1); 
-    
+          vec.push_back(Mon1.x);
+          vec.push_back(Mon1.y);
+          vec.push_back(Mon1.z);
+        }
+        // vec.push_back(std::min(Mon1,Mon2));   
+        // vec.push_back(std::max(Mon1,Mon2));
+        BaseClass::addConnection(vec);
+        BondHistoryID1->host[index].w=0;
+        BondHistoryID1->host[index].x=0;
+        BondHistoryID1->host[index].y=0;
+        BondHistoryID1->host[index].z=0;
+        BondHistoryID2->host[index].w=0;
+        BondHistoryID2->host[index].x=0;
+        BondHistoryID2->host[index].y=0;
+        BondHistoryID2->host[index].z=0;
+        mChainID->host[index].x=0;
+        mChainID->host[index].y=0;
+      }
+    }
+  }
+  BaseClass::dumpReactions();
+  counter=0;
+  age.resize(0);
+  BondHistoryID1->push();
+  BondHistoryID2->push();
+  mChainID->push();
+  
+}
+template class TrackerTendomer< uint8_t  >;
+template class TrackerTendomer< uint16_t >;
+template class TrackerTendomer< uint32_t >;
+template class TrackerTendomer<  int16_t >;
+template class TrackerTendomer<  int32_t >;
