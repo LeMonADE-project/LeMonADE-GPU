@@ -9,15 +9,19 @@ Repository with updaters, analyzers, and projects for sharing BFM stuff related 
 * Install gcc   (minimum version 4.8)
 * Install cuda  (minimum version 7.0)
 * Just do for standard compilation:
- 
+ go to the main directory of the source code and do: 
 ````sh
     # generates the projects
-    mkdir build
-    cd build
-    cmake -DLEMONADE_INCLUDE_DIR=/path/to/LeMonADE-library/include/ -DLEMONADE_LIBRARY_DIR=/path/to/LeMonADE-library/lib/ ..
-    make
+    ./configure -DINSTALLDIR_LEMONADEGPU=/path/to/install/lemonadeGPU_install -DLEMONADE_DIR=/path/to/installation/lemonade_install  -DCUDA_ARCH=arch_of_graphics_card -DBUILDDIR=/path/to/build -DLEMONADEGPU_TESTS=ON/OFF -DCMAKE_BUILD_TYPE=Release/Debug
+    make -j 2 
 ````
 
+## Note
+
+Unfortunately, the repo cannot be cloned from outside over ssh. Thus please use the https. For that one has to set 
+> git config --global http.sslVerify true
+
+A disadvantage is that for every pull/push, the username and password is requested. 
 
 ## License
 

@@ -6,25 +6,17 @@ g++ -x c++ -Wall -Wextra -O3 -std=c++11 BitsCompileTime.hpp -DMAIN_TEST_BITSCOMP
 #include <climits>                  // CHAR_BIT
 #include <limits>                   // std::numeric_limits
 
-
-
 namespace CompileTimeFunctions {
 
-
 template< typename T, typename S >
-inline T constexpr ceilDiv ( T a, S b )
-{
-    return ( a + b - T(1) ) / b;
-}
+inline T constexpr ceilDiv ( T a, S b ) { return ( a + b - T(1) ) / b; }
 
 template< typename T >
-inline bool constexpr isPowerOfTwo( T const x )
-{
-    return ! ( x == T(0) ) && ! ( x & ( x - T(1) ) );
-}
+inline bool constexpr isPowerOfTwo( T const x ) { return ! ( x == T(0) ) && ! ( x & ( x - T(1) ) ); }
 
 template< long long int B, unsigned char E >
 struct Pow { static auto constexpr value = B * Pow<B,E-1>::value; };
+
 template< long long int B >
 struct Pow<B,0> { static auto constexpr value = 1; };
 
@@ -36,8 +28,10 @@ struct FloorLog {
     static_assert( B != 0, "" );
     static auto constexpr value = 1 + FloorLog< B, X/B >::value;
 };
+
 template< unsigned long long int B >
 struct FloorLog<B,0> { static auto constexpr value = 0; };
+
 template< unsigned long long int B >
 struct FloorLog<B,1> { static auto constexpr value = 0; };
 
@@ -49,13 +43,12 @@ struct CeilLog {
     static_assert( B != 0, "" );
     static auto constexpr value = 1 + CeilLog< B, ceilDiv(X,B) >::value;
 };
+
 template< unsigned long long int B >
 struct CeilLog<B,0> { static auto constexpr value = 0; };
+
 template< unsigned long long int B >
 struct CeilLog<B,1> { static auto constexpr value = 0; };
-
-
-
 } // CompileTimeFunctions
 
 
@@ -80,7 +73,6 @@ template< typename T > struct Step<T,1> { static auto constexpr value = 1; };
 template< typename T, NBits N > struct Step {
     static T constexpr value = T( Step<T,N-1>::value << 1 ) | T(1);
 };
-
 
 /**
  * Returns rectangular wave bit pattern in largest available type,
@@ -117,6 +109,36 @@ template< typename T, NBits N > struct Ones { static T constexpr value = Step<T,
 
 
 } // namespace BitPatterns
+
+/* for a in-depth description see comments in Fundamental/BitsCompileTime.hpp
+ * where it was copied from */
+template< typename T, unsigned char nSpacing, unsigned char nStepsNeeded, unsigned char iStep >
+struct DiluteBitsCrumble { __device__ __host__ inline static T apply( T const & xLastStep )
+{
+    auto x = DiluteBitsCrumble<T,nSpacing,nStepsNeeded,iStep-1>::apply( xLastStep );
+    auto constexpr iStep2Pow = 1llu << ( (nStepsNeeded-1) - iStep );
+    auto constexpr mask = BitPatterns::RectangularWave< T, iStep2Pow, iStep2Pow * nSpacing >::value;
+    x = ( x + ( x << ( iStep2Pow * nSpacing ) ) ) & mask;
+    return x;
+} };
+
+template< typename T, unsigned char nSpacing, unsigned char nStepsNeeded >
+struct DiluteBitsCrumble<T,nSpacing,nStepsNeeded,0> { __device__ __host__ inline static T apply( T const & x )
+{
+    auto constexpr nBitsAllowed = 1 + ( sizeof(T) * CHAR_BIT - 1 ) / ( nSpacing + 1 );
+    return x & BitPatterns::Step< T, nBitsAllowed >::value;
+} };
+
+template< typename T, unsigned char nSpacing >
+__device__ __host__ inline T diluteBits( T const & rx )
+{
+    static_assert( nSpacing > 0, "" );
+    auto constexpr nBitsAvailable = sizeof(T) * CHAR_BIT;
+    static_assert( nBitsAvailable > 0, "" );
+    auto constexpr nBitsAllowed = CompileTimeFunctions::ceilDiv( nBitsAvailable, nSpacing + 1 );
+    auto constexpr nStepsNeeded = 1 + CompileTimeFunctions::CeilLog< 2, nBitsAllowed >::value;
+    return DiluteBitsCrumble< T, nSpacing, nStepsNeeded, ( nStepsNeeded > 0 ? nStepsNeeded-1 : 0 ) >::apply( rx );
+}
 
 
 #include <bitset>
