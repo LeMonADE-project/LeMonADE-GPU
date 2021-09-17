@@ -177,4 +177,14 @@ int main( int argc, char ** argv )
         std::cerr << sBuffered.str();
         taskmanager.cleanup();
     }
-    catch( std::excepti
+    catch( std::exception const & e )
+    {
+        std::cerr << "[" << __FILENAME__ << "] Caught exception: " << e.what() << std::endl;;
+    }
+
+    auto const tProgram1 = hrclock::now();
+    std::stringstream sBuffered;
+    sBuffered << "tProgram = " << std::chrono::duration<double>( tProgram1 - tProgram0 ).count() << "s\n";
+    std::cerr << sBuffered.str();
+    return 0;
+}

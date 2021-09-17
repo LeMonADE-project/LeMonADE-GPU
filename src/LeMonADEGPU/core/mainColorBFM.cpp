@@ -374,3 +374,25 @@ int main( int argc, char ** argv )
  * make && ./colorBFM -i ../tests/coloring-test-Hydrogel_HEP_3__PEG_3_NStar_117__NoPerXYZ64_Connected.bfm -o colored.bfm
  *     Maximum number of neighbors per monomer: 5
  *     Number of isolated
+ *     Number of isolated subgraphs / polymers: 1
+ *     Number of colors needed for the polymer system: 4
+ *     Color usage frequencies: A: 279x (44.9275%), B: 267x (42.9952%), C: 65x (10.467%), D: 10x (1.61031%)
+ *
+ * make && ./SimulatorCUDAGPUScBFM -i ../tests/coloring-test-Hydrogel_HEP_3__PEG_3_NStar_117__NoPerXYZ64_Connected.bfm -m 1000 -s 1000 -o ./result.bfm -e ../tests/resultNormPscBFM.seeds -g 1
+ *     Maximum number of neighbors per monomer: 5
+ *     Number of isolated subgraphs / polymers: 1
+ *     Number of colors needed for the polymer system: 4
+ *     Color usage frequencies: A: 279x (44.9275%), B: 267x (42.9952%), C: 65x (10.467%), D: 10x (1.61031%)
+ *
+ * => identical :) -> works
+ *
+ * ../../Programs/LeMonADE-Viewer/build/LeMonADE-Viewer colored.bfm
+ *   !setColorAttributes:0=(228,26,28)
+ *   !setColorAttributes:1=(55,126,184)
+ *   !setColorAttributes:2=(77,175,74)
+ *   !setColorAttributes:3=(152,78,163)
+ * => LeMonADE-Viewer expects [0,1) -.- but does not tell so
+ * => if !attributeSystem comes after !mcs it seems to be ignored!
+ * => if !attributeSystem comes before, then LeMonADE-Viewer segfaults Oo?
+ *      => seems to be because of autodelete of trailing spaces >:O
+ */

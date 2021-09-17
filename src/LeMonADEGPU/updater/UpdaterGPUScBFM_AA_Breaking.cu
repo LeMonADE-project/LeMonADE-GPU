@@ -399,4 +399,23 @@ void UpdaterGPUScBFM_AA_Breaking< T_UCoordinateCuda >::runSimulationOnGPU
 	launch_BreakConnections(nBlocks_c,nThreads_c, ChainEndSpecies, seed);
 // 	tracker.dumpReactions();    
     } // iStep
-  
+    
+    std::clock_t const t1 = std::clock();
+    double const dt = float(t1-t0) / CLOCKS_PER_SEC;
+    mLog( "Info" )
+    << "run time (GPU): " << nMonteCarloSteps << "\n"
+    << "mcs = " << nMonteCarloSteps  << "  speed [performed monomer try and move/s] = MCS*N/t: "
+    << nMonteCarloSteps * ( mnAllMonomers / dt )  << "     runtime[s]:" << dt << "\n";
+    BaseClass::doCopyBack();
+    BaseClass::checkSystem(); // no-op if "Check"-level deactivated
+    
+
+
+}
+
+
+template class UpdaterGPUScBFM_AA_Breaking< uint8_t  >;
+template class UpdaterGPUScBFM_AA_Breaking< uint16_t >;
+template class UpdaterGPUScBFM_AA_Breaking< uint32_t >;
+template class UpdaterGPUScBFM_AA_Breaking<  int16_t >;
+template class UpdaterGPUScBFM_AA_Breaking<  int32_t >;
