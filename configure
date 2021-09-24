@@ -107,6 +107,9 @@ clean:
 	@- \$(MAKE) --silent -C ${BUILDDIR} clean || true
 .PHONY: clean
 
+install:
+	@ \$(MAKE) -C ${BUILDDIR} install 
+.PHONY: install
 
 docs:
 	@  \$(MAKE) -C ${BUILDDIR} docs
