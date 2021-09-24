@@ -13,15 +13,20 @@ Repository with updaters, analyzers, and projects for sharing BFM stuff related 
 ````sh
     # generates the projects
     ./configure -DINSTALLDIR_LEMONADEGPU=/path/to/install/lemonadeGPU_install -DLEMONADE_DIR=/path/to/installation/lemonade_install  -DCUDA_ARCH=arch_of_graphics_card -DBUILDDIR=/path/to/build -DLEMONADEGPU_TESTS=ON/OFF -DCMAKE_BUILD_TYPE=Release/Debug
-    make -j 2 
+    make install
 ````
 
-## Note
+Compute capability can be found in : https://developer.nvidia.com/cuda-gpus
+
+
+<!-- 
+only important for local github server
+## Note 
 
 Unfortunately, the repo cannot be cloned from outside over ssh. Thus please use the https. For that one has to set 
 > git config --global http.sslVerify true
 
-A disadvantage is that for every pull/push, the username and password is requested. 
+A disadvantage is that for every pull/push, the username and password is requested.  -->
 
 ## License
 
