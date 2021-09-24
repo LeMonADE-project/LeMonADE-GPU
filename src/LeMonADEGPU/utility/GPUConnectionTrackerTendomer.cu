@@ -133,7 +133,7 @@ void TrackerTendomer<T_UCoordinateCuda>::trackBreaks( ID_t * const ID1     ,
 __device__ __host__  T inline MinImageDistanceComponentForPowerOfTwo(const T x, const uint32_t latticeSize ){
   //this is only valid for absolute coordinates
   uint32_t latticeSizeM1(latticeSize-1);
-  return ( ((x&latticeSizeM1) < (latticeSize/2)) ? (x & latticeSizeM1) :  -(-x & latticeSizeM1));
+  return ( ((x&latticeSizeM1) < (latticeSize/2)) ? (x & latticeSizeM1) :  -((-x) & latticeSizeM1));
 }
 
 template <class T >
