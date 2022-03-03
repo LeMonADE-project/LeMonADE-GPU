@@ -492,6 +492,7 @@ __global__ void kernelSimulationScBFMCheckSpecies
             shearForce(DXTable_d[ direction ],r0.z,rnd) 
             && checkDens(r0.z,DZTable_d[ direction ])
         ){
+            printf("check id=%d dir=%d (%d,%d,%d)\n",iMonomer, direction, r0.x, r0.y,r0.z );
             /* everything fits so perform move on temporary lattice */
             /* can I do this ??? dpPolymerSystem is the device pointer to the read-only
             * texture used above. Won't this result in read-after-write race-conditions?
@@ -708,7 +709,7 @@ __global__ void kernelSimulationScBFMPerformSpecies
             continue;
 
         /* If possible, perform move now on normal lattice */
-        dpPolymerFlags[ iMonomer ] = properties | T_Flags(64); // indicating allowed move
+        dpPolymerFlags[ iMonomer ] = properties | T_Flags(64); // indicating allowed move ??????????? Warum 64? 
         dpLattice[ iOldPos ] = 0;
         dpLattice[ met.getCurve().linearizeBoxVectorIndex( r0.x + DXTable_d[ direction ],
                                             r0.y + DYTable_d[ direction ],
@@ -742,8 +743,10 @@ __global__ void kernelSimulationScBFMPerformSpeciesAndApply
         auto const r0 = dpPolymerSystem[ iMonomer ];
         auto const direction = properties & T_Flags(31); // 7=0b111 31=0b11111
         uint32_t iOldPos;
-        if ( checkFront( texLatticeTmp, r0.x, r0.y, r0.z, direction, met, &BitPacking::bitPackedTextureGet, &iOldPos ) )
+        if ( checkFront( texLatticeTmp, r0.x, r0.y, r0.z, direction, met, &BitPacking::bitPackedTextureGet, &iOldPos ) ){
+            dpPolymerFlags[ iMonomer ] = int(direction); // indicate as not movable !
             continue;
+        }
         /* @todo this is slower on Kepler when using DXTableUintCuda_d
          *       not sure why ... but on Pascal it might trigger
          *       uint8 calculation speedup! */
