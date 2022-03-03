@@ -64,9 +64,13 @@ void SpaceFillingCurve::setBox(uint64_t mBoxX_, uint64_t mBoxY_, uint64_t mBoxZ_
     { decltype( dcBoxXM1    ) x = mBoxX_-1   ; CUDA_ERROR( cudaMemcpyToSymbol( dcBoxXM1   , &x, sizeof(x) ) ); }
     { decltype( dcBoxYM1    ) x = mBoxY_-1   ; CUDA_ERROR( cudaMemcpyToSymbol( dcBoxYM1   , &x, sizeof(x) ) ); }
     { decltype( dcBoxZM1    ) x = mBoxZ_-1   ; CUDA_ERROR( cudaMemcpyToSymbol( dcBoxZM1   , &x, sizeof(x) ) ); }
-
-    //differentiate between the different curves by the mode type: 
     uint64_t mBoxXLog2(0), mBoxXYLog2(0);
+    { auto dummy = mBoxX_ ; while ( dummy >>= 1 ) ++mBoxXLog2;
+      dummy = mBoxX_*mBoxY_; while ( dummy >>= 1 ) ++mBoxXYLog2;}
+    { decltype( dcBoxXLog2  ) x = mBoxXLog2  ; CUDA_ERROR( cudaMemcpyToSymbol( dcBoxXLog2 , &x, sizeof(x) ) ); }
+    { decltype( dcBoxXYLog2 ) x = mBoxXYLog2 ; CUDA_ERROR( cudaMemcpyToSymbol( dcBoxXYLog2, &x, sizeof(x) ) ); } 
+    //differentiate between the different curves by the mode type: 
+    
     if ( IsPowerOfTwo(mBoxX_) && IsPowerOfTwo(mBoxY_) && IsPowerOfTwo(mBoxZ_) )
     {
       if ( mBoxX_ == mBoxY_ && mBoxY_ == mBoxZ_  )
@@ -80,28 +84,16 @@ void SpaceFillingCurve::setBox(uint64_t mBoxX_, uint64_t mBoxY_, uint64_t mBoxZ_
       setMode(1); // here no bitwise operators are used and thus should work for all box dimensions.
       std::cout << "SpaceFillingCurve::setBox: Use linear box coordinates for arbitrary box dimensions.\n";
     }
-    
-    switch( mode )
-    {
-        case 2: lP2Curve.initialize(mBoxX_,mBoxY_,mBoxZ_);
-                {auto dummy = mBoxX_ ; while ( dummy >>= 1 ) ++mBoxXLog2;
-                dummy = mBoxX_*mBoxY_; while ( dummy >>= 1 ) ++mBoxXYLog2;}
-                { decltype( dcBoxXLog2  ) x = mBoxXLog2  ; CUDA_ERROR( cudaMemcpyToSymbol( dcBoxXLog2 , &x, sizeof(x) ) ); }
-                { decltype( dcBoxXYLog2 ) x = mBoxXYLog2 ; CUDA_ERROR( cudaMemcpyToSymbol( dcBoxXYLog2, &x, sizeof(x) ) ); } 
-                break;
-        case 1: lCurve.initialize(mBoxX_,mBoxY_,mBoxZ_);
-                break;
-        case 0: zCurve.initialize(mBoxX_,mBoxY_,mBoxZ_);
-                {auto dummy = mBoxX_ ; while ( dummy >>= 1 ) ++mBoxXLog2;
-                dummy = mBoxX_*mBoxY_; while ( dummy >>= 1 ) ++mBoxXYLog2;}
-                { decltype( dcBoxXLog2  ) x = mBoxXLog2  ; CUDA_ERROR( cudaMemcpyToSymbol( dcBoxXLog2 , &x, sizeof(x) ) ); }
-                { decltype( dcBoxXYLog2 ) x = mBoxXYLog2 ; CUDA_ERROR( cudaMemcpyToSymbol( dcBoxXYLog2, &x, sizeof(x) ) ); } 
-                break;
-    }
+    lP2Curve.initialize(mBoxX_,mBoxY_,mBoxZ_);
+    lCurve.initialize(mBoxX_,mBoxY_,mBoxZ_);
+    zCurve.initialize(mBoxX_,mBoxY_,mBoxZ_);
     CheckBoxDimensionsSpaceFilling<<<1,1>>>();
 }
 
 int SpaceFillingCurve::getMode() const {return mode;}
-void SpaceFillingCurve::setMode( int mode_) { mode=mode_; }
+void SpaceFillingCurve::setMode( int mode_) {   
+  mode=mode_; 
+  std::cout << "SpaceFillingCurve::setMode="<<mode<<".\n";
+}
  
 #endif 
