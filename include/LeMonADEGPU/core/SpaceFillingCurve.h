@@ -216,14 +216,14 @@ public:
     mBoxXYLog2 = 0; dummy = mBoxX_*mBoxY_; while ( dummy >>= 1 ) ++mBoxXYLog2;
     if ( mBoxX_ != ( 1u << mBoxXLog2 ) || mBoxX_ * mBoxY_ != ( 1u << mBoxXYLog2 ) )
     {
-	std::stringstream msg;
-	msg << "[" << __FILENAME__ << "::initialize" << "] "
-	    << "Could not determine value for bit shift. "
-	    << "Check whether the box size is a power of 2! ( "
-	    << "boxX=" << mBoxX_ << " =? 2^" << mBoxXLog2 << " = " << ( 1 << mBoxXLog2 )
-	    << ", boxX*boY=" << mBoxX_ * mBoxY_ << " =? 2^" << mBoxXYLog2
-	    << " = " << ( 1 << mBoxXYLog2 ) << " )\n";
-	throw std::runtime_error( msg.str() );
+      std::stringstream msg;
+      msg << "[" << __FILENAME__ << "::initialize" << "] "
+          << "Could not determine value for bit shift. "
+          << "Check whether the box size is a power of 2! ( "
+          << "boxX=" << mBoxX_ << " =? 2^" << mBoxXLog2 << " = " << ( 1 << mBoxXLog2 )
+          << ", boxX*boY=" << mBoxX_ * mBoxY_ << " =? 2^" << mBoxXYLog2
+          << " = " << ( 1 << mBoxXYLog2 ) << " )\n";
+      throw std::runtime_error( msg.str() );
     }
     std::cout << "LinearCurvePowOfTwo::initialize uses mBoxXLog2 of "<< mBoxXLog2 << " and mBoxXYLog2 "<< mBoxXYLog2 <<std::endl;
   }
