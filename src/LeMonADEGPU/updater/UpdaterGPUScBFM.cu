@@ -708,7 +708,7 @@ __global__ void kernelSimulationScBFMPerformSpecies
             continue;
 
         /* If possible, perform move now on normal lattice */
-        dpPolymerFlags[ iMonomer ] = properties | T_Flags(64); // indicating allowed move
+        dpPolymerFlags[ iMonomer ] = properties | T_Flags(64); // indicating allowed move ??????????? Warum 64? 
         dpLattice[ iOldPos ] = 0;
         dpLattice[ met.getCurve().linearizeBoxVectorIndex( r0.x + DXTable_d[ direction ],
                                             r0.y + DYTable_d[ direction ],
@@ -742,8 +742,10 @@ __global__ void kernelSimulationScBFMPerformSpeciesAndApply
         auto const r0 = dpPolymerSystem[ iMonomer ];
         auto const direction = properties & T_Flags(31); // 7=0b111 31=0b11111
         uint32_t iOldPos;
-        if ( checkFront( texLatticeTmp, r0.x, r0.y, r0.z, direction, met, &BitPacking::bitPackedTextureGet, &iOldPos ) )
+        if ( checkFront( texLatticeTmp, r0.x, r0.y, r0.z, direction, met, &BitPacking::bitPackedTextureGet, &iOldPos ) ){
+            dpPolymerFlags[ iMonomer ] = T_Flags(direction); // indicate as not movable !
             continue;
+        }
         /* @todo this is slower on Kepler when using DXTableUintCuda_d
          *       not sure why ... but on Pascal it might trigger
          *       uint8 calculation speedup! */
@@ -1207,6 +1209,7 @@ void UpdaterGPUScBFM< T_UCoordinateCuda >::initializeBondTable( void )
     uint32_t tmp_DXTable[18] = { 0u-1u, 1,     0, 0,     0, 0,   1,     1, 0u-1u, 0u-1u,   0,     0,     0,     0,   1, 0u-1u,     1, 0u-1u };
     uint32_t tmp_DYTable[18] = {     0, 0, 0u-1u, 1,     0, 0,   1, 0u-1u,     1, 0u-1u,   1,     1, 0u-1u, 0u-1u,   0,     0,     0,     0 };
     uint32_t tmp_DZTable[18] = {     0, 0,     0, 0, 0u-1u, 1,   0,     0,     0,     0,   1, 0u-1u,     1, 0u-1u,   1,     1, 0u-1u, 0u-1u };
+
     CUDA_ERROR( cudaMemcpyToSymbol( DXTable_d, tmp_DXTable, sizeof( tmp_DXTable ) ) );
     CUDA_ERROR( cudaMemcpyToSymbol( DYTable_d, tmp_DYTable, sizeof( tmp_DXTable ) ) );
     CUDA_ERROR( cudaMemcpyToSymbol( DZTable_d, tmp_DZTable, sizeof( tmp_DXTable ) ) );
