@@ -492,7 +492,6 @@ __global__ void kernelSimulationScBFMCheckSpecies
             shearForce(DXTable_d[ direction ],r0.z,rnd) 
             && checkDens(r0.z,DZTable_d[ direction ])
         ){
-            printf("check id=%d dir=%d (%d,%d,%d)\n",iMonomer, direction, r0.x, r0.y,r0.z );
             /* everything fits so perform move on temporary lattice */
             /* can I do this ??? dpPolymerSystem is the device pointer to the read-only
             * texture used above. Won't this result in read-after-write race-conditions?
@@ -744,7 +743,7 @@ __global__ void kernelSimulationScBFMPerformSpeciesAndApply
         auto const direction = properties & T_Flags(31); // 7=0b111 31=0b11111
         uint32_t iOldPos;
         if ( checkFront( texLatticeTmp, r0.x, r0.y, r0.z, direction, met, &BitPacking::bitPackedTextureGet, &iOldPos ) ){
-            dpPolymerFlags[ iMonomer ] = int(direction); // indicate as not movable !
+            dpPolymerFlags[ iMonomer ] = T_Flags(direction); // indicate as not movable !
             continue;
         }
         /* @todo this is slower on Kepler when using DXTableUintCuda_d
@@ -1210,6 +1209,7 @@ void UpdaterGPUScBFM< T_UCoordinateCuda >::initializeBondTable( void )
     uint32_t tmp_DXTable[18] = { 0u-1u, 1,     0, 0,     0, 0,   1,     1, 0u-1u, 0u-1u,   0,     0,     0,     0,   1, 0u-1u,     1, 0u-1u };
     uint32_t tmp_DYTable[18] = {     0, 0, 0u-1u, 1,     0, 0,   1, 0u-1u,     1, 0u-1u,   1,     1, 0u-1u, 0u-1u,   0,     0,     0,     0 };
     uint32_t tmp_DZTable[18] = {     0, 0,     0, 0, 0u-1u, 1,   0,     0,     0,     0,   1, 0u-1u,     1, 0u-1u,   1,     1, 0u-1u, 0u-1u };
+
     CUDA_ERROR( cudaMemcpyToSymbol( DXTable_d, tmp_DXTable, sizeof( tmp_DXTable ) ) );
     CUDA_ERROR( cudaMemcpyToSymbol( DYTable_d, tmp_DYTable, sizeof( tmp_DXTable ) ) );
     CUDA_ERROR( cudaMemcpyToSymbol( DZTable_d, tmp_DZTable, sizeof( tmp_DXTable ) ) );
