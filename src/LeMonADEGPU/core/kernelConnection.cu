@@ -29,6 +29,7 @@ along with LeMonADE.  If not, see <http://www.gnu.org/licenses/>.
 #include <LeMonADEGPU/core/kernelConnection.h>
 #include <thrust/sort.h>
 #include <thrust/sequence.h>
+#include <thrust/execution_policy.h>
 template < typename T >
 __global__ void  kernelResetMultiples(
     const uint32_t ArraySize,
