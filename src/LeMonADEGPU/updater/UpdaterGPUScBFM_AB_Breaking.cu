@@ -41,6 +41,7 @@ along with LeMonADE.  If not, see <http://www.gnu.org/licenses/>.
 #include <LeMonADEGPU/utility/AutomaticThreadChooser.h>
 #include <thrust/fill.h>
 #include <thrust/sequence.h>
+#include <thrust/execution_policy.h>
 
 #include <extern/Fundamental/BitsCompileTime.hpp>
 
