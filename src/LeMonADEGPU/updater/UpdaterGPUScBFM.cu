@@ -330,6 +330,7 @@ __device__ inline bool checkFront
 	    CALL_MEMBER_FN(met.getPacking(), func)( texLattice, is[ 13 ] ) +
 	    CALL_MEMBER_FN(met.getPacking(), func)( texLattice, is[ 14 ] ) ; 
     }
+    return false;
 }
 
 /**
