@@ -1,3 +1,4 @@
+[![DOI](https://zenodo.org/badge/136152127.svg)](https://zenodo.org/badge/latestdoi/136152127)
 # LeMonADE-GPU
 GPU extensions of the LeMonADE library
 Repository with updaters, analyzers, and projects for sharing BFM stuff related to various topics.
