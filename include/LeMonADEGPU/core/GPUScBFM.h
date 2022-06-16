@@ -220,8 +220,10 @@ public:
             mUpdaterGpu.setShearForce(0);
         mUpdaterGpu.setDensityCheckerON(densityCheckerON);
         Method met;
-        met.modifyCurve().setMode(2);
         met.modifyCurve().setBox(mIngredients.getBoxX(),mIngredients.getBoxY(),mIngredients.getBoxZ());
+	met.modifyCurve().setMode(0); // Z-Order-Curve
+	//met.modifyCurve().setMode(1); // Linear Modulus
+	//met.modifyCurve().setMode(2); // Linear Bit-Operation
         met.modifyPacking().setBitPackingOn(true);
         met.modifyPacking().setNBufferedTmpLatticeOn(true);
         met.setOnGPUForOverhead(true);
