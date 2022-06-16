@@ -174,7 +174,7 @@ int main(int argc, char **argv)
         //         typedef LOKI_TYPELIST_4( FeatureMoleculesIO, FeatureAttributes<>,
         //                                  FeatureExcludedVolumeSc<>, FeatureConnectionSc ) Features;
         // typedef LOKI_TYPELIST_4(FeatureMoleculesIOUnsaveCheck, FeatureAttributes<>, FeatureExcludedVolumeSc<>, FeatureConnectionSc) Features;
-        typedef LOKI_TYPELIST_5(FeatureMoleculesIOUnsaveCheck, FeatureAttributes<>, FeatureExcludedVolumeSc<>, FeatureConnectionSc, FeatureShearForce) Features;
+        typedef LOKI_TYPELIST_5(FeatureMoleculesIO, FeatureAttributes<>, FeatureExcludedVolumeSc<>, FeatureConnectionSc, FeatureShearForce) Features;
         // 	typedef LOKI_TYPELIST_3( FeatureMoleculesIOUnsaveCheck, FeatureAttributes<>, FeatureConnectionSc ) Features;
 
         typedef ConfigureSystem<VectorInt3, Features, 8> Config;
