@@ -222,8 +222,8 @@ public:
         Method met;
         met.modifyCurve().setBox(mIngredients.getBoxX(),mIngredients.getBoxY(),mIngredients.getBoxZ());
 	//met.modifyCurve().setMode(0); // Z-Order-Curve
-	met.modifyCurve().setMode(1); // Linear Modulus
-	//met.modifyCurve().setMode(2); // Linear Bit-Operation
+	//met.modifyCurve().setMode(1); // Linear Modulus
+	met.modifyCurve().setMode(2); // Linear Bit-Operation
         met.modifyPacking().setBitPackingOn(true);
         met.modifyPacking().setNBufferedTmpLatticeOn(true);
         met.setOnGPUForOverhead(true);
