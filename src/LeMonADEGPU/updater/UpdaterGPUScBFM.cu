@@ -2778,11 +2778,11 @@ void UpdaterGPUScBFM< T_UCoordinateCuda >::runSimulationOnGPU
     /* run simulation */
     for ( uint32_t iStep = 0; iStep < nMonteCarloSteps; ++iStep, ++mAge )
     {
-        if ( mUsePeriodicMonomerSorting && ( mAge % mnStepsBetweenSortings == 0 ) )
-        {
-            mLog( "Info" ) << "Resorting at age / step " << mAge << "\n";
-            doSpatialSorting();
-        }
+       // if ( mUsePeriodicMonomerSorting && ( mAge % mnStepsBetweenSortings == 0 ) )
+       // {
+       //     mLog( "Info" ) << "Resorting at age / step " << mAge << "\n";
+       //     doSpatialSorting();
+       // }
         if ( useOverflowChecks )
         {
             /**
