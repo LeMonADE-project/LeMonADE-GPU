@@ -885,17 +885,17 @@ __global__ void kernelTreatOverflows
 
         if ( std::abs( dr.x ) > T_UCoordinateCuda( boxSizeCudaType / 2 ) )
         {
-            r1.x -= boxSizeCudaType - dcBoxX;
+            // r1.x -= boxSizeCudaType - dcBoxX;
             iv.x -= dr.x > decltype( dr.x )(0) ? 1 : -1;
         }
         if ( std::abs( dr.y ) > T_UCoordinateCuda( boxSizeCudaType / 2 ) )
         {
-            r1.y -= boxSizeCudaType - dcBoxY;
+            // r1.y -= boxSizeCudaType - dcBoxY;
             iv.y -= dr.y > decltype( dr.y )(0) ? 1 : -1;
         }
         if ( std::abs( dr.z ) > T_UCoordinateCuda( boxSizeCudaType / 2 ) )
         {
-            r1.z -= boxSizeCudaType - dcBoxZ;
+            // r1.z -= boxSizeCudaType - dcBoxZ;
             iv.z -= dr.z > decltype( dr.z )(0) ? 1 : -1;
         }
 
@@ -1503,6 +1503,7 @@ __global__ void kernelUndoPolymerSystemSorting
         if ( iOld == UINT32_MAX )
             continue;
         auto const rsmall = dpPolymerSystemSorted[ iNew ];
+        auto constexpr boxSizeCudaType = 1ll << ( sizeof( T_UCoordinateCuda ) * CHAR_BIT );
         /* problematic typecast happens here with T_UCoordinateCuda = uint32_t
          * because it would then get >down<converted to int32_t!
          * But this is ok, because LeMonADE also has this limitation */
@@ -1513,9 +1514,9 @@ __global__ void kernelUndoPolymerSystemSorting
             T_Coordinate( rsmall.w )
         };
         auto const nPos = dpiPolymerSystemSortedVirtualBox[ iNew ];
-        rSorted.x += nPos.x * dcBoxX;
-        rSorted.y += nPos.y * dcBoxY;
-        rSorted.z += nPos.z * dcBoxZ;
+        rSorted.x += nPos.x * boxSizeCudaType;
+        rSorted.y += nPos.y * boxSizeCudaType;
+        rSorted.z += nPos.z * boxSizeCudaType;
         dpPolymerSystem[ iOld ] = rSorted;
     }
 }
@@ -1538,20 +1539,18 @@ __global__ void kernelSplitMonomerPositions
         if ( iOld == UINT32_MAX )
             continue;
         auto const r = dpPolymerSystem[ iOld ];
+        auto constexpr boxSizeCudaType = 1ll << ( sizeof( T_UCoordinateCuda ) * CHAR_BIT ); 
         typename CudaVec4< T_UCoordinateCuda >::value_type rlo = {
-            T_UCoordinateCuda( r.x % dcBoxX ),
-            T_UCoordinateCuda( r.y % dcBoxY ),
-            T_UCoordinateCuda( r.z % dcBoxZ ),
-//             T_UCoordinateCuda( r.x & dcBoxXM1 ), // only for power of two boxes 
-//             T_UCoordinateCuda( r.y & dcBoxYM1 ),
-//             T_UCoordinateCuda( r.z & dcBoxZM1 ),
+            T_UCoordinateCuda( r.x % boxSizeCudaType ),
+            T_UCoordinateCuda( r.y % boxSizeCudaType ),
+            T_UCoordinateCuda( r.z % boxSizeCudaType ),
             T_UCoordinateCuda( dpPolymerSystemSorted[ iNew ].w )
         };
         dpPolymerSystemSorted[ iNew ] = rlo;
         T_Coordinates rhi = {
-            ( r.x - T_Coordinate( rlo.x ) ) / T_Coordinate( dcBoxX ),
-            ( r.y - T_Coordinate( rlo.y ) ) / T_Coordinate( dcBoxY ),
-            ( r.z - T_Coordinate( rlo.z ) ) / T_Coordinate( dcBoxZ ),
+            ( r.x - T_Coordinate( rlo.x ) ) / T_Coordinate( boxSizeCudaType ),
+            ( r.y - T_Coordinate( rlo.y ) ) / T_Coordinate( boxSizeCudaType ),
+            ( r.z - T_Coordinate( rlo.z ) ) / T_Coordinate( boxSizeCudaType ),
             0
         };
         dpiPolymerSystemSortedVirtualBox[ iNew ] = rhi;
