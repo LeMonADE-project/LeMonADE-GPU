@@ -2715,64 +2715,8 @@ void UpdaterGPUScBFM< T_UCoordinateCuda >::runSimulationOnGPU
     CUDA_ERROR( cudaStreamSynchronize( mStream ) ); // finish e.g. initializations
     CUDA_ERROR( cudaMemcpy( mPolymerSystemSortedOld->gpu, mPolymerSystemSorted->gpu, mPolymerSystemSortedOld->nBytes, cudaMemcpyDeviceToDevice ) );
     auto const nSpecies = mnElementsInGroup.size();
-// 
-    /**
-     * Statistics (min, max, mean, stddev) on filtering. Filtered because of:
-     *   0: bonds, 1: volume exclusion, 2: volume exclusion (parallel)
-     * These statistics are done for each group separately
-     */
-    std::vector< std::vector< double > > sums, sums2, mins, maxs, ns;
-    std::vector< unsigned long long int > vFiltered;
-    unsigned long long int * dpFiltered = NULL;
-    auto constexpr nFilters = 5;
-    if ( mLog.isActive( "Stats" ) )
-    {
-        sums .resize( nSpecies, std::vector< double >( nFilters, 0             ) );
-        sums2.resize( nSpecies, std::vector< double >( nFilters, 0             ) );
-        mins .resize( nSpecies, std::vector< double >( nFilters, mnAllMonomers ) );
-        maxs .resize( nSpecies, std::vector< double >( nFilters, 0             ) );
-        ns   .resize( nSpecies, std::vector< double >( nFilters, 0             ) );
-        /* ns needed because we need to know how often each group was advanced */
-        vFiltered.resize( nFilters );
-        CUDA_ERROR( cudaMalloc( &dpFiltered, nFilters * sizeof( *dpFiltered ) ) );
-        CUDA_ERROR( cudaMemsetAsync( (void*) dpFiltered, 0, nFilters * sizeof( *dpFiltered ), mStream ) );
-    }
-     /**
-     * should never lead to a speedup and non power of twos, e.g. 196 even,
-     * won't be able to perfectly fill out the shared multi processor.
-     * Also, automatically determine whether cudaMemset is faster or not (after
-     * we found the best threads per block configuration
-     * note: test example best configuration was 128 threads per block and use
-     *       the cudaMemset version instead of the third kernel
-     */
-    std::vector< int > vnThreadsToTry;
-    for ( auto nThreads = mCudaProps.warpSize; nThreads <= mCudaProps.maxThreadsPerBlock; nThreads *= 2 )
-        vnThreadsToTry.push_back( nThreads );
-    assert( vnThreadsToTry.size() > 0 );
-    struct SpeciesBenchmarkData
-    {
-        /* 2 vectors of double for measurements with and without cudaMemset */
-        std::vector< std::vector< float > > timings;
-        std::vector< std::vector< int   > > nRepeatTimings;
-        int iBestThreadCount;
-        bool useCudaMemset;
-        bool decidedAboutThreadCount;
-        bool decidedAboutCudaMemset;
-    };
-    std::vector< SpeciesBenchmarkData > benchmarkInfo( nSpecies, SpeciesBenchmarkData{
-        std::vector< std::vector< float > >( 2 /* true or false */,
-            std::vector< float >( vnThreadsToTry.size(),
-                std::numeric_limits< float >::infinity() ) ),
-        std::vector< std::vector< int   > >( 2 /* true or false */,
-            std::vector< int   >( vnThreadsToTry.size(),
-            2 /* repeat 2 time, i.e. execute three times */ ) ),
-        2, true, true, true
-    } );
-    cudaEvent_t tOneGpuLoop0, tOneGpuLoop1;
-    cudaEventCreate( &tOneGpuLoop0 );
-    cudaEventCreate( &tOneGpuLoop1 );
-
-    std::vector< uint64_t > nSpeciesChosen( nSpecies ,0 );
+    AutomaticThreadChooser chooseThreads(nSpecies);
+    chooseThreads.initialize(mCudaProps);
 
     /* run simulation */
     for ( uint32_t iStep = 0; iStep < nMonteCarloSteps; ++iStep, ++mAge )
@@ -2818,16 +2762,10 @@ void UpdaterGPUScBFM< T_UCoordinateCuda >::runSimulationOnGPU
             /* randomly choose which monomer group to advance */
             auto const iSpecies = randomNumbers.r250_rand32() % nSpecies;
             auto const seed     = randomNumbers.r250_rand32();
-            auto const nThreads = vnThreadsToTry.at( benchmarkInfo[ iSpecies ].iBestThreadCount );
+            auto const nThreads = chooseThreads.getBestThread(iSpecies);
             auto const nBlocks  = ceilDiv( mnElementsInGroup[ iSpecies ], nThreads );
-            auto const needToBenchmark = ! (
-                benchmarkInfo[ iSpecies ].decidedAboutThreadCount &&
-                benchmarkInfo[ iSpecies ].decidedAboutCudaMemset );
-            auto const useCudaMemset = benchmarkInfo[ iSpecies ].useCudaMemset;
-            if ( needToBenchmark )
-                cudaEventRecord( tOneGpuLoop0, mStream );
-
-            nSpeciesChosen[ iSpecies ] += 1;
+            auto const useCudaMemset = chooseThreads.useCudaMemset(iSpecies);
+            chooseThreads.addRecord(iSpecies, mStream);
 
             /*
             if ( iStep < 3 )
@@ -2835,37 +2773,12 @@ void UpdaterGPUScBFM< T_UCoordinateCuda >::runSimulationOnGPU
             */
             if (!diagMovesOn) {
                 launch_CheckSpecies<6>(nBlocks, nThreads, iSpecies, iOffsetLatticeTmp, seed);
-                /** The counting kernel can come after the Check-kernel, because the
-                * Check-kernel only modifies the polymer flags which it does not
-                * read itself. It actually wouldn't work else, because the count
-                * kernel needs to query the drawn direction 
-                * @todo find the bug !!!
-                */
-                //somehow it does not work with the boxCheck method. 
-            // 	    launch_CountFilteredCheck(nBlocks,nThreads,iSpecies, texLatticeTmp, dpFiltered, iOffsetLatticeTmp);
-
-                if ( mLog.isActive( "Stats" ) )
-                    launch_countFilteredPerform(nBlocks,nThreads, iSpecies, texLatticeTmp, dpFiltered);
-
                 if ( useCudaMemset )
                     launch_PerformSpeciesAndApply(nBlocks, nThreads, iSpecies, texLatticeTmp);
                 else
                     launch_PerformSpecies(nBlocks,nThreads,iSpecies,texLatticeTmp );
             }else{
                 launch_CheckSpecies<18>(nBlocks, nThreads, iSpecies, iOffsetLatticeTmp, seed);
-
-                /** The counting kernel can come after the Check-kernel, because the
-                * Check-kernel only modifies the polymer flags which it does not
-                * read itself. It actually wouldn't work else, because the count
-                * kernel needs to query the drawn direction 
-                * @todo find the bug !!!
-                */
-                //somehow it does not work with the boxCheck method. 
-            // 	    launch_CountFilteredCheck(nBlocks,nThreads,iSpecies, texLatticeTmp, dpFiltered, iOffsetLatticeTmp);
-
-                if ( mLog.isActive( "Stats" ) )
-                    launch_countFilteredPerform(nBlocks,nThreads, iSpecies, texLatticeTmp, dpFiltered);
-
                 if ( useCudaMemset )
                     launch_PerformSpeciesAndApply(nBlocks, nThreads, iSpecies, texLatticeTmp );
                 else
@@ -2885,100 +2798,14 @@ void UpdaterGPUScBFM< T_UCoordinateCuda >::runSimulationOnGPU
                     mLatticeTmp->memsetAsync(0);
             }
             else
-            launch_ZeroArraySpecies(nBlocks,nThreads,iSpecies);
-
-            if ( needToBenchmark )
-            {
-            auto & info = benchmarkInfo[ iSpecies ];
-            cudaEventRecord( tOneGpuLoop1, mStream );
-            cudaEventSynchronize( tOneGpuLoop1 );
-            float milliseconds = 0;
-            cudaEventElapsedTime( & milliseconds, tOneGpuLoop0, tOneGpuLoop1 );
-            auto const iThreadCount = info.iBestThreadCount;
-            auto & oldTiming = info.timings.at( useCudaMemset ).at( iThreadCount );
-            oldTiming = std::min( oldTiming, milliseconds );
-
-            mLog( "Info" )
-            << "Using " << nThreads << " threads (" << nBlocks << " blocks)"
-            << " and using " << ( useCudaMemset ? "cudaMemset" : "kernelZeroArray" )
-            << " for species " << iSpecies << " took " << milliseconds << "ms\n";
-
-            auto & nStillToRepeat = info.nRepeatTimings.at( useCudaMemset ).at( iThreadCount );
-            if ( nStillToRepeat > 0 )
-                --nStillToRepeat;
-            else if ( ! info.decidedAboutThreadCount )
-            {
-                /* if not the first timing, then decide whether we got slower,
-                * i.e. whether we found the minimum in the last step and
-                * have to roll back */
-                if ( iThreadCount > 0 )
-                {
-                if ( info.timings.at( useCudaMemset ).at( iThreadCount-1 ) < milliseconds )
-                {
-                    --info.iBestThreadCount;
-                    info.decidedAboutThreadCount = true;
-                }
-                else
-                    ++info.iBestThreadCount;
-                }
-                else
-                ++info.iBestThreadCount;
-                /* if we can't increment anymore, then we are finished */
-                assert( (size_t) info.iBestThreadCount <= vnThreadsToTry.size() );
-                if ( (size_t) info.iBestThreadCount == vnThreadsToTry.size() )
-                {
-                --info.iBestThreadCount;
-                info.decidedAboutThreadCount = true;
-                }
-                if ( info.decidedAboutThreadCount )
-                {
-                /* then in the next term try out changing cudaMemset
-                    * version to custom kernel version (or vice-versa) */
-                if ( ! info.decidedAboutCudaMemset )
-                    info.useCudaMemset = ! info.useCudaMemset;
-                mLog( "Info" )
-                << "Using " << vnThreadsToTry.at( info.iBestThreadCount )
-                << " threads per block is the fastest for species "
-                << iSpecies << ".\n";
-                }
-            }
-            else if ( ! info.decidedAboutCudaMemset )
-            {
-                info.decidedAboutCudaMemset = true;
-                if ( info.timings.at( ! useCudaMemset ).at( iThreadCount ) < milliseconds )
-                info.useCudaMemset = ! useCudaMemset;
-                if ( info.decidedAboutCudaMemset )
-                {
-                mLog( "Info" )
-                << "Using " << ( info.useCudaMemset ? "cudaMemset" : "kernelZeroArray" )
-                << " is the fastest for species " << iSpecies << ".\n";
-                }
-            }
-            }
-
-                if ( mLog.isActive( "Stats" ) )
-                {
-                    CUDA_ERROR( cudaMemcpyAsync( (void*) &vFiltered.at(0), (void*) dpFiltered,
-                        nFilters * sizeof( *dpFiltered ), cudaMemcpyDeviceToHost, mStream ) );
-                    CUDA_ERROR( cudaStreamSynchronize( mStream ) );
-                    CUDA_ERROR( cudaMemsetAsync( (void*) dpFiltered, 0, nFilters * sizeof( *dpFiltered ), mStream ) );
-
-                    for ( auto iFilter = 0u; iFilter < nFilters; ++iFilter )
-                    {
-                        double const x = vFiltered.at( iFilter );
-                        sums .at( iSpecies ).at( iFilter ) += x;
-                        sums2.at( iSpecies ).at( iFilter ) += x*x;
-                        mins .at( iSpecies ).at( iFilter ) = std::min( mins.at( iSpecies ).at( iFilter ), x );
-                        maxs .at( iSpecies ).at( iFilter ) = std::max( maxs.at( iSpecies ).at( iFilter ), x );
-                        ns   .at( iSpecies ).at( iFilter ) += 1;
-                    }
-                }
+                launch_ZeroArraySpecies(nBlocks,nThreads,iSpecies);
+            chooseThreads.analyze(iSpecies,mStream);
         } // iSubstep
         //calculate the density in the sheared volumes:
         if (densityCheckerOn){
             for ( uint32_t i = 0; i < nSpecies; ++i ){
                 //
-                auto const nThreads = vnThreadsToTry.at( benchmarkInfo[ i ].iBestThreadCount );
+                auto const nThreads = chooseThreads.getBestThread(i);
                 auto const nBlocks  = ceilDiv( mnElementsInGroup[ i ], nThreads );
                 densityChecker.launch_countMonomers(
                 mPolymerSystemSorted,
@@ -2993,102 +2820,15 @@ void UpdaterGPUScBFM< T_UCoordinateCuda >::runSimulationOnGPU
     } // iStep
     if (densityCheckerOn)
         densityChecker.printResults();
-    if ( mLog.isActive( "Stats" ) && dpFiltered != NULL )
-    {
-        if ( mnElementsInGroup.size() <= 8 )
-        for ( auto iSpecies = 0u; iSpecies < nSpecies; ++iSpecies )
-            mLog( "Stats" ) << "Group " << char( 'A' + iSpecies ) << " was chosen " << nSpeciesChosen[ iSpecies ] << " times\n";
 
-        mLog( "Stats" ) << "Filter analysis. Format:\n" << "Filter Reason: min | mean +- stddev | max\n";
-        std::map< int, std::string > filterNames;
-        filterNames[0] = "Box Boundaries";
-        filterNames[1] = "Invalid Bonds";
-        filterNames[2] = "Volume Exclusion";
-        filterNames[3] = "! Invalid Bonds && Volume Exclusion";
-        filterNames[4] = "! Invalid Bonds && ! Volume Exclusion && Parallel Volume Exclusion";
-
-        if ( mnElementsInGroup.size() <= 8 )
-        for ( auto iGroup = 0u; iGroup < mnElementsInGroup.size(); ++iGroup )
-        {
-            mLog( "Stats" ) << "\n=== Group " << char( 'A' + iGroup ) << " (" << mnElementsInGroup[ iGroup ] << ") ===\n";
-            for ( auto iFilter = 0u; iFilter < nFilters; ++iFilter )
-            {
-                double const nRepeats = ns   .at( iGroup ).at( iFilter );
-                double const mean     = sums .at( iGroup ).at( iFilter ) / nRepeats;
-                double const sum2     = sums2.at( iGroup ).at( iFilter ) / nRepeats;
-                double const min      = mins .at( iGroup ).at( iFilter );
-                double const max      = maxs .at( iGroup ).at( iFilter );
-                double const stddev   = std::sqrt( nRepeats/(nRepeats-1.) * ( sum2 - mean * mean ) );
-                mLog( "Stats" )
-                    << filterNames[iFilter] << ": "
-                    << min  << "(" << 100. * min  / mnElementsInGroup[ iGroup ] << "%) | "
-                    << mean << "(" << 100. * mean / mnElementsInGroup[ iGroup ] << "%) +- "
-                    << stddev << " | "
-                    << max  << "(" << 100. * max  / mnElementsInGroup[ iGroup ] << "%)\n";
-            }
-            if ( sums.at( iGroup ).at(0) != 0 )
-                mLog( "Stats" ) << "The value for remeaining particles after first kernel will be wrong if we have non-periodic boundary conditions (todo)!\n";
-            auto const nAvgFilteredKernel1 = (double)( sums.at( iGroup ).at(1) + sums.at( iGroup ).at(3) ) / ns.at( iGroup ).at(3);
-            mLog( "Stats" ) << "Remaining after 1st kernel: " << mnElementsInGroup[ iGroup ] - nAvgFilteredKernel1 << "(" << 100. * ( mnElementsInGroup[ iGroup ] - nAvgFilteredKernel1 ) / mnElementsInGroup[ iGroup ] << "%)\n";
-            auto const nAvgFilteredKernel2 = (double) sums.at( iGroup ).at(4) / ns.at( iGroup ).at(4);
-            auto const percentageMoved = ( mnElementsInGroup[ iGroup ] - nAvgFilteredKernel1 - nAvgFilteredKernel2 ) / mnElementsInGroup[ iGroup ];
-            mLog( "Stats" ) << "For parallel collisions it's interesting to give the percentage of sorted particles in relation to whose who can actually still move, not in relation to ALL particles\n"
-                << "    Third kernel gets " << mnElementsInGroup[ iGroup ] << " monomers, but first kernel (bonds, box, volume exclusion) already filtered " << nAvgFilteredKernel1 << "(" << 100. * nAvgFilteredKernel1 / mnElementsInGroup[ iGroup ] << "%) which the 2nd kernel has to refilter again (if no stream compaction is used).\n"
-                << "    Then from the remaining " << mnElementsInGroup[ iGroup ] - nAvgFilteredKernel1 << "(" << 100. * ( mnElementsInGroup[ iGroup ] - nAvgFilteredKernel1 ) / mnElementsInGroup[ iGroup ] << "%) the 2nd kernel filters out another " << nAvgFilteredKernel2 << " particles which in relation to the particles which actually still could move before is: " << 100. * nAvgFilteredKernel2 / ( mnElementsInGroup[ iGroup ] - nAvgFilteredKernel1 ) << "% and in relation to the total particles: " << 100. * nAvgFilteredKernel2 / mnElementsInGroup[ iGroup ] << "%\n"
-                << "    Therefore in total (all three kernels) and on average (multiple salves of three kernels) " << ( mnElementsInGroup[ iGroup ] - nAvgFilteredKernel1 - nAvgFilteredKernel2 ) << "(" << 100. * percentageMoved << "%) particles can be moved per step. I.e. it takes on average " << 1. / percentageMoved << " Monte-Carlo steps per monomer until a monomer actually changes position.\n";
-        }
-
-        /* Give total statistics not separated by species. Currently this only works if species all have the same number of monomers because the statistics are done over the actual filtered cound instead of the percentages */
-        if ( mnElementsInGroup.size() > 1 )
-        {
-            mLog( "Stats" ) << "\n\n==== Total Filtering Statistics over all Species ====\n";
-            std::vector< double > totSums ( nFilters, 0 );
-            std::vector< double > totSums2( nFilters, 0 );
-            std::vector< double > totMins ( nFilters, 0 );
-            std::vector< double > totMaxs ( nFilters, 0 );
-            std::vector< double > totNs   ( nFilters, 0 );
-            for ( auto iFilter = 0u; iFilter < nFilters; ++iFilter )
-            {
-                for ( auto iGroup = 0u; iGroup < mnElementsInGroup.size(); ++iGroup )
-                {
-                    totSums [ iFilter ] += sums [ iGroup ][ iFilter ];
-                    totSums2[ iFilter ] += sums2[ iGroup ][ iFilter ];
-                    totNs   [ iFilter ] += ns   [ iGroup ][ iFilter ];
-                    totMins [ iFilter ] += mins [ iGroup ][ iFilter ];
-                    totMaxs [ iFilter ] += maxs [ iGroup ][ iFilter ];
-                }
-                double const nRepeats = nMonteCarloSteps; // totNs   [ iFilter ];
-                double const mean     = totSums [ iFilter ] / nRepeats;
-                double const sum2     = totSums2[ iFilter ] / nRepeats;
-                double const min      = totMins [ iFilter ];
-                double const max      = totMaxs [ iFilter ];
-                double const stddev   = std::sqrt( nRepeats/(nRepeats-1.) * ( sum2 - mean * mean ) );
-                // sum2 - mean*mean can get negative ... meh
-                /*
-                std::cout << "sums2 = " << sums2[0][iFilter] << "," << sums2[1][iFilter] << "\n";
-                std::cout << "mean  = " << mean << ", nRepeats = " << nRepeats << "\n";
-                std::cout << "sum2 - mean * mean  = " << sum2 - mean * mean << "\n";
-                std::cout << "sum2 - mean * mean  = " << sum2 - mean * mean << "\n";
-                */
-                mLog( "Stats" )
-                    << filterNames[iFilter] << ": "
-                    << min  << "(" << 100. * min  / mnAllMonomers << "%) | "
-                    << mean << "(" << 100. * mean / mnAllMonomers << "%) +- "
-                    << stddev << " | "
-                    << max  << "(" << 100. * max  / mnAllMonomers << "%)\n";
-            }
-        }
-
-        CUDA_ERROR( cudaFree( dpFiltered ) );
-    }
-    doCopyBack();
-    checkSystem(); // no-op if "Check"-level deactivated
     std::clock_t const t1 = std::clock();
     double const dt = float(t1-t0) / CLOCKS_PER_SEC;
     mLog( "Info" )
     << "run time (GPU): " << nMonteCarloSteps << "\n"
     << "mcs = " << nMonteCarloSteps  << "  speed [performed monomer try and move/s] = MCS*N/t: "
     << nMonteCarloSteps * ( mnAllMonomers / dt )  << "     runtime[s]:" << dt << "\n";
+    doCopyBack();
+    checkSystem(); // no-op if "Check"-level deactivated
 }
 
 template< typename T_UCoordinateCuda >
