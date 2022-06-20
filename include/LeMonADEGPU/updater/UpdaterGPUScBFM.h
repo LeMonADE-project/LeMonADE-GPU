@@ -386,7 +386,6 @@ protected:
     
     template< int MoveSize > 
     void launch_CheckSpecies                      (const size_t nBlocks, const size_t nThreads, const size_t iSpecies, const size_t iOffsetLatticeTmp, const uint64_t seed );
-    void launch_CheckSpeciesWithMonomericMoveType (const size_t nBlocks, const size_t nThreads, const size_t iSpecies, const size_t iOffsetLatticeTmp, const uint64_t seed, cudaTextureObject_t const texAllowedToMoveInSpecies);
     template< int MoveSize > 
     void launch_CheckReactiveSpecies              (const size_t nBlocks, const size_t nThreads, const size_t iSpecies, const size_t iOffsetLatticeTmp, const uint64_t seed, uint32_t AASpeciesFlag, cudaTextureObject_t const texAllowedToMoveInSpecies);
     void launch_PerformSpecies                    (const size_t nBlocks, const size_t nThreads, const size_t iSpecies, cudaTextureObject_t texLatticeTmp);

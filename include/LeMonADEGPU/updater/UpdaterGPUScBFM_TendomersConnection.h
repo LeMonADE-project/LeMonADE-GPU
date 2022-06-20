@@ -106,6 +106,7 @@ protected:
     using BaseClass::mPolymerFlags;
     using BaseClass::mLatticeOut;
     using BaseClass::boxCheck;
+    using BaseClass::diagMovesOn;
    
     uint32_t CrossLinkSpecies; 
     uint32_t ChainEndSpecies ; 

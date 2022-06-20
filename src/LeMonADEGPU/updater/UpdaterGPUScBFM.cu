@@ -632,52 +632,6 @@ __global__ void kernelSimulationScBFMCheckReactiveSpecies
     }
 }
 
-/*
-colordiff <( sed -n 931,1028p ../src/pscbfm/UpdaterGPUScBFM.cu ) <( sed -n 1031,1090p ../src/pscbfm/UpdaterGPUScBFM.cu )
-*/
-template< typename T_UCoordinateCuda   >
-__global__ void kernelCountFilteredCheck
-(
-    typename CudaVec4< T_UCoordinateCuda >::value_type
-                     const * const __restrict__ dpPolymerSystem        ,
-    T_Flags          const * const              dpPolymerFlags         ,
-    uint32_t                 const              iOffset                ,
-    T_Lattice        const * const __restrict__ /* dpLatticeTmp */     ,
-    T_Id             const * const              dpNeighbors            ,
-    uint32_t                 const              rNeighborsPitchElements,
-    uint8_t          const * const              dpNeighborsSizes       ,
-    T_Id                     const              nMonomers              ,
-    cudaTextureObject_t      const              texLatticeRefOut       ,
-    unsigned long long int * const              dpFiltered             ,
-    BoxCheck                                    bCheck		       ,
-    Method                                      met,
-    BondVectorSet            const              checkBondVector
-)
-{
-    for ( auto iMonomer = blockIdx.x * blockDim.x + threadIdx.x;
-          iMonomer < nMonomers; iMonomer += gridDim.x * blockDim.x )
-    {
-        auto const r0 = dpPolymerSystem[ iOffset + iMonomer ];
-        auto const properties = dpPolymerFlags[ iMonomer ];
-        auto const direction = properties & T_Flags(31); // 7=0b111
-
-        typename CudaVec4< T_UCoordinateCuda >::value_type const r1 = {
-            T_UCoordinateCuda( r0.x + DXTable_d[ direction ] ),
-            T_UCoordinateCuda( r0.y + DYTable_d[ direction ] ),
-            T_UCoordinateCuda( r0.z + DZTable_d[ direction ] )
-        };
-	if ( bCheck(r1.x,r1.y,r1.z) &&
-	     checkFront( texLatticeRefOut, r0.x, r0.y, r0.z, direction, met, &BitPacking::bitPackedTextureGetStandard  ) )
-	{
-	    atomicAdd( dpFiltered+2, 1ull );
-	    if ( ! checkNeighboringBonds<T_UCoordinateCuda>(dpNeighborsSizes, iMonomer, dpNeighbors, rNeighborsPitchElements, dpPolymerSystem, r1, checkBondVector ) ) /* this is the more real relative use-case where invalid bonds are already filtered out */
-		atomicAdd( dpFiltered+3, 1ull );
-	}
-
-    }
-}
-
-
 /**
  * Recheck whether the move is possible without collision, using the
  * temporarily parallel executed moves saved in texLatticeTmp. If so,
@@ -760,33 +714,6 @@ __global__ void kernelSimulationScBFMPerformSpeciesAndApply
         dpLattice[ met.getCurve().linearizeBoxVectorIndex( r1.x, r1.y, r1.z ) ] = 1;
         /* If possible, perform move now on normal lattice */
         dpPolymerSystem[ iMonomer ] = r1;
-    }
-}
-
-template< typename T_UCoordinateCuda   >
-__global__ void kernelCountFilteredPerform
-(
-    typename CudaVec4< T_UCoordinateCuda >::value_type
-                     const * const              dpPolymerSystem  ,
-    T_Flags          const * const              dpPolymerFlags   ,
-    T_Lattice        const * const __restrict__ /* dpLattice */  ,
-    T_Id                     const              nMonomers        ,
-    cudaTextureObject_t      const              texLatticeTmp    ,
-    unsigned long long int * const              dpFiltered       ,
-    Method 					met
-)
-{
-    for ( auto iMonomer = blockIdx.x * blockDim.x + threadIdx.x;
-          iMonomer < nMonomers; iMonomer += gridDim.x * blockDim.x )
-    {
-        auto const properties = dpPolymerFlags[ iMonomer ];
-        if ( ! ( properties & T_Flags(32) ) ) // check if can-move flag is set
-            continue;
-
-        auto const r0 = dpPolymerSystem[ iMonomer ];
-        auto const direction = properties & T_Flags(31); // 7=0b111
-        if ( checkFront( texLatticeTmp, r0.x, r0.y, r0.z, direction, met, &BitPacking::bitPackedTextureGet, NULL ) )
-            atomicAdd( dpFiltered+4, size_t(1) );
     }
 }
 
@@ -936,34 +863,6 @@ void UpdaterGPUScBFM< T_UCoordinateCuda >::launch_CheckSpecies(
 }
 
 template< typename T_UCoordinateCuda> 
-void UpdaterGPUScBFM< T_UCoordinateCuda >::launch_CheckSpeciesWithMonomericMoveType(
-    const size_t nBlocks, const size_t nThreads, 
-    const size_t iSpecies, const size_t iOffsetLatticeTmp, 
-    const uint64_t seed, cudaTextureObject_t const texMonomericMoveType )
-{
-    kernelSimulationScBFMCheckSpeciesMonomericMoveType< T_UCoordinateCuda > 
-    <<< nBlocks, nThreads, 0, mStream >>>(                
-	mPolymerSystemSorted->gpu,                                     
-	mPolymerFlags->gpu + mviSubGroupOffsets[ iSpecies ],           
-	mviSubGroupOffsets[ iSpecies ],                                
-	mLatticeTmp->gpu + iOffsetLatticeTmp,                          
-	mNeighborsSorted->gpu + mNeighborsSortedInfo.getMatrixOffsetElements( iSpecies ), 
-	mNeighborsSortedInfo.getMatrixPitchElements( iSpecies ),       
-	mNeighborsSortedSizes->gpu + mviSubGroupOffsets[ iSpecies ],   
-	mnElementsInGroup[ iSpecies ],                                 
-	seed, 
-	hGlobalIterator,                                         
-	mLatticeOut->texture,
-	boxCheck, 
-	met,
-	checkBondVector,
-	texMonomericMoveType
-    );
-  hGlobalIterator++;
-
-}
-
-template< typename T_UCoordinateCuda> 
 template< int MoveSize >
 void UpdaterGPUScBFM< T_UCoordinateCuda >::launch_CheckReactiveSpecies(
     const size_t nBlocks, const size_t nThreads, 
@@ -991,52 +890,6 @@ void UpdaterGPUScBFM< T_UCoordinateCuda >::launch_CheckReactiveSpecies(
 	AASpeciesFlag
     );
   hGlobalIterator++;
-}
-
-
-
-template< typename T_UCoordinateCuda> 
-void UpdaterGPUScBFM< T_UCoordinateCuda >::launch_countFilteredPerform(
-    const size_t nBlocks, const size_t nThreads, 
-    const size_t iSpecies, cudaTextureObject_t texLatticeTmp, 
-    unsigned long long int * dpFiltered )
-{
-
-    kernelCountFilteredPerform< T_UCoordinateCuda >
-    <<< nBlocks, nThreads, 0, mStream >>>(
-        mPolymerSystemSorted->gpu + mviSubGroupOffsets[ iSpecies ],
-        mPolymerFlags->gpu + mviSubGroupOffsets[ iSpecies ],
-        mLatticeOut->gpu,
-        mnElementsInGroup[ iSpecies ],
-        texLatticeTmp,
-        dpFiltered,
-        met
-    );
-}
-
-template< typename T_UCoordinateCuda> 
-void UpdaterGPUScBFM< T_UCoordinateCuda >::launch_CountFilteredCheck(
-    const size_t nBlocks, const size_t nThreads, 
-    const size_t iSpecies, cudaTextureObject_t texLatticeTmp, 
-    unsigned long long int * dpFiltered, const size_t iOffsetLatticeTmp )
-{
-
-    kernelCountFilteredCheck< T_UCoordinateCuda >
-    <<< nBlocks, nThreads, 0, mStream >>>(                 
-    mPolymerSystemSorted->gpu,                         
-    mPolymerFlags->gpu + mviSubGroupOffsets[ iSpecies ],
-    mviSubGroupOffsets[ iSpecies ],                     
-    mLatticeTmp->gpu + iOffsetLatticeTmp,               
-    mNeighborsSorted->gpu + mNeighborsSortedInfo.getMatrixOffsetElements( iSpecies ), 
-    mNeighborsSortedInfo.getMatrixPitchElements( iSpecies ),   
-    mNeighborsSortedSizes->gpu + mviSubGroupOffsets[ iSpecies ], 
-    mnElementsInGroup[ iSpecies ],                             
-    mLatticeOut->texture,                                     
-    dpFiltered,
-    boxCheck,
-    met,
-    checkBondVector
-    );
 }
 
 template< typename T_UCoordinateCuda> 
@@ -1123,8 +976,6 @@ UpdaterGPUScBFM< T_UCoordinateCuda >::UpdaterGPUScBFM()
    mBoxXM1                          ( 0    ),
    mBoxYM1                          ( 0    ),
    mBoxZM1                          ( 0    ),
-//    mBoxXLog2                        ( 0    ),
-//    mBoxXYLog2                       ( 0    ),
    mnSplitColors                    ( 0    ),
    hGlobalIterator                  ( 0    ),
    bSetAutoColoring                 ( true ),

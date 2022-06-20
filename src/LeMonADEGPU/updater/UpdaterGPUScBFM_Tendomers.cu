@@ -688,27 +688,18 @@ void UpdaterGPUScBFM_Tendomers< T_UCoordinateCuda >::runSimulationOnGPU
             auto const useCudaMemset = chooseThreads.useCudaMemset(iSpecies);
             chooseThreads.addRecord(iSpecies, mStream);
 
-            
-            switch ( monomericMoveType )
-            {
-            case 0: this-> template launch_CheckSpecies<6>(nBlocks, nThreads, iSpecies, iOffsetLatticeTmp, seed);
-                    if ( useCudaMemset )
-                      launch_PerformSpeciesAndApply(nBlocks, nThreads, iSpecies, texLatticeTmp );
-                    else
-                      launch_PerformSpecies(nBlocks,nThreads,iSpecies,texLatticeTmp );
-                    break;
-            case 1: this-> template launch_CheckSpecies<18>(nBlocks, nThreads, iSpecies, iOffsetLatticeTmp, seed);
-                    if ( useCudaMemset )
-                      launch_PerformSpeciesAndApply(nBlocks, nThreads, iSpecies, texLatticeTmp );
-                    else
-                      launch_PerformSpecies(nBlocks,nThreads,iSpecies,texLatticeTmp );
-                    break;
-            case 2: this-> launch_CheckSpeciesWithMonomericMoveType(nBlocks, nThreads, iSpecies, iOffsetLatticeTmp, seed, moveType -> texture);
-                    if ( useCudaMemset )
-                      launch_PerformSpeciesAndApply(nBlocks, nThreads, iSpecies, texLatticeTmp );
-                    else
-                      launch_PerformSpecies(nBlocks,nThreads,iSpecies,texLatticeTmp );
-                    break;
+            if (!diagMovesOn) {
+                this-> template launch_CheckSpecies<6>(nBlocks, nThreads, iSpecies, iOffsetLatticeTmp, seed);
+                if ( useCudaMemset )
+                    launch_PerformSpeciesAndApply(nBlocks, nThreads, iSpecies, texLatticeTmp);
+                else
+                    launch_PerformSpecies(nBlocks,nThreads,iSpecies,texLatticeTmp );
+            }else{
+                this-> template launch_CheckSpecies<18>(nBlocks, nThreads, iSpecies, iOffsetLatticeTmp, seed);
+                if ( useCudaMemset )
+                    launch_PerformSpeciesAndApply(nBlocks, nThreads, iSpecies, texLatticeTmp );
+                else
+                    launch_PerformSpecies(nBlocks,nThreads,iSpecies,texLatticeTmp );
             }
 
             if ( useCudaMemset ){

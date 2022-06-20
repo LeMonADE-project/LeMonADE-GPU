@@ -210,7 +210,8 @@ public:
             mUpdaterGpu.setLabel(i, mIngredients.getMolecules()[i].getLabel());
 
         mLog("Info") << "[" << __FILENAME__ << "::initialize] set move type (either standard, diagonal moves or partial diagonal moves for pending chain)\n";
-        mUpdaterGpu.setMoveType(mDiagMovesOn);
+        // mUpdaterGpu.setMoveType(mDiagMovesOn);
+        mUpdaterGpu.setDiagonalMovesOn(mDiagMovesOn);
         if ( mIngredients.isForceOn() )
             mUpdaterGpu.setShearForce(mIngredients.getAmplitudeShearForce());
         else 
