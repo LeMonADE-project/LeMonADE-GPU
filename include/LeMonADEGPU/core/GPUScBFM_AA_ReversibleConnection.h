@@ -84,8 +84,6 @@ private:
     uint32_t mnSteps;
     SelectedLogger mLog;
     bool mCanUseUint8Positions;
-    uint64_t mnStepsBetweenSortings;
-    bool mSetStepsBetweenSortings;
     uint8_t mnSplitColors;
     double energy;
     bool mDiagMovesOn; 
@@ -104,7 +102,7 @@ public:
     (
         T_IngredientsType & rIngredients,
         uint32_t            rnSteps     ,
-	bool                mDiagMovesOn_ = false,
+	    bool                mDiagMovesOn_ = false,
         int                 riGpuToUse = 0
     )
     : mIngredients( rIngredients                   ),
@@ -112,7 +110,6 @@ public:
       miGpuToUse  ( riGpuToUse                     ),
       mnSteps     ( rnSteps                        ),
       mLog        ( __FILENAME__                   ),
-      mSetStepsBetweenSortings( false ),
       mDiagMovesOn(mDiagMovesOn_),
       mnSplitColors( 0 ),
       energy(0)
@@ -136,11 +133,6 @@ public:
     }
 
     inline void setGpu( int riGpuToUse ){ miGpuToUse = riGpuToUse; }
-    inline void setStepsBetweenSortings( int rnStepsBetweenSortings )
-    {
-        mSetStepsBetweenSortings = true;
-        mnStepsBetweenSortings = rnStepsBetweenSortings;
-    }
     inline void setSplitColors( uint8_t rnSplitColors ){ mnSplitColors = rnSplitColors; }
     inline void setBondEnergy(double energy_){energy=energy_;}
 
@@ -166,8 +158,6 @@ public:
 
         mLog( "Info" ) << "[" << __FILENAME__ << "::initialize] Forwarding relevant paramters to GPU updater\n";
         mUpdaterGpu.setGpu( miGpuToUse );
-        if ( mSetStepsBetweenSortings )
-            mUpdaterGpu.setStepsBetweenSortings( mnStepsBetweenSortings );
         mLog( "Info" ) << "[" << __FILENAME__ << "::initialize] mUpdaterGpu.setPeriodicity\n";
         /* Forward needed parameters to the GPU updater */
         mUpdaterGpu.setAge( mIngredients.modifyMolecules().getAge() );

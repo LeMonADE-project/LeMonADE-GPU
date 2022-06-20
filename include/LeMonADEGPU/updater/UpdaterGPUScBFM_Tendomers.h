@@ -70,9 +70,6 @@ protected:
     using BaseClass::mnElementsInGroup;
     using BaseClass::mCudaProps;
     using BaseClass::mAge;
-    using BaseClass::mUsePeriodicMonomerSorting;
-    using BaseClass::mnStepsBetweenSortings;
-    using BaseClass::doSpatialSorting;
     using BaseClass::useOverflowChecks;
     using BaseClass::findAndRemoveOverflows;
     using BaseClass::mnLatticeTmpBuffers;

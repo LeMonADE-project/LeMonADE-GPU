@@ -949,8 +949,6 @@ UpdaterGPUScBFM< T_UCoordinateCuda >::UpdaterGPUScBFM()
    mIsPeriodicX                     ( true ),
    mIsPeriodicY                     ( true ),
    mIsPeriodicZ                     ( true ),
-   mUsePeriodicMonomerSorting       ( true ),
-   mnStepsBetweenSortings           ( 5000 ),
    mLatticeOut                      ( NULL ),
    mLatticeTmp                      ( NULL ),
    mLatticeTmp2                     ( NULL ),
@@ -964,7 +962,6 @@ UpdaterGPUScBFM< T_UCoordinateCuda >::UpdaterGPUScBFM()
    miToiNew                         ( NULL ),
    miNewToi                         ( NULL ),
    miNewToiComposition              ( NULL ),
-   miNewToiSpatial                  ( NULL ),
    mvKeysZOrderLinearIds            ( NULL ),
    mNeighbors                       ( NULL ),
    mNeighborsSorted                 ( NULL ),
@@ -1003,30 +1000,29 @@ UpdaterGPUScBFM< T_UCoordinateCuda >::UpdaterGPUScBFM()
 template< typename T_UCoordinateCuda >
 void UpdaterGPUScBFM< T_UCoordinateCuda >::destruct()
 {
-    // DeleteMirroredObject deletePointer;
-    // deletePointer( mLatticeOut                     , "mLatticeOut"                      );
-    // deletePointer( mLatticeTmp                     , "mLatticeTmp"                      );
-    // deletePointer( mLatticeTmp2                    , "mLatticeTmp2"                     );
-    // deletePointer( mPolymerSystem                  , "mPolymerSystem"                   );
-    // deletePointer( mPolymerSystemSorted            , "mPolymerSystemSorted"             );
-    // deletePointer( mPolymerSystemSortedOld         , "mPolymerSystemSortedOld"          );
-    // deletePointer( mviPolymerSystemSortedVirtualBox, "mviPolymerSystemSortedVirtualBox" );
-    // deletePointer( mPolymerFlags                   , "mPolymerFlags"                    );
-    // deletePointer( miToiNew                        , "miToiNew"                         );
-    // deletePointer( miNewToi                        , "miNewToi"                         );
-    // deletePointer( miNewToiComposition             , "miNewToiComposition"              );
-    // deletePointer( miNewToiSpatial                 , "miNewToiSpatial"                  );
-    // deletePointer( mvKeysZOrderLinearIds           , "mvKeysZOrderLinearIds"            );
-    // deletePointer( mNeighbors                      , "mNeighbors"                       );
-    // deletePointer( mNeighborsSorted                , "mNeighborsSorted"                 );
-    // deletePointer( mNeighborsSortedSizes           , "mNeighborsSortedSizes"            );
-    // if ( deletePointer.nBytesFreed > 0 )
-    // {
-    //     mLog( "Info" )
-    //         << "Freed a total of "
-    //         << prettyPrintBytes( deletePointer.nBytesFreed )
-    //         << " on GPU and host RAM.\n";
-    // }
+    DeleteMirroredObject deletePointer;
+    deletePointer( mLatticeOut                     , "mLatticeOut"                      );
+    deletePointer( mLatticeTmp                     , "mLatticeTmp"                      );
+    deletePointer( mLatticeTmp2                    , "mLatticeTmp2"                     );
+    deletePointer( mPolymerSystem                  , "mPolymerSystem"                   );
+    deletePointer( mPolymerSystemSorted            , "mPolymerSystemSorted"             );
+    deletePointer( mPolymerSystemSortedOld         , "mPolymerSystemSortedOld"          );
+    deletePointer( mviPolymerSystemSortedVirtualBox, "mviPolymerSystemSortedVirtualBox" );
+    deletePointer( mPolymerFlags                   , "mPolymerFlags"                    );
+    deletePointer( miToiNew                        , "miToiNew"                         );
+    deletePointer( miNewToi                        , "miNewToi"                         );
+    deletePointer( miNewToiComposition             , "miNewToiComposition"              );
+    deletePointer( mvKeysZOrderLinearIds           , "mvKeysZOrderLinearIds"            );
+    deletePointer( mNeighbors                      , "mNeighbors"                       );
+    deletePointer( mNeighborsSorted                , "mNeighborsSorted"                 );
+    deletePointer( mNeighborsSortedSizes           , "mNeighborsSortedSizes"            );
+    if ( deletePointer.nBytesFreed > 0 )
+    {
+        mLog( "Info" )
+            << "Freed a total of "
+            << prettyPrintBytes( deletePointer.nBytesFreed )
+            << " on GPU and host RAM.\n";
+    }
 
 }
 
@@ -1279,11 +1275,11 @@ void UpdaterGPUScBFM< T_UCoordinateCuda >::initializeSpeciesSorting( void )
         mLog( "Info" ) << "}\n";
     }
 
-    if ( met.isONGPUForOverhead() &&  mUsePeriodicMonomerSorting )
-    {
+    // if ( met.isONGPUForOverhead()  )
+    // {
         miNewToi->pushAsync();
         miToiNew->pushAsync();
-    }
+    // }
 }
 
 /**
@@ -1420,132 +1416,6 @@ struct LinearizeBoxVectorIndexFunctor
       return met.getCurve().linearizeBoxVectorIndex( r.x, r.y, r.z );
   }
 };
-
-/**
- * this works on mPolymerSystemSorted and resorts the monomers along a
- * z-order curve in order to improve cache hit rates, especially for "slow"
- * systems. Also it updates the order of and the IDs inside mNeighborsSorted
- * @param[in]  polymerSystemSorted
- * @param[in]  iToiNew specifies the mapping used to create polymerSystemSorted
- *             from polymerSystem, i.e.
- *             polymerSystemSorted[ iToiNew[i] ] == polymerSystem[i]
- * @param[in]  iNewToi same as iToiNew, but the other way arount, i.e.
- *             polymerSystemSorted[i] == polymerSystem[ iNewToi ]
- *             Note that the sorted system includes padding, therefore some
- *             entries of iNewToi contain UINT32_MAX to indicate that those
- *             are not do be mapped
- * @param[out] iToiNew just as the input, but after sorting spatially
- * @param[out] iNewToi
- */
-template< typename T_UCoordinateCuda >
-void UpdaterGPUScBFM< T_UCoordinateCuda >::doSpatialSorting( void )
-{
-    auto const nThreads = 128;
-    auto const nBlocksP = ceilDiv( mnMonomersPadded, nThreads );
-    /* because resorting changes the order we have to do the full
-     * overflow checks and also update mPolymerSystemSortedOld ! */
-    if ( useOverflowChecks )
-    {
-        /* the padding values do not change, so we can simply let the threads
-         * calculate them without worries and save the loop over the species */
-        kernelTreatOverflows< T_UCoordinateCuda >
-        <<< nBlocksP, nThreads, 0, mStream >>>(
-            mPolymerSystemSortedOld         ->gpu,
-            mPolymerSystemSorted            ->gpu,
-            mviPolymerSystemSortedVirtualBox->gpu,
-            mnMonomersPadded
-        );
-    }
-
-    /* dependent on kernelTreatOverflows ( @todo if it is dependent, what happens if useOverflowChecks == false !? Shouldn't this also be inside the body of the if-statement ??? Possibly not, if the virtutalBox ID is always zero for no overflow checks being used :S ) */
-    kernelUndoPolymerSystemSorting< T_UCoordinateCuda >
-    <<< nBlocksP, nThreads, 0, mStream >>>
-    (
-        mPolymerSystemSorted            ->gpu,
-        mviPolymerSystemSortedVirtualBox->gpu,
-        miNewToi                        ->gpu,
-        mPolymerSystem                  ->gpu,
-        mnMonomersPadded
-    );
-
-    /* mapping new (monomers spatially sorted) index to old (species sorted) index */
-    if ( miNewToiComposition   == NULL ) miNewToiComposition   = new MirroredVector< T_Id >( mnMonomersPadded, mStream );
-    if ( miNewToiSpatial       == NULL ) miNewToiSpatial       = new MirroredVector< T_Id >( mnMonomersPadded, mStream );
-    if ( mvKeysZOrderLinearIds == NULL ) mvKeysZOrderLinearIds = new MirroredVector< T_Id >( mnMonomersPadded, mStream );
-    assert( miNewToiComposition   != NULL );
-    assert( miNewToiSpatial       != NULL );
-    assert( mvKeysZOrderLinearIds != NULL );
-
-    /* @see https://thrust.github.io/doc/group__transformations.html#ga233a3db0c5031023c8e9385acd4b9759
-       @see https://thrust.github.io/doc/group__transformations.html#ga281b2e453bfa53807eda1d71614fb504 */
-    /* not dependent on anything, could run in different stream */
-    thrust::sequence( thrust::system::cuda::par, miNewToiSpatial->gpu, miNewToiSpatial->gpu + miNewToiSpatial->nElements );
-    /* dependent on above, but does not depend on kernelUndoPolymerSystemSorting */
-    thrust::transform( thrust::system::cuda::par,
-        mPolymerSystemSorted ->gpu,
-        mPolymerSystemSorted ->gpu + mPolymerSystemSorted->nElements,
-        mvKeysZOrderLinearIds->gpu,
-        LinearizeBoxVectorIndexFunctor< T_UCoordinateCuda >(met)
-    );
-    /* sort per sublists (each species) by key, not the whole list */
-    for ( auto iSpecies = 0u; iSpecies < mnElementsInGroup.size(); ++iSpecies )
-    {
-        thrust::sort_by_key( thrust::system::cuda::par,
-            mvKeysZOrderLinearIds->gpu + mviSubGroupOffsets.at( iSpecies ),
-            mvKeysZOrderLinearIds->gpu + mviSubGroupOffsets.at( iSpecies ) + mnElementsInGroup.at( iSpecies ),
-            miNewToiSpatial      ->gpu + mviSubGroupOffsets.at( iSpecies )
-        );
-    }
-
-    thrust::fill( thrust::system::cuda::par, miNewToiComposition->gpu, miNewToiComposition->gpu + miNewToiComposition->nElements, UINT32_MAX );
-    /**
-     * @see https://thrust.github.io/doc/group__gathering.html#ga86722e76264fb600d659c1adef5d51b2
-     *   -> for ( it : map ) result[ it - map_first ] = input_first[ *it ]
-     *   -> for ( i ) result[i] = input_first[ map[i] ]
-     * for ( T_Id iNew = 0u; iNew < miNewToiSpatial->nElements ; ++iNew )
-     *     iNewToiComposition.at( iNew ) = miNewToi->host[ miNewToiSpatial->host[ iNew ] ];
-     */
-    thrust::gather( thrust::system::cuda::par,
-        miNewToiSpatial    ->gpu,
-        miNewToiSpatial    ->gpu + miNewToiSpatial->nElements,
-        miNewToi           ->gpu,
-        miNewToiComposition->gpu
-    );
-    std::swap( miNewToi->gpu, miNewToiComposition->gpu ); // avoiding memcpy by swapping pointers on GPU
-    kernelInvertMapping<<< nBlocksP, nThreads >>>( miNewToi->gpu, miToiNew->gpu, miNewToi->nElements );
-    for ( auto iSpecies = 0u; iSpecies < mnElementsInGroup.size(); ++iSpecies )
-    {
-        kernelApplyMappingToNeighbors<<< nBlocksP, nThreads, 0, mStream >>>(
-            mNeighbors           ->gpu,
-            miNewToi             ->gpu + mviSubGroupOffsets[ iSpecies ],
-            miToiNew             ->gpu,
-            mNeighborsSorted     ->gpu + mNeighborsSortedInfo.getMatrixOffsetElements( iSpecies ),
-            mNeighborsSortedInfo.getMatrixPitchElements( iSpecies ),
-            mNeighborsSortedSizes->gpu + mviSubGroupOffsets[ iSpecies ],
-            mnElementsInGroup[ iSpecies ]
-        );
-    }
-
-    /* kernelUndoPolymerSystemSorting followed by kernelSplitMonomerPositions
-     * basically just avoids using two temporary arrays for the resorting of
-     * mPolymerSystemSorted and mviPolymerSystemSortedVirtualBox */
-
-    /* dependent on:
-     *   kernelUndoPolymerSystemSorting (mPolymerSystem)
-     *   thrust::transform (mPolymerSystemSorted)
-     *   thrust::gather (miNewToi)
-     */
-    kernelSplitMonomerPositions< T_UCoordinateCuda >
-    <<< nBlocksP, nThreads, 0, mStream >>>(
-        mPolymerSystem                  ->gpu,
-        miNewToi                        ->gpu,
-        mviPolymerSystemSortedVirtualBox->gpu,
-        mPolymerSystemSorted            ->gpu,
-        mnMonomersPadded
-    );
-
-    CUDA_ERROR( cudaMemcpyAsync( mPolymerSystemSortedOld->gpu, mPolymerSystemSorted->gpu, mPolymerSystemSortedOld->nBytes, cudaMemcpyDeviceToDevice, mStream ) );
-}
 
 template< typename T_UCoordinateCuda >
 void UpdaterGPUScBFM< T_UCoordinateCuda >::initializeSortedNeighbors( void )
@@ -2069,9 +1939,6 @@ void UpdaterGPUScBFM< T_UCoordinateCuda >::initialize( void )
         << " - maximum connectivity is " << MAX_CONNECTIVITY << "\n"
     #endif	
     ;
-    if ( mUsePeriodicMonomerSorting )
-        mLog( "Info" ) << " - periodically sorting the monomers inside the array in respect to their spatial position every " << mnStepsBetweenSortings << "-th step to increase cache hit rates\n";
-
     mLog( "Info" ) << "use randomg number generator Saru " << "\n";
     
     //I m not sure wether this check is neccesary and/or sufficient!!! 
@@ -2109,8 +1976,6 @@ void UpdaterGPUScBFM< T_UCoordinateCuda >::initialize( void )
 //     checkSystem();
     initializeLattices();
     
-//     if ( mAge != 0 )
-//         doSpatialSorting();
     boxCheck.initialize( mIsPeriodicX, mIsPeriodicY, mIsPeriodicZ );
     /* only do checks for uint8_t and uint16_t, for all signed data types
      * we kinda assume the user to think himself smart enough that he does
@@ -2572,11 +2437,6 @@ void UpdaterGPUScBFM< T_UCoordinateCuda >::runSimulationOnGPU
     /* run simulation */
     for ( uint32_t iStep = 0; iStep < nMonteCarloSteps; ++iStep, ++mAge )
     {
-       // if ( mUsePeriodicMonomerSorting && ( mAge % mnStepsBetweenSortings == 0 ) )
-       // {
-       //     mLog( "Info" ) << "Resorting at age / step " << mAge << "\n";
-       //     doSpatialSorting();
-       // }
         if ( useOverflowChecks )
         {
             /**
@@ -2708,15 +2568,6 @@ void UpdaterGPUScBFM< T_UCoordinateCuda >::doCopyBackMonomerPositions()
         }
     }
     mLog( "Info" ) << "Start copying back  \n";
-    if ( ! met.isONGPUForOverhead()){
-      if ( mUsePeriodicMonomerSorting )
-      {
-	  miNewToi->popAsync();
-	  miToiNew->popAsync(); /* needed for findAndRemoveOverflows, but only if met.isONGPUForOverhead() not set */
-	  CUDA_ERROR( cudaStreamSynchronize( mStream ) );
-	  checkMonomerReorderMapping();
-      }
-    }
     if ( useOverflowChecks )
     {
         findAndRemoveOverflows( false );
@@ -2798,12 +2649,6 @@ void UpdaterGPUScBFM< T_UCoordinateCuda >::doCopyBackConnectivity()
 	                                              mNeighborsSorted->host[ 
 	                                                mNeighborsSortedInfo.getMatrixOffsetElements( iSpecies ) + j * pitch + ( i - mviSubGroupOffsets[ iSpecies ] ) 
 									    ] ];
-// 	    if (iSpecies < 2 && mLog("Info").isActive() )
-// 	    {
-// 	      mLog("Info")  << "New= " << i << " iOld= " <<iOld << " nLink= " << (uint32_t)mNeighborsSortedSizes->host[i] 
-// 			    << " GPUNeighbor= " << mNeighborsSorted->host[ mNeighborsSortedInfo.getMatrixOffsetElements( iSpecies ) + j * pitch + ( i - mviSubGroupOffsets[ iSpecies ] ) ]
-// 			    << " CPUNeighbor= " << mNeighbors->host[ iOld ].neighborIds[j] << "\n" ;
-// 	    }
 	}
     }
 }

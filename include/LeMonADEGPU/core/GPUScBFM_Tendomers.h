@@ -83,8 +83,6 @@ private:
     uint32_t mnSteps;
     SelectedLogger mLog;
     bool mCanUseUint8Positions;
-    uint64_t mnStepsBetweenSortings;
-    bool mSetStepsBetweenSortings;
     uint8_t mnSplitColors;
     int mDiagMovesOn;
     bool checkDensityOn;
@@ -109,7 +107,6 @@ public:
           miGpuToUse(riGpuToUse),
           mnSteps(rnSteps),
           mLog(__FILENAME__),
-          mSetStepsBetweenSortings(false),
           mDiagMovesOn(mDiagMovesOn_),
           mnSplitColors(0)
     {
@@ -133,11 +130,6 @@ public:
 
     inline void setGpu(int riGpuToUse) { miGpuToUse = riGpuToUse; }
     void setDensityCheckOn(bool checkDensityOn_){checkDensityOn=checkDensityOn_;}
-    inline void setStepsBetweenSortings(int rnStepsBetweenSortings)
-    {
-        mSetStepsBetweenSortings = true;
-        mnStepsBetweenSortings = rnStepsBetweenSortings;
-    }
     inline void setSplitColors(uint8_t rnSplitColors) { mnSplitColors = rnSplitColors; }
 
     /**

@@ -82,8 +82,6 @@ private:
     uint32_t mnSteps;
     SelectedLogger mLog;
     bool mCanUseUint8Positions;
-    uint64_t mnStepsBetweenSortings;
-    bool mSetStepsBetweenSortings;
     uint8_t mnSplitColors;
     int mDiagMovesOn;
 
@@ -131,11 +129,6 @@ public:
     }
 
     inline void setGpu(int riGpuToUse) { miGpuToUse = riGpuToUse; }
-    inline void setStepsBetweenSortings(int rnStepsBetweenSortings)
-    {
-        mSetStepsBetweenSortings = true;
-        mnStepsBetweenSortings = rnStepsBetweenSortings;
-    }
 
     /**
      * Copies required data and parameters from mIngredients to mUpdaterGpu

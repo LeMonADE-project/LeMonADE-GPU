@@ -313,10 +313,6 @@ protected:
 //     seems not to be used anymore -_o
 
     RandomNumberGenerators randomNumbers;
-
-    bool    mUsePeriodicMonomerSorting;
-    int64_t mnStepsBetweenSortings;
-
     
     int64_t mAge;
     bool mIsPeriodicX;
@@ -367,8 +363,6 @@ public:
 protected: 
     void initializeBondTable();
     void initializeSpeciesSorting(); /* using miNewToi and miToiNew the monomers are mapped to be sorted by species */
-    void initializeSpatialSorting(); /* miNewToi and miToiNew will be updated so that monomers are sorted spatially per species */
-    void doSpatialSorting();
     void initializeSortedNeighbors();
     void initializeSortedMonomerPositions();
     void initializeLattices();
@@ -429,14 +423,4 @@ public:
     void setPeriodicity( bool isPeriodicX, bool isPeriodicY, bool isPeriodicZ );
     inline void    setAge( int64_t rAge ){ mAge = rAge; }
     inline int64_t getAge( void ) const{ return mAge; }
-
-    /* this is a performance feature, but one which also changes the order
-     * in which random numbers are generated making binary comparisons of
-     * the results moot */
-    inline void    setStepsBetweenSortings( int64_t rnStepsBetweenSortings )
-    {
-        mUsePeriodicMonomerSorting = rnStepsBetweenSortings > 0;
-        mnStepsBetweenSortings = rnStepsBetweenSortings;
-    }
-    inline int64_t getStepsBetweenSortings( void ) const{ return mnStepsBetweenSortings; }
 };

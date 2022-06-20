@@ -233,12 +233,6 @@ void UpdaterGPUScBFM_AB_Breaking< T_UCoordinateCuda >::runSimulationOnGPU
     for ( uint32_t iStep = 0; iStep < nMonteCarloSteps; ++iStep, ++mAge )
     {
 //       	tracker.setAge(mAge);
-        if ( mUsePeriodicMonomerSorting && ( mAge % mnStepsBetweenSortings == 0 ) )
-        {
-            mLog( "Stats" ) << "Resorting at age / step " << mAge << "\n";
-	    //this is not compatible with the rest of the code. Unfortunaltly I dont see why....
-//             doSpatialSorting();
-        }
         if ( useOverflowChecks )
         {
             /**
