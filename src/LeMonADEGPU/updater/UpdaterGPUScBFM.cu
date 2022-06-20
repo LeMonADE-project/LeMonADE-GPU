@@ -504,68 +504,6 @@ __global__ void kernelSimulationScBFMCheckSpecies
     }
 }
 
-template< typename T_UCoordinateCuda >
-__global__ void kernelSimulationScBFMCheckSpeciesMonomericMoveType
-(
-    typename CudaVec4< T_UCoordinateCuda >::value_type
-                const * const __restrict__ dpPolymerSystem         ,
-    T_Flags           * const              dpPolymerFlags          ,
-    uint32_t            const              iOffset                 ,
-    T_Lattice         * const __restrict__ dpLatticeTmp            ,
-    T_Id        const * const              dpNeighbors             ,
-    uint32_t            const              rNeighborsPitchElements ,
-    uint8_t     const * const              dpNeighborsSizes        ,
-    T_Id                const              nMonomers               ,
-    uint64_t            const              rSeed                   ,
-    uint64_t            const              rGlobalIteration        ,
-    cudaTextureObject_t const              texLatticeRefOut        ,
-    BoxCheck                               bCheck                  , 
-    Method              const              met                     ,
-    BondVectorSet       const              checkBondVector         ,
-    cudaTextureObject_t const              texMonomericMoveType	  
-)
-{
-    uint32_t rn;
-    int iGrid = 0;
-    for ( auto iMonomer = blockIdx.x * blockDim.x + threadIdx.x;
-          iMonomer < nMonomers; iMonomer += gridDim.x * blockDim.x, ++iGrid )
-    {
-        auto const r0 = dpPolymerSystem[ iOffset + iMonomer ];
-        /* upcast int3 to int4 in preparation to use PTX SIMD instructions */
-        //int4 const r0 = { r0Raw.x, r0Raw.y, r0Raw.z, 0 }; // not faster nor slower
-        //select random direction. Own implementation of an rng :S? But I think it at least# was initialized using the LeMonADE RNG ...
-        if ( iGrid % 1 == 0 ) // 12 = floor( log(2^32) / log(6) )
-        {
-	  Saru rng(rGlobalIteration,iMonomer,rSeed);
-	  rn =rng.rng32();
-        }
-        
-        int direction =  (tex1Dfetch<uint8_t>( texMonomericMoveType, iOffset + iMonomer) == 0) ? rn % 6 : rn % 18 ;
-// 	printf("ID=%d tag=%d ", iMonomer,tex1Dfetch<uint8_t>( texMonomericMoveType, iOffset + iMonomer));
-         /* select random direction. Do this with bitmasking instead of lookup ??? */
-        typename CudaVec4< T_UCoordinateCuda >::value_type const r1 = {
-            T_UCoordinateCuda( r0.x + DXTable_d[ direction ] ),
-            T_UCoordinateCuda( r0.y + DYTable_d[ direction ] ),
-            T_UCoordinateCuda( r0.z + DZTable_d[ direction ] )
-        };
-	if (    bCheck(r1.x,r1.y,r1.z) && 
-	      ! checkNeighboringBonds<T_UCoordinateCuda>(dpNeighborsSizes, iMonomer, dpNeighbors, rNeighborsPitchElements, dpPolymerSystem, r1, checkBondVector ) && 
-	      ! checkFront( texLatticeRefOut, r0.x, r0.y, r0.z, direction, met, &BitPacking::bitPackedTextureGetStandard ) 
-	      && tex1Dfetch<uint8_t>( texMonomericMoveType, iOffset + iMonomer) == 1  // for testing only allow elastic chain to move
-	  )
-	{
-	    /* everything fits so perform move on temporary lattice */
-	    /* can I do this ??? dpPolymerSystem is the device pointer to the read-only
-	      * texture used above. Won't this result in read-after-write race-conditions?
-	      * Then again the written / changed bits are never used in the above code ... */
-	    direction += T_Flags(32) /* can-move-flag */;
-	    met.getPacking().bitPackedSet(dpLatticeTmp, met.getCurve().linearizeBoxVectorIndex( r1.x, r1.y, r1.z ));
-	}
-
-        dpPolymerFlags[ iMonomer ] = direction;
-    }
-}
-
 template< typename T_UCoordinateCuda, int moveSize >
 __global__ void kernelSimulationScBFMCheckReactiveSpecies
 (
@@ -977,7 +915,7 @@ UpdaterGPUScBFM< T_UCoordinateCuda >::UpdaterGPUScBFM()
    hGlobalIterator                  ( 0    ),
    bSetAutoColoring                 ( true ),
    diagMovesOn                      ( false),
-   densityCheckerOn              ( false)
+   densityCheckerOn                 ( false)
 {
     /**
      * Log control.
@@ -1164,29 +1102,6 @@ void UpdaterGPUScBFM< T_UCoordinateCuda >::initializeSpeciesSorting( void )
 	      nColors *= 2;
 	    }
       }
-    
-      /* check automatic coloring with that given in BFM-file */
-//       if ( mLog.isActive( "Check" ) )
-//       {
-// 	  mLog( "Info" ) << "Checking difference between automatic and given coloring ... ";
-// 	  size_t nDifferent = 0;
-// 	  for ( size_t iMonomer = 0u; iMonomer < std::max< size_t >( 20, mnAllMonomers ); ++iMonomer )
-// 	  {
-// 	      if ( int32_t( mGroupIds.at( iMonomer )+1 ) != mAttributeSystem[ iMonomer ] )
-// 	      {
-// 		  mLog( "Info" ) << "Color of " << iMonomer << " is automatically " << mGroupIds.at( iMonomer )+1 << " vs. " << mAttributeSystem[ iMonomer ] << "\n";
-// 		  ++nDifferent;
-// 	      }
-// 	  }
-// 	  if ( nDifferent > 0 )
-// 	  {
-// 	      std::stringstream msg;
-// 	      msg << "Automatic coloring failed to produce same result as the given one!";
-// 	      mLog( "Error" ) << msg.str();
-// 	      throw std::runtime_error( msg.str() );
-// 	  }
-// 	  mLog( "Info" ) << "OK\n";
-//       }
     }
     /* count monomers per species before allocating per species arrays and
      * sorting the monomers into them */
@@ -1274,12 +1189,8 @@ void UpdaterGPUScBFM< T_UCoordinateCuda >::initializeSpeciesSorting( void )
             mLog( "Info" ) << x << ", ";
         mLog( "Info" ) << "}\n";
     }
-
-    // if ( met.isONGPUForOverhead()  )
-    // {
-        miNewToi->pushAsync();
-        miToiNew->pushAsync();
-    // }
+    miNewToi->pushAsync();
+    miToiNew->pushAsync();
 }
 
 /**
@@ -1316,7 +1227,6 @@ __global__ void kernelApplyMappingToNeighbors
 )
 {
     /* apply sorting for polymers, see initializePolymerSystemSorted */
-
     /* apply sorting for neighbor info, see initializeSortedNeighbors */
     for ( auto iMonomer = blockIdx.x * blockDim.x + threadIdx.x;
           iMonomer < nMonomers; iMonomer += gridDim.x * blockDim.x )
@@ -1404,19 +1314,6 @@ __global__ void kernelSplitMonomerPositions
     }
 }
 
-
-template< typename T_UCoordinateCuda >
-struct LinearizeBoxVectorIndexFunctor
-{
-  Method met;
-  LinearizeBoxVectorIndexFunctor(const Method& met_ ):met(met_){} 
-  using T_UCoordinatesCuda = typename CudaVec4< T_UCoordinateCuda >::value_type;
-  __device__ inline T_Id operator()( T_UCoordinatesCuda const & r ) const
-  {
-      return met.getCurve().linearizeBoxVectorIndex( r.x, r.y, r.z );
-  }
-};
-
 template< typename T_UCoordinateCuda >
 void UpdaterGPUScBFM< T_UCoordinateCuda >::initializeSortedNeighbors( void )
 {
@@ -1444,10 +1341,8 @@ void UpdaterGPUScBFM< T_UCoordinateCuda >::initializeSortedNeighbors( void )
         mLog( "Info" )
         << "Allocated mNeighborsSortedSizes with "
         << mNeighborsSortedSizes->nElements << " elements in "
-        << mNeighborsSortedSizes->nBytes/1024/1024. << "MB \n";//("
-//         << mNeighborsSortedSizes.getRequiredElements() << ","
-//         << mNeighborsSortedSizes.getRequiredBytes() << "B)\n";
-        
+        << mNeighborsSortedSizes->nBytes/1024/1024. << "MB \n";
+
         mLog( "Info" ) << "mNeighborsSortedInfo:\n";
         for ( size_t iSpecies = 0u; iSpecies < mnElementsInGroup.size(); ++iSpecies )
         {
@@ -1455,10 +1350,6 @@ void UpdaterGPUScBFM< T_UCoordinateCuda >::initializeSortedNeighbors( void )
             << "== matrix/species " << iSpecies << " ==\n"
             << "offset:" << mNeighborsSortedInfo.getMatrixOffsetElements( iSpecies ) << " elements = "
                          << mNeighborsSortedInfo.getMatrixOffsetBytes   ( iSpecies ) << "B\n"
-            //<< "rows  :" << mNeighborsSortedInfo.getOffsetElements() << " elements = "
-            //             << mNeighborsSortedInfo.getOffsetBytes() << "B\n"
-            //<< "cols  :" << mNeighborsSortedInfo.getOffsetElements() << " elements = "
-            //             << mNeighborsSortedInfo.getOffsetBytes() << "B\n"
             << "pitch :" << mNeighborsSortedInfo.getMatrixPitchElements( iSpecies ) << " elements = "
                          << mNeighborsSortedInfo.getMatrixPitchBytes   ( iSpecies ) << "B\n";
         }
@@ -1580,54 +1471,53 @@ void UpdaterGPUScBFM< T_UCoordinateCuda >::initializeSortedMonomerPositions( voi
 	  mnMonomersPadded
       );
     }else{
-      mLog( "Info" ) << "[" << __FILENAME__ << "::initializeSortedMonomerPositions] sort mPolymerSystem -> mPolymerSystemSorted ...\n";
-      for ( T_Id i = 0u; i < mnAllMonomers; ++i )
-      {
-	  if ( i < 20 )
-	      mLog( "Info" ) << "Write " << i << " to " << this->miToiNew->host[i] << "\n";
+        mLog( "Info" ) << "[" << __FILENAME__ << "::initializeSortedMonomerPositions] sort mPolymerSystem -> mPolymerSystemSorted ...\n";
+        auto constexpr boxSizeCudaType = 1ll << ( sizeof( T_UCoordinateCuda ) * CHAR_BIT ); 
+        for ( T_Id i = 0u; i < mnAllMonomers; ++i ){
+            if ( i < 20 )
+                mLog( "Info" ) << "Write " << i << " to " << this->miToiNew->host[i] << "\n";
 
-	  auto const x = mPolymerSystem->host[i].x;
-	  auto const y = mPolymerSystem->host[i].y;
-	  auto const z = mPolymerSystem->host[i].z;
-
-// 	  mPolymerSystemSorted->host[ miToiNew->host[i] ].x = x & mBoxXM1;
-// 	  mPolymerSystemSorted->host[ miToiNew->host[i] ].y = y & mBoxYM1;
-// 	  mPolymerSystemSorted->host[ miToiNew->host[i] ].z = z & mBoxZM1;
-          mPolymerSystemSorted->host[ miToiNew->host[i] ].x = x % mBoxX;
-	  mPolymerSystemSorted->host[ miToiNew->host[i] ].y = y % mBoxY;
-	  mPolymerSystemSorted->host[ miToiNew->host[i] ].z = z % mBoxZ;
-	  mPolymerSystemSorted->host[ miToiNew->host[i] ].w = mNeighbors->host[i].size;
-
-// 	  mviPolymerSystemSortedVirtualBox->host[ miToiNew->host[i] ].x = ( x - ( x & mBoxXM1 ) ) / mBoxX;
-// 	  mviPolymerSystemSortedVirtualBox->host[ miToiNew->host[i] ].y = ( y - ( y & mBoxYM1 ) ) / mBoxY;
-// 	  mviPolymerSystemSortedVirtualBox->host[ miToiNew->host[i] ].z = ( z - ( z & mBoxZM1 ) ) / mBoxZ;
-          
-          mviPolymerSystemSortedVirtualBox->host[ miToiNew->host[i] ].x = ( x - ( x % mBoxX ) ) / mBoxX;
-	  mviPolymerSystemSortedVirtualBox->host[ miToiNew->host[i] ].y = ( y - ( y % mBoxY ) ) / mBoxY;
-	  mviPolymerSystemSortedVirtualBox->host[ miToiNew->host[i] ].z = ( z - ( z % mBoxZ ) ) / mBoxZ;
-
-	  auto const pTarget  = &mPolymerSystemSorted            ->host[ miToiNew->host[i] ];
-	  auto const pTarget2 = &mviPolymerSystemSortedVirtualBox->host[ miToiNew->host[i] ];
-	  if ( ! ( ( (T_Coordinate) pTarget->x + (T_Coordinate) pTarget2->x * (T_Coordinate) mBoxX == x ) &&
-		  ( (T_Coordinate) pTarget->y + (T_Coordinate) pTarget2->y * (T_Coordinate) mBoxY == y ) &&
-		  ( (T_Coordinate) pTarget->z + (T_Coordinate) pTarget2->z * (T_Coordinate) mBoxZ == z )
-	  ) )
-	  {
-	      std::stringstream msg;
-	      msg << "[" << __FILENAME__ << "::initializeSortedMonomerPositions] "
-		  << "Error while trying to compress the globale positions into box size modulo and number of virtual box the monomer resides in. Virtual box number "
-		  << "(" << pTarget2->x << "," << pTarget2->y << "," << pTarget2->z << ")"
-		  << ", wrapped position: "
-		  << "(" << pTarget->x << "," << pTarget->y << "," << pTarget->z << ")"
-		  << " => reconstructed global position ("
-		  << pTarget->x + pTarget2->x * mBoxX << ","
-		  << pTarget->y + pTarget2->y * mBoxY << ","
-		  << pTarget->z + pTarget2->z * mBoxZ << ")"
-		  << " should be equal to the input position: "
-		  << "(" << x << "," << y << "," << z << ")"
-		  << std::endl;
-	      throw std::runtime_error( msg.str() );
-	  }
+            auto const x = mPolymerSystem->host[i].x;
+            auto const y = mPolymerSystem->host[i].y;
+            auto const z = mPolymerSystem->host[i].z;
+            if (useOverflowChecks){
+                mPolymerSystemSorted->host[ miToiNew->host[i] ].x = x % boxSizeCudaType;
+                mPolymerSystemSorted->host[ miToiNew->host[i] ].y = y % boxSizeCudaType;
+                mPolymerSystemSorted->host[ miToiNew->host[i] ].z = z % boxSizeCudaType;
+                mPolymerSystemSorted->host[ miToiNew->host[i] ].w = mNeighbors->host[i].size;
+                
+                mviPolymerSystemSortedVirtualBox->host[ miToiNew->host[i] ].x = ( x - ( x % boxSizeCudaType ) ) / boxSizeCudaType;
+                mviPolymerSystemSortedVirtualBox->host[ miToiNew->host[i] ].y = ( y - ( y % boxSizeCudaType ) ) / boxSizeCudaType;
+                mviPolymerSystemSortedVirtualBox->host[ miToiNew->host[i] ].z = ( z - ( z % boxSizeCudaType ) ) / boxSizeCudaType;
+            }else {
+                mPolymerSystemSorted->host[ miToiNew->host[i] ].x = x ;
+                mPolymerSystemSorted->host[ miToiNew->host[i] ].y = y ;
+                mPolymerSystemSorted->host[ miToiNew->host[i] ].z = z ;
+                mPolymerSystemSorted->host[ miToiNew->host[i] ].w = mNeighbors->host[i].size;
+                mviPolymerSystemSortedVirtualBox->host[ miToiNew->host[i] ].x = 0;
+                mviPolymerSystemSortedVirtualBox->host[ miToiNew->host[i] ].y = 0;
+                mviPolymerSystemSortedVirtualBox->host[ miToiNew->host[i] ].z = 0;
+            }
+            auto const pTarget  = &mPolymerSystemSorted            ->host[ miToiNew->host[i] ];
+            auto const pTarget2 = &mviPolymerSystemSortedVirtualBox->host[ miToiNew->host[i] ];
+            if ( ! ( ( (T_Coordinate) pTarget->x + (T_Coordinate) pTarget2->x * (T_Coordinate) boxSizeCudaType == x ) &&
+                     ( (T_Coordinate) pTarget->y + (T_Coordinate) pTarget2->y * (T_Coordinate) boxSizeCudaType == y ) &&
+                     ( (T_Coordinate) pTarget->z + (T_Coordinate) pTarget2->z * (T_Coordinate) boxSizeCudaType == z )    ) ){
+                std::stringstream msg;
+                msg << "[" << __FILENAME__ << "::initializeSortedMonomerPositions] "
+                << "Error while trying to compress the globale positions into box size modulo and number of virtual box the monomer resides in. Virtual box number "
+                << "(" << pTarget2->x << "," << pTarget2->y << "," << pTarget2->z << ")"
+                << ", wrapped position: "
+                << "(" << pTarget->x << "," << pTarget->y << "," << pTarget->z << ")"
+                << " => reconstructed global position ("
+                << pTarget->x + pTarget2->x * boxSizeCudaType << ","
+                << pTarget->y + pTarget2->y * boxSizeCudaType << ","
+                << pTarget->z + pTarget2->z * boxSizeCudaType << ")"
+                << " should be equal to the input position: "
+                << "(" << x << "," << y << "," << z << ")"
+                << std::endl;
+                throw std::runtime_error( msg.str() );
+            }
       }
       mPolymerSystemSorted            ->pushAsync();
       mviPolymerSystemSortedVirtualBox->pushAsync();
