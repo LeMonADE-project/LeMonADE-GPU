@@ -30,6 +30,7 @@ along with LeMonADE.  If not, see <http://www.gnu.org/licenses/>.
 #define LEMONADEGPU_GPUCONNECTIONTRACKERTENDOMER_H_
 #include <LeMonADE/utility/TrackConnection.h>
 #include <LeMonADEGPU/utility/cudacommon.hpp>
+#include <LeMonADEGPU/utility/MirroredVector.h>
 #include <cuda_runtime_api.h>    
 template< typename T_UCoordinateCuda > 
 class TrackerTendomer:public TrackLinks<int32_t>

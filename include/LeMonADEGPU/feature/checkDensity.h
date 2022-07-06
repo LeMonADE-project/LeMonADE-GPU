@@ -27,6 +27,7 @@ along with LeMonADE.  If not, see <http://www.gnu.org/licenses/>.
 #ifndef LEMONADEGPU_FEATURE_CHECK_DENSITY_H
 #define LEMONADEGPU_FEATURE_CHECK_DENSITY_H
 #include <LeMonADEGPU/utility/cudacommon.hpp>
+#include <LeMonADEGPU/utility/MirroredVector.h>
 #include <cuda_profiler_api.h>              // cudaProfilerStop
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////

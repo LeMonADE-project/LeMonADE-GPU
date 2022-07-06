@@ -64,6 +64,7 @@ along with LeMonADE.  If not, see <http://www.gnu.org/licenses/>.
 //extract only the things which are really needed from the below two files:
 #include <extern/Fundamental/BitsCompileTime.hpp>
 #include <LeMonADEGPU/utility/cudacommon.hpp>
+#include <LeMonADEGPU/utility/MirroredVector.h>
 
 #include <LeMonADEGPU/utility/SelectiveLogger.hpp>
 #include <LeMonADEGPU/utility/graphColoring.tpp>
@@ -889,7 +890,6 @@ UpdaterGPUScBFM< T_UCoordinateCuda >::UpdaterGPUScBFM()
    mIsPeriodicZ                     ( true ),
    mLatticeOut                      ( NULL ),
    mLatticeTmp                      ( NULL ),
-   mLatticeTmp2                     ( NULL ),
    mnAllMonomers                    ( 0    ),
    mnMonomersPadded                 ( 0    ),
    mPolymerSystem                   ( NULL ),
@@ -941,7 +941,6 @@ void UpdaterGPUScBFM< T_UCoordinateCuda >::destruct()
     DeleteMirroredObject deletePointer;
     deletePointer( mLatticeOut                     , "mLatticeOut"                      );
     deletePointer( mLatticeTmp                     , "mLatticeTmp"                      );
-    deletePointer( mLatticeTmp2                    , "mLatticeTmp2"                     );
     deletePointer( mPolymerSystem                  , "mPolymerSystem"                   );
     deletePointer( mPolymerSystemSorted            , "mPolymerSystemSorted"             );
     deletePointer( mPolymerSystemSortedOld         , "mPolymerSystemSortedOld"          );
@@ -1558,9 +1557,7 @@ void UpdaterGPUScBFM< T_UCoordinateCuda >::initializeLattices( void )
     mLatticeOut  = new MirroredTexture< T_Lattice >( mBoxX * mBoxY * mBoxZ, mStream );
     mLog ( "Info" ) << "UpdaterGPUScBFM< T_UCoordinateCuda >::initializeLattices pushed mLatticeOut.done \n"; 
     mLatticeTmp  = new MirroredTexture< T_Lattice >( nBytesLatticeTmp     , mStream );
-    mLatticeTmp2 = new MirroredTexture< T_Lattice >( mBoxX * mBoxY * mBoxZ, mStream );
     mLatticeTmp ->memsetAsync(0); // async as it is next needed in runSimulationOnGPU
-    mLatticeTmp2->memsetAsync(0);
     cudaMemGetInfo(&free, &total);
     mLog ( "Info" ) << "UpdaterGPUScBFM< T_UCoordinateCuda >::initializeLattices free mem : "<< free/1024/1024.  << "MB\n" ;  
     mLog ( "Info" ) << "UpdaterGPUScBFM< T_UCoordinateCuda >::initializeLattices total mem: "<< total/1024/1024. << "MB\n" ;      

@@ -157,7 +157,7 @@ protected:
      *             the reading faster if it is memory bound ???
      */
 
-    MirroredTexture< T_Lattice > * mLatticeOut, * mLatticeTmp, * mLatticeTmp2;
+    MirroredTexture< T_Lattice > * mLatticeOut, * mLatticeTmp;
     /**
      * when using bit packing only 1/8 of mLatticeTmp is used. In order to
      * to using everything we can simply increment the mLatticeTmp->gpu pointer,
@@ -215,10 +215,14 @@ protected:
     /**
      * These are to be used for storing the flags and chosen direction of
      * the old property tag.
-     *      4  3  2  1  0
-     *    +--+--+--+--+--+
-     *    |  dir   |move |
-     *    +--+--+--+--+--+
+     *    8  7  6  5  4  3  2  1
+     *    +--+--+--+--+--+--+--+
+     *    |  move |      dir   |
+     *    +--+--+--+--+--+--+--+
+     * 5 bits are used to encode the direction of movement. There are 18 possible moves 
+     * including standard moves (6) and (face) diagonal moves (12). Bit #6 is used in the 
+     * check kernel (1-allowed moves, 0-forbidden move). Bit #7 is used in the kernel to 
+     * reset the tmpLattice.
      * These are currently temporary vectors only written and read to from
      * the GPU, so MirroredVector isn't necessary, but it's easy to use and
      * could be nice for debugging (e.g. to replace the count kernels)

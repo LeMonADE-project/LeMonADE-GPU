@@ -53,6 +53,7 @@ along with LeMonADE.  If not, see <http://www.gnu.org/licenses/>.
 #include <LeMonADEGPU/feature/BoxCheck.h>
 #include <LeMonADEGPU/core/Method.h>
 
+#include <LeMonADEGPU/utility/MirroredVector.h>
 #include <LeMonADEGPU/utility/DeleteMirroredObject.h>
 #include <LeMonADEGPU/core/BondVectorSet.h>
 #include <LeMonADEGPU/core/kernelConnection.h>

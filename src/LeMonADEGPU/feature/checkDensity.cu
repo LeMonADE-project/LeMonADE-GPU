@@ -25,6 +25,7 @@ along with LeMonADE.  If not, see <http://www.gnu.org/licenses/>.
 
 --------------------------------------------------------------------------------*/
 #include <LeMonADEGPU/feature/checkDensity.h>
+#include <LeMonADEGPU/utility/MirroredVector.h>
 ////////////////////////////////////////////////////////////////////////////////
 ///some simple functions for the power handling/////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
