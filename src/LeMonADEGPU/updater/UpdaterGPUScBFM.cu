@@ -2353,7 +2353,7 @@ void UpdaterGPUScBFM< T_UCoordinateCuda >::runSimulationOnGPU
             iOffsetLatticeTmp /= CHAR_BIT;
             auto texLatticeTmp = mvtLatticeTmp[ iStepTotal % mnLatticeTmpBuffers ];
 
-            if (met.getPacking().getNBufferedTmpLatticeOn()) {
+            if (!met.getPacking().getNBufferedTmpLatticeOn()) {
                     iOffsetLatticeTmp = 0u;
                     texLatticeTmp = mLatticeTmp->texture;
             }
