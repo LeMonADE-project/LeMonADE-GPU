@@ -2347,15 +2347,15 @@ void UpdaterGPUScBFM< T_UCoordinateCuda >::runSimulationOnGPU
          *  - each particle could be touched, not just one group */
         for ( uint32_t iSubStep = 0; iSubStep < nSpecies; ++iSubStep ){
             auto const iStepTotal = iStep * nSpecies + iSubStep;
-            auto  iOffsetLatticeTmp = ( iStepTotal % mnLatticeTmpBuffers )
-            * ( mBoxX * mBoxY * mBoxZ * sizeof( mLatticeTmp->gpu[0] ));
-            if (met.getPacking().getBitPackingOn()) 
-            iOffsetLatticeTmp /= CHAR_BIT;
-            auto texLatticeTmp = mvtLatticeTmp[ iStepTotal % mnLatticeTmpBuffers ];
-
-            if (!met.getPacking().getNBufferedTmpLatticeOn()) {
-                    iOffsetLatticeTmp = 0u;
-                    texLatticeTmp = mLatticeTmp->texture;
+            auto iOffsetLatticeTmp = 0u;
+            auto texLatticeTmp = mLatticeTmp->texture;
+            
+            if (met.getPacking().getNBufferedTmpLatticeOn()) {
+                iOffsetLatticeTmp = ( iStepTotal % mnLatticeTmpBuffers )
+                * ( mBoxX * mBoxY * mBoxZ * sizeof( mLatticeTmp->gpu[0] ));
+                if (met.getPacking().getBitPackingOn()) 
+                    iOffsetLatticeTmp /= CHAR_BIT;
+                texLatticeTmp = mvtLatticeTmp[ iStepTotal % mnLatticeTmpBuffers ];
             }
             /* randomly choose which monomer group to advance */
             auto const iSpecies = randomNumbers.r250_rand32() % nSpecies;
