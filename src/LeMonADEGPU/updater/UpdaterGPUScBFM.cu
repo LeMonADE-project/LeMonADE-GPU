@@ -2302,8 +2302,12 @@ void UpdaterGPUScBFM< T_UCoordinateCuda >::checkSystem() const
 {
     if ( ! mLog.isActive( "Check" ) )
         return;
-    checkLatticeOccupation();
-    checkBonds();
+    else {
+        std::cout  << "Check lattice occupation:" << std::endl;;
+        checkLatticeOccupation(); 
+        std::cout << "Check bond connection:" <<std::endl;
+        checkBonds();
+    }
 }
 
 #include <LeMonADEGPU/utility/AutomaticThreadChooser.h>
@@ -2443,6 +2447,7 @@ void UpdaterGPUScBFM< T_UCoordinateCuda >::doCopyBackMonomerPositions()
     /* all MCS are done- copy information back from GPU to host */
     if ( mLog.isActive( "Check" ) )
     {
+        mLog( "Check" ) << "Check the tmpLattice occupation  \n";
         mLatticeTmp->pop( false ); // sync
         size_t nOccupied = 0;
         for ( size_t i = 0u; i < mLatticeTmp->nElements; ++i )

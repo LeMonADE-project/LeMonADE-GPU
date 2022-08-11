@@ -17,8 +17,12 @@ Repository with updaters, analyzers, and projects for sharing BFM stuff related 
     make install
 ````
 
-Compute capability can be found in : https://developer.nvidia.com/cuda-gpus
+Compute capability(CUDA_ARCH) can be found in : https://developer.nvidia.com/cuda-gpus (Note if a value of 6.1 is given use -DCUDA_ARCH=61 )
 
+Some hints:
+- The bitpacking (setBitPackingOn) and the N-Buffered-TmpLattice (setNBufferedTmpLatticeOn) work only together and only with the z-order curve.
+- The space filling curve which linearizes the lattice and works with bit-operations (lattice is in power of 2), does not work at all 
+- The space filling curve which  linearizes the lattice and works with the modulu operator cannot be used with bitpacking and n-buffered-tmp-lattice. 
 
 <!-- 
 only important for local github server
