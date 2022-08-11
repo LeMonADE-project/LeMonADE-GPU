@@ -27,6 +27,7 @@ along with LeMonADE.  If not, see <http://www.gnu.org/licenses/>.
 #include <LeMonADEGPU/utility/GPUConnectionTracker.h>
 #include <LeMonADEGPU/utility/GPUConnectionTrackerTendomer.h>
 #include <LeMonADEGPU/utility/cudacommon.hpp>
+#include <LeMonADEGPU/utility/MirroredVector.h>
 #include <LeMonADEGPU/utility/DeleteMirroredObject.h>
 #include <LeMonADEGPU/core/constants.cuh>
 

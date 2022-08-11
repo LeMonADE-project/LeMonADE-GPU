@@ -70,9 +70,6 @@ protected:
     using BaseClass::mnElementsInGroup;
     using BaseClass::mCudaProps;
     using BaseClass::mAge;
-    using BaseClass::mUsePeriodicMonomerSorting;
-    using BaseClass::mnStepsBetweenSortings;
-    using BaseClass::doSpatialSorting;
     using BaseClass::useOverflowChecks;
     using BaseClass::findAndRemoveOverflows;
     using BaseClass::mnLatticeTmpBuffers;
@@ -81,6 +78,7 @@ protected:
     using BaseClass::randomNumbers;
     using BaseClass::launch_PerformSpeciesAndApply;
     using BaseClass::launch_PerformSpecies;
+    // using BaseClass::launch_CheckSpecies;
     using BaseClass::launch_ZeroArraySpecies;
     using BaseClass::miNewToi;
     using BaseClass::miToiNew;
@@ -97,6 +95,7 @@ protected:
     using BaseClass::boxCheck;
     using BaseClass::densityChecker;
     using BaseClass::densityCheckerOn;
+    using BaseClass::diagMovesOn;
    
     
 public:

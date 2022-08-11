@@ -54,6 +54,7 @@ along with LeMonADE.  If not, see <http://www.gnu.org/licenses/>.
 #include <LeMonADEGPU/feature/BoxCheck.h>
 #include <LeMonADEGPU/core/Method.h>
 
+#include <LeMonADEGPU/utility/MirroredVector.h>
 #include <LeMonADEGPU/utility/DeleteMirroredObject.h>
 #include <LeMonADEGPU/core/BondVectorSet.h>
 #include <LeMonADEGPU/core/kernelConnection.h>
@@ -642,11 +643,6 @@ void UpdaterGPUScBFM_AA_Connection< T_UCoordinateCuda >::runSimulationOnGPU
     /* run simulation */
     for ( uint32_t iStep = 0; iStep < nMonteCarloSteps; ++iStep, ++mAge )
     {
-        if ( mUsePeriodicMonomerSorting && ( mAge % mnStepsBetweenSortings == 0 ) )
-        {
-            mLog( "Stats" ) << "Resorting at age / step " << mAge << "\n";
-//             doSpatialSorting();
-        }
         if ( useOverflowChecks )
         {
             /**

@@ -82,8 +82,6 @@ private:
     uint32_t mnSteps;
     SelectedLogger mLog;
     bool mCanUseUint8Positions;
-    uint64_t mnStepsBetweenSortings;
-    bool mSetStepsBetweenSortings;
     uint8_t mnSplitColors;
     int mDiagMovesOn;
 
@@ -131,11 +129,6 @@ public:
     }
 
     inline void setGpu(int riGpuToUse) { miGpuToUse = riGpuToUse; }
-    inline void setStepsBetweenSortings(int rnStepsBetweenSortings)
-    {
-        mSetStepsBetweenSortings = true;
-        mnStepsBetweenSortings = rnStepsBetweenSortings;
-    }
 
     /**
      * Copies required data and parameters from mIngredients to mUpdaterGpu
@@ -219,7 +212,8 @@ public:
             mUpdaterGpu.setLabel(i, mIngredients.getMolecules()[i].getLabel());
 
         mLog("Info") << "[" << __FILENAME__ << "::initialize] set move type (either standard, diagonal moves or partial diagonal moves for pending chain)\n";
-        mUpdaterGpu.setMoveType(mDiagMovesOn);
+        // mUpdaterGpu.setMoveType(mDiagMovesOn);
+        mUpdaterGpu.setDiagonalMovesOn(mDiagMovesOn);
 
         Method met;
         met.modifyCurve().setBox(mIngredients.getBoxX(), mIngredients.getBoxY(), mIngredients.getBoxZ());

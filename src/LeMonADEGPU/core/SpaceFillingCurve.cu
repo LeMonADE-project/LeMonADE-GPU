@@ -24,8 +24,8 @@ You should have received a copy of the GNU General Public License
 along with LeMonADE.  If not, see <http://www.gnu.org/licenses/>.
 
 --------------------------------------------------------------------------------*/
-#ifndef LEMONADE_CORE_SPACE_FILLING_CURVE_CU
-#define LEMONADE_CORE_SPACE_FILLING_CURVE_CU
+// #ifndef LEMONADE_CORE_SPACE_FILLING_CURVE_CU
+// #define LEMONADE_CORE_SPACE_FILLING_CURVE_CU
 
 #include <extern/Fundamental/BitsCompileTime.hpp>
 #include <LeMonADEGPU/core/SpaceFillingCurve.h>
@@ -96,4 +96,4 @@ void SpaceFillingCurve::setMode( int mode_) {
   std::cout << "SpaceFillingCurve::setMode="<<mode<<".\n";
 }
  
-#endif 
+// #endif 

@@ -45,6 +45,7 @@ along with LeMonADE.  If not, see <http://www.gnu.org/licenses/>.
 
 #include <extern/Fundamental/BitsCompileTime.hpp>
 #include <LeMonADEGPU/utility/cudacommon.hpp>
+#include <LeMonADEGPU/utility/MirroredVector.h>
 
 #include <LeMonADEGPU/utility/SelectiveLogger.hpp>
 #include <LeMonADEGPU/utility/graphColoring.tpp>
@@ -582,12 +583,6 @@ void UpdaterGPUScBFM_AB_Connection< T_UCoordinateCuda >::runSimulationOnGPU
     /* run simulation */
     for ( uint32_t iStep = 0; iStep < nMonteCarloSteps; ++iStep, ++mAge )
     {
-// 	tracker.setAge(mAge);
-        if ( mUsePeriodicMonomerSorting && ( mAge % mnStepsBetweenSortings == 0 ) )
-        {
-            mLog( "Stats" ) << "Resorting at age / step " << mAge << "\n";
-//             doSpatialSorting();
-        }
         if ( useOverflowChecks )
         {
             /**

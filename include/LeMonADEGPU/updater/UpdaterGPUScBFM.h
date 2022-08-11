@@ -157,7 +157,7 @@ protected:
      *             the reading faster if it is memory bound ???
      */
 
-    MirroredTexture< T_Lattice > * mLatticeOut, * mLatticeTmp, * mLatticeTmp2;
+    MirroredTexture< T_Lattice > * mLatticeOut, * mLatticeTmp;
     /**
      * when using bit packing only 1/8 of mLatticeTmp is used. In order to
      * to using everything we can simply increment the mLatticeTmp->gpu pointer,
@@ -215,10 +215,14 @@ protected:
     /**
      * These are to be used for storing the flags and chosen direction of
      * the old property tag.
-     *      4  3  2  1  0
-     *    +--+--+--+--+--+
-     *    |  dir   |move |
-     *    +--+--+--+--+--+
+     *    8  7  6  5  4  3  2  1
+     *    +--+--+--+--+--+--+--+
+     *    |  move |      dir   |
+     *    +--+--+--+--+--+--+--+
+     * 5 bits are used to encode the direction of movement. There are 18 possible moves 
+     * including standard moves (6) and (face) diagonal moves (12). Bit #6 is used in the 
+     * check kernel (1-allowed moves, 0-forbidden move). Bit #7 is used in the kernel to 
+     * reset the tmpLattice.
      * These are currently temporary vectors only written and read to from
      * the GPU, so MirroredVector isn't necessary, but it's easy to use and
      * could be nice for debugging (e.g. to replace the count kernels)
@@ -313,10 +317,6 @@ protected:
 //     seems not to be used anymore -_o
 
     RandomNumberGenerators randomNumbers;
-
-    bool    mUsePeriodicMonomerSorting;
-    int64_t mnStepsBetweenSortings;
-
     
     int64_t mAge;
     bool mIsPeriodicX;
@@ -367,8 +367,6 @@ public:
 protected: 
     void initializeBondTable();
     void initializeSpeciesSorting(); /* using miNewToi and miToiNew the monomers are mapped to be sorted by species */
-    void initializeSpatialSorting(); /* miNewToi and miToiNew will be updated so that monomers are sorted spatially per species */
-    void doSpatialSorting();
     void initializeSortedNeighbors();
     void initializeSortedMonomerPositions();
     void initializeLattices();
@@ -386,7 +384,6 @@ protected:
     
     template< int MoveSize > 
     void launch_CheckSpecies                      (const size_t nBlocks, const size_t nThreads, const size_t iSpecies, const size_t iOffsetLatticeTmp, const uint64_t seed );
-    void launch_CheckSpeciesWithMonomericMoveType (const size_t nBlocks, const size_t nThreads, const size_t iSpecies, const size_t iOffsetLatticeTmp, const uint64_t seed, cudaTextureObject_t const texAllowedToMoveInSpecies);
     template< int MoveSize > 
     void launch_CheckReactiveSpecies              (const size_t nBlocks, const size_t nThreads, const size_t iSpecies, const size_t iOffsetLatticeTmp, const uint64_t seed, uint32_t AASpeciesFlag, cudaTextureObject_t const texAllowedToMoveInSpecies);
     void launch_PerformSpecies                    (const size_t nBlocks, const size_t nThreads, const size_t iSpecies, cudaTextureObject_t texLatticeTmp);
@@ -430,14 +427,4 @@ public:
     void setPeriodicity( bool isPeriodicX, bool isPeriodicY, bool isPeriodicZ );
     inline void    setAge( int64_t rAge ){ mAge = rAge; }
     inline int64_t getAge( void ) const{ return mAge; }
-
-    /* this is a performance feature, but one which also changes the order
-     * in which random numbers are generated making binary comparisons of
-     * the results moot */
-    inline void    setStepsBetweenSortings( int64_t rnStepsBetweenSortings )
-    {
-        mUsePeriodicMonomerSorting = rnStepsBetweenSortings > 0;
-        mnStepsBetweenSortings = rnStepsBetweenSortings;
-    }
-    inline int64_t getStepsBetweenSortings( void ) const{ return mnStepsBetweenSortings; }
 };

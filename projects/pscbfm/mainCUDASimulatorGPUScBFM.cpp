@@ -89,8 +89,8 @@ int main(int argc, char **argv)
 
     std::string infile;                  /* BFM file containing positions of monomers and their connections */
     std::string outfile = "outfile.bfm"; /* at save_interval steps the current state of the simulation will be written to this file */
-    uint32_t max_mcs = 0;                /* how many Monte-Carlo steps to simulate */
-    uint32_t save_interval = 0;
+    uint64_t max_mcs = 0;                /* how many Monte-Carlo steps to simulate */
+    uint64_t save_interval = 0;
     int iGpuToUse = 0;
     int iRngToUse = -1;
     std::string seedFileName = "";
@@ -174,7 +174,7 @@ int main(int argc, char **argv)
         //         typedef LOKI_TYPELIST_4( FeatureMoleculesIO, FeatureAttributes<>,
         //                                  FeatureExcludedVolumeSc<>, FeatureConnectionSc ) Features;
         // typedef LOKI_TYPELIST_4(FeatureMoleculesIOUnsaveCheck, FeatureAttributes<>, FeatureExcludedVolumeSc<>, FeatureConnectionSc) Features;
-        typedef LOKI_TYPELIST_5(FeatureMoleculesIOUnsaveCheck, FeatureAttributes<>, FeatureExcludedVolumeSc<>, FeatureConnectionSc, FeatureShearForce) Features;
+        typedef LOKI_TYPELIST_5(FeatureMoleculesIO, FeatureAttributes<>, FeatureExcludedVolumeSc<>, FeatureConnectionSc, FeatureShearForce) Features;
         // 	typedef LOKI_TYPELIST_3( FeatureMoleculesIOUnsaveCheck, FeatureAttributes<>, FeatureConnectionSc ) Features;
 
         typedef ConfigureSystem<VectorInt3, Features, 8> Config;

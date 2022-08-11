@@ -81,9 +81,6 @@ protected:
     using BaseClass::mnElementsInGroup;
     using BaseClass::mCudaProps;
     using BaseClass::mAge;
-    using BaseClass::mUsePeriodicMonomerSorting;
-    using BaseClass::mnStepsBetweenSortings;
-    using BaseClass::doSpatialSorting;
     using BaseClass::useOverflowChecks;
     using BaseClass::findAndRemoveOverflows;
     using BaseClass::mnLatticeTmpBuffers;
@@ -106,6 +103,7 @@ protected:
     using BaseClass::mPolymerFlags;
     using BaseClass::mLatticeOut;
     using BaseClass::boxCheck;
+    using BaseClass::diagMovesOn;
    
     uint32_t CrossLinkSpecies; 
     uint32_t ChainEndSpecies ; 

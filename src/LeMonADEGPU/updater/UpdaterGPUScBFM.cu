@@ -64,6 +64,7 @@ along with LeMonADE.  If not, see <http://www.gnu.org/licenses/>.
 //extract only the things which are really needed from the below two files:
 #include <extern/Fundamental/BitsCompileTime.hpp>
 #include <LeMonADEGPU/utility/cudacommon.hpp>
+#include <LeMonADEGPU/utility/MirroredVector.h>
 
 #include <LeMonADEGPU/utility/SelectiveLogger.hpp>
 #include <LeMonADEGPU/utility/graphColoring.tpp>
@@ -504,68 +505,6 @@ __global__ void kernelSimulationScBFMCheckSpecies
     }
 }
 
-template< typename T_UCoordinateCuda >
-__global__ void kernelSimulationScBFMCheckSpeciesMonomericMoveType
-(
-    typename CudaVec4< T_UCoordinateCuda >::value_type
-                const * const __restrict__ dpPolymerSystem         ,
-    T_Flags           * const              dpPolymerFlags          ,
-    uint32_t            const              iOffset                 ,
-    T_Lattice         * const __restrict__ dpLatticeTmp            ,
-    T_Id        const * const              dpNeighbors             ,
-    uint32_t            const              rNeighborsPitchElements ,
-    uint8_t     const * const              dpNeighborsSizes        ,
-    T_Id                const              nMonomers               ,
-    uint64_t            const              rSeed                   ,
-    uint64_t            const              rGlobalIteration        ,
-    cudaTextureObject_t const              texLatticeRefOut        ,
-    BoxCheck                               bCheck                  , 
-    Method              const              met                     ,
-    BondVectorSet       const              checkBondVector         ,
-    cudaTextureObject_t const              texMonomericMoveType	  
-)
-{
-    uint32_t rn;
-    int iGrid = 0;
-    for ( auto iMonomer = blockIdx.x * blockDim.x + threadIdx.x;
-          iMonomer < nMonomers; iMonomer += gridDim.x * blockDim.x, ++iGrid )
-    {
-        auto const r0 = dpPolymerSystem[ iOffset + iMonomer ];
-        /* upcast int3 to int4 in preparation to use PTX SIMD instructions */
-        //int4 const r0 = { r0Raw.x, r0Raw.y, r0Raw.z, 0 }; // not faster nor slower
-        //select random direction. Own implementation of an rng :S? But I think it at least# was initialized using the LeMonADE RNG ...
-        if ( iGrid % 1 == 0 ) // 12 = floor( log(2^32) / log(6) )
-        {
-	  Saru rng(rGlobalIteration,iMonomer,rSeed);
-	  rn =rng.rng32();
-        }
-        
-        int direction =  (tex1Dfetch<uint8_t>( texMonomericMoveType, iOffset + iMonomer) == 0) ? rn % 6 : rn % 18 ;
-// 	printf("ID=%d tag=%d ", iMonomer,tex1Dfetch<uint8_t>( texMonomericMoveType, iOffset + iMonomer));
-         /* select random direction. Do this with bitmasking instead of lookup ??? */
-        typename CudaVec4< T_UCoordinateCuda >::value_type const r1 = {
-            T_UCoordinateCuda( r0.x + DXTable_d[ direction ] ),
-            T_UCoordinateCuda( r0.y + DYTable_d[ direction ] ),
-            T_UCoordinateCuda( r0.z + DZTable_d[ direction ] )
-        };
-	if (    bCheck(r1.x,r1.y,r1.z) && 
-	      ! checkNeighboringBonds<T_UCoordinateCuda>(dpNeighborsSizes, iMonomer, dpNeighbors, rNeighborsPitchElements, dpPolymerSystem, r1, checkBondVector ) && 
-	      ! checkFront( texLatticeRefOut, r0.x, r0.y, r0.z, direction, met, &BitPacking::bitPackedTextureGetStandard ) 
-	      && tex1Dfetch<uint8_t>( texMonomericMoveType, iOffset + iMonomer) == 1  // for testing only allow elastic chain to move
-	  )
-	{
-	    /* everything fits so perform move on temporary lattice */
-	    /* can I do this ??? dpPolymerSystem is the device pointer to the read-only
-	      * texture used above. Won't this result in read-after-write race-conditions?
-	      * Then again the written / changed bits are never used in the above code ... */
-	    direction += T_Flags(32) /* can-move-flag */;
-	    met.getPacking().bitPackedSet(dpLatticeTmp, met.getCurve().linearizeBoxVectorIndex( r1.x, r1.y, r1.z ));
-	}
-
-        dpPolymerFlags[ iMonomer ] = direction;
-    }
-}
-
 template< typename T_UCoordinateCuda, int moveSize >
 __global__ void kernelSimulationScBFMCheckReactiveSpecies
 (
@@ -631,52 +570,6 @@ __global__ void kernelSimulationScBFMCheckReactiveSpecies
 	dpPolymerFlags[ iMonomer ] = direction;        
     }
 }
-
-/*
-colordiff <( sed -n 931,1028p ../src/pscbfm/UpdaterGPUScBFM.cu ) <( sed -n 1031,1090p ../src/pscbfm/UpdaterGPUScBFM.cu )
-*/
-template< typename T_UCoordinateCuda   >
-__global__ void kernelCountFilteredCheck
-(
-    typename CudaVec4< T_UCoordinateCuda >::value_type
-                     const * const __restrict__ dpPolymerSystem        ,
-    T_Flags          const * const              dpPolymerFlags         ,
-    uint32_t                 const              iOffset                ,
-    T_Lattice        const * const __restrict__ /* dpLatticeTmp */     ,
-    T_Id             const * const              dpNeighbors            ,
-    uint32_t                 const              rNeighborsPitchElements,
-    uint8_t          const * const              dpNeighborsSizes       ,
-    T_Id                     const              nMonomers              ,
-    cudaTextureObject_t      const              texLatticeRefOut       ,
-    unsigned long long int * const              dpFiltered             ,
-    BoxCheck                                    bCheck		       ,
-    Method                                      met,
-    BondVectorSet            const              checkBondVector
-)
-{
-    for ( auto iMonomer = blockIdx.x * blockDim.x + threadIdx.x;
-          iMonomer < nMonomers; iMonomer += gridDim.x * blockDim.x )
-    {
-        auto const r0 = dpPolymerSystem[ iOffset + iMonomer ];
-        auto const properties = dpPolymerFlags[ iMonomer ];
-        auto const direction = properties & T_Flags(31); // 7=0b111
-
-        typename CudaVec4< T_UCoordinateCuda >::value_type const r1 = {
-            T_UCoordinateCuda( r0.x + DXTable_d[ direction ] ),
-            T_UCoordinateCuda( r0.y + DYTable_d[ direction ] ),
-            T_UCoordinateCuda( r0.z + DZTable_d[ direction ] )
-        };
-	if ( bCheck(r1.x,r1.y,r1.z) &&
-	     checkFront( texLatticeRefOut, r0.x, r0.y, r0.z, direction, met, &BitPacking::bitPackedTextureGetStandard  ) )
-	{
-	    atomicAdd( dpFiltered+2, 1ull );
-	    if ( ! checkNeighboringBonds<T_UCoordinateCuda>(dpNeighborsSizes, iMonomer, dpNeighbors, rNeighborsPitchElements, dpPolymerSystem, r1, checkBondVector ) ) /* this is the more real relative use-case where invalid bonds are already filtered out */
-		atomicAdd( dpFiltered+3, 1ull );
-	}
-
-    }
-}
-
 
 /**
  * Recheck whether the move is possible without collision, using the
@@ -760,33 +653,6 @@ __global__ void kernelSimulationScBFMPerformSpeciesAndApply
         dpLattice[ met.getCurve().linearizeBoxVectorIndex( r1.x, r1.y, r1.z ) ] = 1;
         /* If possible, perform move now on normal lattice */
         dpPolymerSystem[ iMonomer ] = r1;
-    }
-}
-
-template< typename T_UCoordinateCuda   >
-__global__ void kernelCountFilteredPerform
-(
-    typename CudaVec4< T_UCoordinateCuda >::value_type
-                     const * const              dpPolymerSystem  ,
-    T_Flags          const * const              dpPolymerFlags   ,
-    T_Lattice        const * const __restrict__ /* dpLattice */  ,
-    T_Id                     const              nMonomers        ,
-    cudaTextureObject_t      const              texLatticeTmp    ,
-    unsigned long long int * const              dpFiltered       ,
-    Method 					met
-)
-{
-    for ( auto iMonomer = blockIdx.x * blockDim.x + threadIdx.x;
-          iMonomer < nMonomers; iMonomer += gridDim.x * blockDim.x )
-    {
-        auto const properties = dpPolymerFlags[ iMonomer ];
-        if ( ! ( properties & T_Flags(32) ) ) // check if can-move flag is set
-            continue;
-
-        auto const r0 = dpPolymerSystem[ iMonomer ];
-        auto const direction = properties & T_Flags(31); // 7=0b111
-        if ( checkFront( texLatticeTmp, r0.x, r0.y, r0.z, direction, met, &BitPacking::bitPackedTextureGet, NULL ) )
-            atomicAdd( dpFiltered+4, size_t(1) );
     }
 }
 
@@ -885,17 +751,17 @@ __global__ void kernelTreatOverflows
 
         if ( std::abs( dr.x ) > T_UCoordinateCuda( boxSizeCudaType / 2 ) )
         {
-            r1.x -= boxSizeCudaType - dcBoxX;
+            // r1.x -= boxSizeCudaType - dcBoxX;
             iv.x -= dr.x > decltype( dr.x )(0) ? 1 : -1;
         }
         if ( std::abs( dr.y ) > T_UCoordinateCuda( boxSizeCudaType / 2 ) )
         {
-            r1.y -= boxSizeCudaType - dcBoxY;
+            // r1.y -= boxSizeCudaType - dcBoxY;
             iv.y -= dr.y > decltype( dr.y )(0) ? 1 : -1;
         }
         if ( std::abs( dr.z ) > T_UCoordinateCuda( boxSizeCudaType / 2 ) )
         {
-            r1.z -= boxSizeCudaType - dcBoxZ;
+            // r1.z -= boxSizeCudaType - dcBoxZ;
             iv.z -= dr.z > decltype( dr.z )(0) ? 1 : -1;
         }
 
@@ -936,34 +802,6 @@ void UpdaterGPUScBFM< T_UCoordinateCuda >::launch_CheckSpecies(
 }
 
 template< typename T_UCoordinateCuda> 
-void UpdaterGPUScBFM< T_UCoordinateCuda >::launch_CheckSpeciesWithMonomericMoveType(
-    const size_t nBlocks, const size_t nThreads, 
-    const size_t iSpecies, const size_t iOffsetLatticeTmp, 
-    const uint64_t seed, cudaTextureObject_t const texMonomericMoveType )
-{
-    kernelSimulationScBFMCheckSpeciesMonomericMoveType< T_UCoordinateCuda > 
-    <<< nBlocks, nThreads, 0, mStream >>>(                
-	mPolymerSystemSorted->gpu,                                     
-	mPolymerFlags->gpu + mviSubGroupOffsets[ iSpecies ],           
-	mviSubGroupOffsets[ iSpecies ],                                
-	mLatticeTmp->gpu + iOffsetLatticeTmp,                          
-	mNeighborsSorted->gpu + mNeighborsSortedInfo.getMatrixOffsetElements( iSpecies ), 
-	mNeighborsSortedInfo.getMatrixPitchElements( iSpecies ),       
-	mNeighborsSortedSizes->gpu + mviSubGroupOffsets[ iSpecies ],   
-	mnElementsInGroup[ iSpecies ],                                 
-	seed, 
-	hGlobalIterator,                                         
-	mLatticeOut->texture,
-	boxCheck, 
-	met,
-	checkBondVector,
-	texMonomericMoveType
-    );
-  hGlobalIterator++;
-
-}
-
-template< typename T_UCoordinateCuda> 
 template< int MoveSize >
 void UpdaterGPUScBFM< T_UCoordinateCuda >::launch_CheckReactiveSpecies(
     const size_t nBlocks, const size_t nThreads, 
@@ -991,52 +829,6 @@ void UpdaterGPUScBFM< T_UCoordinateCuda >::launch_CheckReactiveSpecies(
 	AASpeciesFlag
     );
   hGlobalIterator++;
-}
-
-
-
-template< typename T_UCoordinateCuda> 
-void UpdaterGPUScBFM< T_UCoordinateCuda >::launch_countFilteredPerform(
-    const size_t nBlocks, const size_t nThreads, 
-    const size_t iSpecies, cudaTextureObject_t texLatticeTmp, 
-    unsigned long long int * dpFiltered )
-{
-
-    kernelCountFilteredPerform< T_UCoordinateCuda >
-    <<< nBlocks, nThreads, 0, mStream >>>(
-        mPolymerSystemSorted->gpu + mviSubGroupOffsets[ iSpecies ],
-        mPolymerFlags->gpu + mviSubGroupOffsets[ iSpecies ],
-        mLatticeOut->gpu,
-        mnElementsInGroup[ iSpecies ],
-        texLatticeTmp,
-        dpFiltered,
-        met
-    );
-}
-
-template< typename T_UCoordinateCuda> 
-void UpdaterGPUScBFM< T_UCoordinateCuda >::launch_CountFilteredCheck(
-    const size_t nBlocks, const size_t nThreads, 
-    const size_t iSpecies, cudaTextureObject_t texLatticeTmp, 
-    unsigned long long int * dpFiltered, const size_t iOffsetLatticeTmp )
-{
-
-    kernelCountFilteredCheck< T_UCoordinateCuda >
-    <<< nBlocks, nThreads, 0, mStream >>>(                 
-    mPolymerSystemSorted->gpu,                         
-    mPolymerFlags->gpu + mviSubGroupOffsets[ iSpecies ],
-    mviSubGroupOffsets[ iSpecies ],                     
-    mLatticeTmp->gpu + iOffsetLatticeTmp,               
-    mNeighborsSorted->gpu + mNeighborsSortedInfo.getMatrixOffsetElements( iSpecies ), 
-    mNeighborsSortedInfo.getMatrixPitchElements( iSpecies ),   
-    mNeighborsSortedSizes->gpu + mviSubGroupOffsets[ iSpecies ], 
-    mnElementsInGroup[ iSpecies ],                             
-    mLatticeOut->texture,                                     
-    dpFiltered,
-    boxCheck,
-    met,
-    checkBondVector
-    );
 }
 
 template< typename T_UCoordinateCuda> 
@@ -1096,11 +888,8 @@ UpdaterGPUScBFM< T_UCoordinateCuda >::UpdaterGPUScBFM()
    mIsPeriodicX                     ( true ),
    mIsPeriodicY                     ( true ),
    mIsPeriodicZ                     ( true ),
-   mUsePeriodicMonomerSorting       ( true ),
-   mnStepsBetweenSortings           ( 5000 ),
    mLatticeOut                      ( NULL ),
    mLatticeTmp                      ( NULL ),
-   mLatticeTmp2                     ( NULL ),
    mnAllMonomers                    ( 0    ),
    mnMonomersPadded                 ( 0    ),
    mPolymerSystem                   ( NULL ),
@@ -1111,7 +900,6 @@ UpdaterGPUScBFM< T_UCoordinateCuda >::UpdaterGPUScBFM()
    miToiNew                         ( NULL ),
    miNewToi                         ( NULL ),
    miNewToiComposition              ( NULL ),
-   miNewToiSpatial                  ( NULL ),
    mvKeysZOrderLinearIds            ( NULL ),
    mNeighbors                       ( NULL ),
    mNeighborsSorted                 ( NULL ),
@@ -1123,13 +911,11 @@ UpdaterGPUScBFM< T_UCoordinateCuda >::UpdaterGPUScBFM()
    mBoxXM1                          ( 0    ),
    mBoxYM1                          ( 0    ),
    mBoxZM1                          ( 0    ),
-//    mBoxXLog2                        ( 0    ),
-//    mBoxXYLog2                       ( 0    ),
    mnSplitColors                    ( 0    ),
    hGlobalIterator                  ( 0    ),
    bSetAutoColoring                 ( true ),
    diagMovesOn                      ( false),
-   densityCheckerOn              ( false)
+   densityCheckerOn                 ( false)
 {
     /**
      * Log control.
@@ -1152,30 +938,28 @@ UpdaterGPUScBFM< T_UCoordinateCuda >::UpdaterGPUScBFM()
 template< typename T_UCoordinateCuda >
 void UpdaterGPUScBFM< T_UCoordinateCuda >::destruct()
 {
-    // DeleteMirroredObject deletePointer;
-    // deletePointer( mLatticeOut                     , "mLatticeOut"                      );
-    // deletePointer( mLatticeTmp                     , "mLatticeTmp"                      );
-    // deletePointer( mLatticeTmp2                    , "mLatticeTmp2"                     );
-    // deletePointer( mPolymerSystem                  , "mPolymerSystem"                   );
-    // deletePointer( mPolymerSystemSorted            , "mPolymerSystemSorted"             );
-    // deletePointer( mPolymerSystemSortedOld         , "mPolymerSystemSortedOld"          );
-    // deletePointer( mviPolymerSystemSortedVirtualBox, "mviPolymerSystemSortedVirtualBox" );
-    // deletePointer( mPolymerFlags                   , "mPolymerFlags"                    );
-    // deletePointer( miToiNew                        , "miToiNew"                         );
-    // deletePointer( miNewToi                        , "miNewToi"                         );
-    // deletePointer( miNewToiComposition             , "miNewToiComposition"              );
-    // deletePointer( miNewToiSpatial                 , "miNewToiSpatial"                  );
-    // deletePointer( mvKeysZOrderLinearIds           , "mvKeysZOrderLinearIds"            );
-    // deletePointer( mNeighbors                      , "mNeighbors"                       );
-    // deletePointer( mNeighborsSorted                , "mNeighborsSorted"                 );
-    // deletePointer( mNeighborsSortedSizes           , "mNeighborsSortedSizes"            );
-    // if ( deletePointer.nBytesFreed > 0 )
-    // {
-    //     mLog( "Info" )
-    //         << "Freed a total of "
-    //         << prettyPrintBytes( deletePointer.nBytesFreed )
-    //         << " on GPU and host RAM.\n";
-    // }
+    DeleteMirroredObject deletePointer;
+    deletePointer( mLatticeOut                     , "mLatticeOut"                      );
+    deletePointer( mLatticeTmp                     , "mLatticeTmp"                      );
+    deletePointer( mPolymerSystem                  , "mPolymerSystem"                   );
+    deletePointer( mPolymerSystemSorted            , "mPolymerSystemSorted"             );
+    deletePointer( mPolymerSystemSortedOld         , "mPolymerSystemSortedOld"          );
+    deletePointer( mviPolymerSystemSortedVirtualBox, "mviPolymerSystemSortedVirtualBox" );
+    deletePointer( mPolymerFlags                   , "mPolymerFlags"                    );
+    deletePointer( miToiNew                        , "miToiNew"                         );
+    deletePointer( miNewToi                        , "miNewToi"                         );
+    deletePointer( miNewToiComposition             , "miNewToiComposition"              );
+    deletePointer( mvKeysZOrderLinearIds           , "mvKeysZOrderLinearIds"            );
+    deletePointer( mNeighbors                      , "mNeighbors"                       );
+    deletePointer( mNeighborsSorted                , "mNeighborsSorted"                 );
+    deletePointer( mNeighborsSortedSizes           , "mNeighborsSortedSizes"            );
+    if ( deletePointer.nBytesFreed > 0 )
+    {
+        mLog( "Info" )
+            << "Freed a total of "
+            << prettyPrintBytes( deletePointer.nBytesFreed )
+            << " on GPU and host RAM.\n";
+    }
 
 }
 
@@ -1317,29 +1101,6 @@ void UpdaterGPUScBFM< T_UCoordinateCuda >::initializeSpeciesSorting( void )
 	      nColors *= 2;
 	    }
       }
-    
-      /* check automatic coloring with that given in BFM-file */
-//       if ( mLog.isActive( "Check" ) )
-//       {
-// 	  mLog( "Info" ) << "Checking difference between automatic and given coloring ... ";
-// 	  size_t nDifferent = 0;
-// 	  for ( size_t iMonomer = 0u; iMonomer < std::max< size_t >( 20, mnAllMonomers ); ++iMonomer )
-// 	  {
-// 	      if ( int32_t( mGroupIds.at( iMonomer )+1 ) != mAttributeSystem[ iMonomer ] )
-// 	      {
-// 		  mLog( "Info" ) << "Color of " << iMonomer << " is automatically " << mGroupIds.at( iMonomer )+1 << " vs. " << mAttributeSystem[ iMonomer ] << "\n";
-// 		  ++nDifferent;
-// 	      }
-// 	  }
-// 	  if ( nDifferent > 0 )
-// 	  {
-// 	      std::stringstream msg;
-// 	      msg << "Automatic coloring failed to produce same result as the given one!";
-// 	      mLog( "Error" ) << msg.str();
-// 	      throw std::runtime_error( msg.str() );
-// 	  }
-// 	  mLog( "Info" ) << "OK\n";
-//       }
     }
     /* count monomers per species before allocating per species arrays and
      * sorting the monomers into them */
@@ -1427,12 +1188,8 @@ void UpdaterGPUScBFM< T_UCoordinateCuda >::initializeSpeciesSorting( void )
             mLog( "Info" ) << x << ", ";
         mLog( "Info" ) << "}\n";
     }
-
-    if ( met.isONGPUForOverhead() &&  mUsePeriodicMonomerSorting )
-    {
-        miNewToi->pushAsync();
-        miToiNew->pushAsync();
-    }
+    miNewToi->pushAsync();
+    miToiNew->pushAsync();
 }
 
 /**
@@ -1469,7 +1226,6 @@ __global__ void kernelApplyMappingToNeighbors
 )
 {
     /* apply sorting for polymers, see initializePolymerSystemSorted */
-
     /* apply sorting for neighbor info, see initializeSortedNeighbors */
     for ( auto iMonomer = blockIdx.x * blockDim.x + threadIdx.x;
           iMonomer < nMonomers; iMonomer += gridDim.x * blockDim.x )
@@ -1503,6 +1259,7 @@ __global__ void kernelUndoPolymerSystemSorting
         if ( iOld == UINT32_MAX )
             continue;
         auto const rsmall = dpPolymerSystemSorted[ iNew ];
+        auto constexpr boxSizeCudaType = 1ll << ( sizeof( T_UCoordinateCuda ) * CHAR_BIT );
         /* problematic typecast happens here with T_UCoordinateCuda = uint32_t
          * because it would then get >down<converted to int32_t!
          * But this is ok, because LeMonADE also has this limitation */
@@ -1513,9 +1270,9 @@ __global__ void kernelUndoPolymerSystemSorting
             T_Coordinate( rsmall.w )
         };
         auto const nPos = dpiPolymerSystemSortedVirtualBox[ iNew ];
-        rSorted.x += nPos.x * dcBoxX;
-        rSorted.y += nPos.y * dcBoxY;
-        rSorted.z += nPos.z * dcBoxZ;
+        rSorted.x += nPos.x * boxSizeCudaType;
+        rSorted.y += nPos.y * boxSizeCudaType;
+        rSorted.z += nPos.z * boxSizeCudaType;
         dpPolymerSystem[ iOld ] = rSorted;
     }
 }
@@ -1538,163 +1295,22 @@ __global__ void kernelSplitMonomerPositions
         if ( iOld == UINT32_MAX )
             continue;
         auto const r = dpPolymerSystem[ iOld ];
+        auto constexpr boxSizeCudaType = 1ll << ( sizeof( T_UCoordinateCuda ) * CHAR_BIT ); 
         typename CudaVec4< T_UCoordinateCuda >::value_type rlo = {
-            T_UCoordinateCuda( r.x % dcBoxX ),
-            T_UCoordinateCuda( r.y % dcBoxY ),
-            T_UCoordinateCuda( r.z % dcBoxZ ),
-//             T_UCoordinateCuda( r.x & dcBoxXM1 ), // only for power of two boxes 
-//             T_UCoordinateCuda( r.y & dcBoxYM1 ),
-//             T_UCoordinateCuda( r.z & dcBoxZM1 ),
+            T_UCoordinateCuda( r.x % boxSizeCudaType ),
+            T_UCoordinateCuda( r.y % boxSizeCudaType ),
+            T_UCoordinateCuda( r.z % boxSizeCudaType ),
             T_UCoordinateCuda( dpPolymerSystemSorted[ iNew ].w )
         };
         dpPolymerSystemSorted[ iNew ] = rlo;
         T_Coordinates rhi = {
-            ( r.x - T_Coordinate( rlo.x ) ) / T_Coordinate( dcBoxX ),
-            ( r.y - T_Coordinate( rlo.y ) ) / T_Coordinate( dcBoxY ),
-            ( r.z - T_Coordinate( rlo.z ) ) / T_Coordinate( dcBoxZ ),
+            ( r.x - T_Coordinate( rlo.x ) ) / T_Coordinate( boxSizeCudaType ),
+            ( r.y - T_Coordinate( rlo.y ) ) / T_Coordinate( boxSizeCudaType ),
+            ( r.z - T_Coordinate( rlo.z ) ) / T_Coordinate( boxSizeCudaType ),
             0
         };
         dpiPolymerSystemSortedVirtualBox[ iNew ] = rhi;
     }
-}
-
-
-template< typename T_UCoordinateCuda >
-struct LinearizeBoxVectorIndexFunctor
-{
-  Method met;
-  LinearizeBoxVectorIndexFunctor(const Method& met_ ):met(met_){} 
-  using T_UCoordinatesCuda = typename CudaVec4< T_UCoordinateCuda >::value_type;
-  __device__ inline T_Id operator()( T_UCoordinatesCuda const & r ) const
-  {
-      return met.getCurve().linearizeBoxVectorIndex( r.x, r.y, r.z );
-  }
-};
-
-/**
- * this works on mPolymerSystemSorted and resorts the monomers along a
- * z-order curve in order to improve cache hit rates, especially for "slow"
- * systems. Also it updates the order of and the IDs inside mNeighborsSorted
- * @param[in]  polymerSystemSorted
- * @param[in]  iToiNew specifies the mapping used to create polymerSystemSorted
- *             from polymerSystem, i.e.
- *             polymerSystemSorted[ iToiNew[i] ] == polymerSystem[i]
- * @param[in]  iNewToi same as iToiNew, but the other way arount, i.e.
- *             polymerSystemSorted[i] == polymerSystem[ iNewToi ]
- *             Note that the sorted system includes padding, therefore some
- *             entries of iNewToi contain UINT32_MAX to indicate that those
- *             are not do be mapped
- * @param[out] iToiNew just as the input, but after sorting spatially
- * @param[out] iNewToi
- */
-template< typename T_UCoordinateCuda >
-void UpdaterGPUScBFM< T_UCoordinateCuda >::doSpatialSorting( void )
-{
-    auto const nThreads = 128;
-    auto const nBlocksP = ceilDiv( mnMonomersPadded, nThreads );
-    /* because resorting changes the order we have to do the full
-     * overflow checks and also update mPolymerSystemSortedOld ! */
-    if ( useOverflowChecks )
-    {
-        /* the padding values do not change, so we can simply let the threads
-         * calculate them without worries and save the loop over the species */
-        kernelTreatOverflows< T_UCoordinateCuda >
-        <<< nBlocksP, nThreads, 0, mStream >>>(
-            mPolymerSystemSortedOld         ->gpu,
-            mPolymerSystemSorted            ->gpu,
-            mviPolymerSystemSortedVirtualBox->gpu,
-            mnMonomersPadded
-        );
-    }
-
-    /* dependent on kernelTreatOverflows ( @todo if it is dependent, what happens if useOverflowChecks == false !? Shouldn't this also be inside the body of the if-statement ??? Possibly not, if the virtutalBox ID is always zero for no overflow checks being used :S ) */
-    kernelUndoPolymerSystemSorting< T_UCoordinateCuda >
-    <<< nBlocksP, nThreads, 0, mStream >>>
-    (
-        mPolymerSystemSorted            ->gpu,
-        mviPolymerSystemSortedVirtualBox->gpu,
-        miNewToi                        ->gpu,
-        mPolymerSystem                  ->gpu,
-        mnMonomersPadded
-    );
-
-    /* mapping new (monomers spatially sorted) index to old (species sorted) index */
-    if ( miNewToiComposition   == NULL ) miNewToiComposition   = new MirroredVector< T_Id >( mnMonomersPadded, mStream );
-    if ( miNewToiSpatial       == NULL ) miNewToiSpatial       = new MirroredVector< T_Id >( mnMonomersPadded, mStream );
-    if ( mvKeysZOrderLinearIds == NULL ) mvKeysZOrderLinearIds = new MirroredVector< T_Id >( mnMonomersPadded, mStream );
-    assert( miNewToiComposition   != NULL );
-    assert( miNewToiSpatial       != NULL );
-    assert( mvKeysZOrderLinearIds != NULL );
-
-    /* @see https://thrust.github.io/doc/group__transformations.html#ga233a3db0c5031023c8e9385acd4b9759
-       @see https://thrust.github.io/doc/group__transformations.html#ga281b2e453bfa53807eda1d71614fb504 */
-    /* not dependent on anything, could run in different stream */
-    thrust::sequence( thrust::system::cuda::par, miNewToiSpatial->gpu, miNewToiSpatial->gpu + miNewToiSpatial->nElements );
-    /* dependent on above, but does not depend on kernelUndoPolymerSystemSorting */
-    thrust::transform( thrust::system::cuda::par,
-        mPolymerSystemSorted ->gpu,
-        mPolymerSystemSorted ->gpu + mPolymerSystemSorted->nElements,
-        mvKeysZOrderLinearIds->gpu,
-        LinearizeBoxVectorIndexFunctor< T_UCoordinateCuda >(met)
-    );
-    /* sort per sublists (each species) by key, not the whole list */
-    for ( auto iSpecies = 0u; iSpecies < mnElementsInGroup.size(); ++iSpecies )
-    {
-        thrust::sort_by_key( thrust::system::cuda::par,
-            mvKeysZOrderLinearIds->gpu + mviSubGroupOffsets.at( iSpecies ),
-            mvKeysZOrderLinearIds->gpu + mviSubGroupOffsets.at( iSpecies ) + mnElementsInGroup.at( iSpecies ),
-            miNewToiSpatial      ->gpu + mviSubGroupOffsets.at( iSpecies )
-        );
-    }
-
-    thrust::fill( thrust::system::cuda::par, miNewToiComposition->gpu, miNewToiComposition->gpu + miNewToiComposition->nElements, UINT32_MAX );
-    /**
-     * @see https://thrust.github.io/doc/group__gathering.html#ga86722e76264fb600d659c1adef5d51b2
-     *   -> for ( it : map ) result[ it - map_first ] = input_first[ *it ]
-     *   -> for ( i ) result[i] = input_first[ map[i] ]
-     * for ( T_Id iNew = 0u; iNew < miNewToiSpatial->nElements ; ++iNew )
-     *     iNewToiComposition.at( iNew ) = miNewToi->host[ miNewToiSpatial->host[ iNew ] ];
-     */
-    thrust::gather( thrust::system::cuda::par,
-        miNewToiSpatial    ->gpu,
-        miNewToiSpatial    ->gpu + miNewToiSpatial->nElements,
-        miNewToi           ->gpu,
-        miNewToiComposition->gpu
-    );
-    std::swap( miNewToi->gpu, miNewToiComposition->gpu ); // avoiding memcpy by swapping pointers on GPU
-    kernelInvertMapping<<< nBlocksP, nThreads >>>( miNewToi->gpu, miToiNew->gpu, miNewToi->nElements );
-    for ( auto iSpecies = 0u; iSpecies < mnElementsInGroup.size(); ++iSpecies )
-    {
-        kernelApplyMappingToNeighbors<<< nBlocksP, nThreads, 0, mStream >>>(
-            mNeighbors           ->gpu,
-            miNewToi             ->gpu + mviSubGroupOffsets[ iSpecies ],
-            miToiNew             ->gpu,
-            mNeighborsSorted     ->gpu + mNeighborsSortedInfo.getMatrixOffsetElements( iSpecies ),
-            mNeighborsSortedInfo.getMatrixPitchElements( iSpecies ),
-            mNeighborsSortedSizes->gpu + mviSubGroupOffsets[ iSpecies ],
-            mnElementsInGroup[ iSpecies ]
-        );
-    }
-
-    /* kernelUndoPolymerSystemSorting followed by kernelSplitMonomerPositions
-     * basically just avoids using two temporary arrays for the resorting of
-     * mPolymerSystemSorted and mviPolymerSystemSortedVirtualBox */
-
-    /* dependent on:
-     *   kernelUndoPolymerSystemSorting (mPolymerSystem)
-     *   thrust::transform (mPolymerSystemSorted)
-     *   thrust::gather (miNewToi)
-     */
-    kernelSplitMonomerPositions< T_UCoordinateCuda >
-    <<< nBlocksP, nThreads, 0, mStream >>>(
-        mPolymerSystem                  ->gpu,
-        miNewToi                        ->gpu,
-        mviPolymerSystemSortedVirtualBox->gpu,
-        mPolymerSystemSorted            ->gpu,
-        mnMonomersPadded
-    );
-
-    CUDA_ERROR( cudaMemcpyAsync( mPolymerSystemSortedOld->gpu, mPolymerSystemSorted->gpu, mPolymerSystemSortedOld->nBytes, cudaMemcpyDeviceToDevice, mStream ) );
 }
 
 template< typename T_UCoordinateCuda >
@@ -1724,10 +1340,8 @@ void UpdaterGPUScBFM< T_UCoordinateCuda >::initializeSortedNeighbors( void )
         mLog( "Info" )
         << "Allocated mNeighborsSortedSizes with "
         << mNeighborsSortedSizes->nElements << " elements in "
-        << mNeighborsSortedSizes->nBytes/1024/1024. << "MB \n";//("
-//         << mNeighborsSortedSizes.getRequiredElements() << ","
-//         << mNeighborsSortedSizes.getRequiredBytes() << "B)\n";
-        
+        << mNeighborsSortedSizes->nBytes/1024/1024. << "MB \n";
+
         mLog( "Info" ) << "mNeighborsSortedInfo:\n";
         for ( size_t iSpecies = 0u; iSpecies < mnElementsInGroup.size(); ++iSpecies )
         {
@@ -1735,10 +1349,6 @@ void UpdaterGPUScBFM< T_UCoordinateCuda >::initializeSortedNeighbors( void )
             << "== matrix/species " << iSpecies << " ==\n"
             << "offset:" << mNeighborsSortedInfo.getMatrixOffsetElements( iSpecies ) << " elements = "
                          << mNeighborsSortedInfo.getMatrixOffsetBytes   ( iSpecies ) << "B\n"
-            //<< "rows  :" << mNeighborsSortedInfo.getOffsetElements() << " elements = "
-            //             << mNeighborsSortedInfo.getOffsetBytes() << "B\n"
-            //<< "cols  :" << mNeighborsSortedInfo.getOffsetElements() << " elements = "
-            //             << mNeighborsSortedInfo.getOffsetBytes() << "B\n"
             << "pitch :" << mNeighborsSortedInfo.getMatrixPitchElements( iSpecies ) << " elements = "
                          << mNeighborsSortedInfo.getMatrixPitchBytes   ( iSpecies ) << "B\n";
         }
@@ -1860,54 +1470,53 @@ void UpdaterGPUScBFM< T_UCoordinateCuda >::initializeSortedMonomerPositions( voi
 	  mnMonomersPadded
       );
     }else{
-      mLog( "Info" ) << "[" << __FILENAME__ << "::initializeSortedMonomerPositions] sort mPolymerSystem -> mPolymerSystemSorted ...\n";
-      for ( T_Id i = 0u; i < mnAllMonomers; ++i )
-      {
-	  if ( i < 20 )
-	      mLog( "Info" ) << "Write " << i << " to " << this->miToiNew->host[i] << "\n";
+        mLog( "Info" ) << "[" << __FILENAME__ << "::initializeSortedMonomerPositions] sort mPolymerSystem -> mPolymerSystemSorted ...\n";
+        auto constexpr boxSizeCudaType = 1ll << ( sizeof( T_UCoordinateCuda ) * CHAR_BIT ); 
+        for ( T_Id i = 0u; i < mnAllMonomers; ++i ){
+            if ( i < 20 )
+                mLog( "Info" ) << "Write " << i << " to " << this->miToiNew->host[i] << "\n";
 
-	  auto const x = mPolymerSystem->host[i].x;
-	  auto const y = mPolymerSystem->host[i].y;
-	  auto const z = mPolymerSystem->host[i].z;
-
-// 	  mPolymerSystemSorted->host[ miToiNew->host[i] ].x = x & mBoxXM1;
-// 	  mPolymerSystemSorted->host[ miToiNew->host[i] ].y = y & mBoxYM1;
-// 	  mPolymerSystemSorted->host[ miToiNew->host[i] ].z = z & mBoxZM1;
-          mPolymerSystemSorted->host[ miToiNew->host[i] ].x = x % mBoxX;
-	  mPolymerSystemSorted->host[ miToiNew->host[i] ].y = y % mBoxY;
-	  mPolymerSystemSorted->host[ miToiNew->host[i] ].z = z % mBoxZ;
-	  mPolymerSystemSorted->host[ miToiNew->host[i] ].w = mNeighbors->host[i].size;
-
-// 	  mviPolymerSystemSortedVirtualBox->host[ miToiNew->host[i] ].x = ( x - ( x & mBoxXM1 ) ) / mBoxX;
-// 	  mviPolymerSystemSortedVirtualBox->host[ miToiNew->host[i] ].y = ( y - ( y & mBoxYM1 ) ) / mBoxY;
-// 	  mviPolymerSystemSortedVirtualBox->host[ miToiNew->host[i] ].z = ( z - ( z & mBoxZM1 ) ) / mBoxZ;
-          
-          mviPolymerSystemSortedVirtualBox->host[ miToiNew->host[i] ].x = ( x - ( x % mBoxX ) ) / mBoxX;
-	  mviPolymerSystemSortedVirtualBox->host[ miToiNew->host[i] ].y = ( y - ( y % mBoxY ) ) / mBoxY;
-	  mviPolymerSystemSortedVirtualBox->host[ miToiNew->host[i] ].z = ( z - ( z % mBoxZ ) ) / mBoxZ;
-
-	  auto const pTarget  = &mPolymerSystemSorted            ->host[ miToiNew->host[i] ];
-	  auto const pTarget2 = &mviPolymerSystemSortedVirtualBox->host[ miToiNew->host[i] ];
-	  if ( ! ( ( (T_Coordinate) pTarget->x + (T_Coordinate) pTarget2->x * (T_Coordinate) mBoxX == x ) &&
-		  ( (T_Coordinate) pTarget->y + (T_Coordinate) pTarget2->y * (T_Coordinate) mBoxY == y ) &&
-		  ( (T_Coordinate) pTarget->z + (T_Coordinate) pTarget2->z * (T_Coordinate) mBoxZ == z )
-	  ) )
-	  {
-	      std::stringstream msg;
-	      msg << "[" << __FILENAME__ << "::initializeSortedMonomerPositions] "
-		  << "Error while trying to compress the globale positions into box size modulo and number of virtual box the monomer resides in. Virtual box number "
-		  << "(" << pTarget2->x << "," << pTarget2->y << "," << pTarget2->z << ")"
-		  << ", wrapped position: "
-		  << "(" << pTarget->x << "," << pTarget->y << "," << pTarget->z << ")"
-		  << " => reconstructed global position ("
-		  << pTarget->x + pTarget2->x * mBoxX << ","
-		  << pTarget->y + pTarget2->y * mBoxY << ","
-		  << pTarget->z + pTarget2->z * mBoxZ << ")"
-		  << " should be equal to the input position: "
-		  << "(" << x << "," << y << "," << z << ")"
-		  << std::endl;
-	      throw std::runtime_error( msg.str() );
-	  }
+            auto const x = mPolymerSystem->host[i].x;
+            auto const y = mPolymerSystem->host[i].y;
+            auto const z = mPolymerSystem->host[i].z;
+            if (useOverflowChecks){
+                mPolymerSystemSorted->host[ miToiNew->host[i] ].x = x % boxSizeCudaType;
+                mPolymerSystemSorted->host[ miToiNew->host[i] ].y = y % boxSizeCudaType;
+                mPolymerSystemSorted->host[ miToiNew->host[i] ].z = z % boxSizeCudaType;
+                mPolymerSystemSorted->host[ miToiNew->host[i] ].w = mNeighbors->host[i].size;
+                
+                mviPolymerSystemSortedVirtualBox->host[ miToiNew->host[i] ].x = ( x - ( x % boxSizeCudaType ) ) / boxSizeCudaType;
+                mviPolymerSystemSortedVirtualBox->host[ miToiNew->host[i] ].y = ( y - ( y % boxSizeCudaType ) ) / boxSizeCudaType;
+                mviPolymerSystemSortedVirtualBox->host[ miToiNew->host[i] ].z = ( z - ( z % boxSizeCudaType ) ) / boxSizeCudaType;
+            }else {
+                mPolymerSystemSorted->host[ miToiNew->host[i] ].x = x ;
+                mPolymerSystemSorted->host[ miToiNew->host[i] ].y = y ;
+                mPolymerSystemSorted->host[ miToiNew->host[i] ].z = z ;
+                mPolymerSystemSorted->host[ miToiNew->host[i] ].w = mNeighbors->host[i].size;
+                mviPolymerSystemSortedVirtualBox->host[ miToiNew->host[i] ].x = 0;
+                mviPolymerSystemSortedVirtualBox->host[ miToiNew->host[i] ].y = 0;
+                mviPolymerSystemSortedVirtualBox->host[ miToiNew->host[i] ].z = 0;
+            }
+            auto const pTarget  = &mPolymerSystemSorted            ->host[ miToiNew->host[i] ];
+            auto const pTarget2 = &mviPolymerSystemSortedVirtualBox->host[ miToiNew->host[i] ];
+            if ( ! ( ( (T_Coordinate) pTarget->x + (T_Coordinate) pTarget2->x * (T_Coordinate) boxSizeCudaType == x ) &&
+                     ( (T_Coordinate) pTarget->y + (T_Coordinate) pTarget2->y * (T_Coordinate) boxSizeCudaType == y ) &&
+                     ( (T_Coordinate) pTarget->z + (T_Coordinate) pTarget2->z * (T_Coordinate) boxSizeCudaType == z )    ) ){
+                std::stringstream msg;
+                msg << "[" << __FILENAME__ << "::initializeSortedMonomerPositions] "
+                << "Error while trying to compress the globale positions into box size modulo and number of virtual box the monomer resides in. Virtual box number "
+                << "(" << pTarget2->x << "," << pTarget2->y << "," << pTarget2->z << ")"
+                << ", wrapped position: "
+                << "(" << pTarget->x << "," << pTarget->y << "," << pTarget->z << ")"
+                << " => reconstructed global position ("
+                << pTarget->x + pTarget2->x * boxSizeCudaType << ","
+                << pTarget->y + pTarget2->y * boxSizeCudaType << ","
+                << pTarget->z + pTarget2->z * boxSizeCudaType << ")"
+                << " should be equal to the input position: "
+                << "(" << x << "," << y << "," << z << ")"
+                << std::endl;
+                throw std::runtime_error( msg.str() );
+            }
       }
       mPolymerSystemSorted            ->pushAsync();
       mviPolymerSystemSortedVirtualBox->pushAsync();
@@ -1948,9 +1557,7 @@ void UpdaterGPUScBFM< T_UCoordinateCuda >::initializeLattices( void )
     mLatticeOut  = new MirroredTexture< T_Lattice >( mBoxX * mBoxY * mBoxZ, mStream );
     mLog ( "Info" ) << "UpdaterGPUScBFM< T_UCoordinateCuda >::initializeLattices pushed mLatticeOut.done \n"; 
     mLatticeTmp  = new MirroredTexture< T_Lattice >( nBytesLatticeTmp     , mStream );
-    mLatticeTmp2 = new MirroredTexture< T_Lattice >( mBoxX * mBoxY * mBoxZ, mStream );
     mLatticeTmp ->memsetAsync(0); // async as it is next needed in runSimulationOnGPU
-    mLatticeTmp2->memsetAsync(0);
     cudaMemGetInfo(&free, &total);
     mLog ( "Info" ) << "UpdaterGPUScBFM< T_UCoordinateCuda >::initializeLattices free mem : "<< free/1024/1024.  << "MB\n" ;  
     mLog ( "Info" ) << "UpdaterGPUScBFM< T_UCoordinateCuda >::initializeLattices total mem: "<< total/1024/1024. << "MB\n" ;      
@@ -2219,9 +1826,6 @@ void UpdaterGPUScBFM< T_UCoordinateCuda >::initialize( void )
         << " - maximum connectivity is " << MAX_CONNECTIVITY << "\n"
     #endif	
     ;
-    if ( mUsePeriodicMonomerSorting )
-        mLog( "Info" ) << " - periodically sorting the monomers inside the array in respect to their spatial position every " << mnStepsBetweenSortings << "-th step to increase cache hit rates\n";
-
     mLog( "Info" ) << "use randomg number generator Saru " << "\n";
     
     //I m not sure wether this check is neccesary and/or sufficient!!! 
@@ -2259,8 +1863,6 @@ void UpdaterGPUScBFM< T_UCoordinateCuda >::initialize( void )
 //     checkSystem();
     initializeLattices();
     
-//     if ( mAge != 0 )
-//         doSpatialSorting();
     boxCheck.initialize( mIsPeriodicX, mIsPeriodicY, mIsPeriodicZ );
     /* only do checks for uint8_t and uint16_t, for all signed data types
      * we kinda assume the user to think himself smart enough that he does
@@ -2700,8 +2302,12 @@ void UpdaterGPUScBFM< T_UCoordinateCuda >::checkSystem() const
 {
     if ( ! mLog.isActive( "Check" ) )
         return;
-    checkLatticeOccupation();
-    checkBonds();
+    else {
+        std::cout  << "Check lattice occupation:" << std::endl;;
+        checkLatticeOccupation(); 
+        std::cout << "Check bond connection:" <<std::endl;
+        checkBonds();
+    }
 }
 
 #include <LeMonADEGPU/utility/AutomaticThreadChooser.h>
@@ -2716,73 +2322,12 @@ void UpdaterGPUScBFM< T_UCoordinateCuda >::runSimulationOnGPU
     CUDA_ERROR( cudaStreamSynchronize( mStream ) ); // finish e.g. initializations
     CUDA_ERROR( cudaMemcpy( mPolymerSystemSortedOld->gpu, mPolymerSystemSorted->gpu, mPolymerSystemSortedOld->nBytes, cudaMemcpyDeviceToDevice ) );
     auto const nSpecies = mnElementsInGroup.size();
-// 
-    /**
-     * Statistics (min, max, mean, stddev) on filtering. Filtered because of:
-     *   0: bonds, 1: volume exclusion, 2: volume exclusion (parallel)
-     * These statistics are done for each group separately
-     */
-    std::vector< std::vector< double > > sums, sums2, mins, maxs, ns;
-    std::vector< unsigned long long int > vFiltered;
-    unsigned long long int * dpFiltered = NULL;
-    auto constexpr nFilters = 5;
-    if ( mLog.isActive( "Stats" ) )
-    {
-        sums .resize( nSpecies, std::vector< double >( nFilters, 0             ) );
-        sums2.resize( nSpecies, std::vector< double >( nFilters, 0             ) );
-        mins .resize( nSpecies, std::vector< double >( nFilters, mnAllMonomers ) );
-        maxs .resize( nSpecies, std::vector< double >( nFilters, 0             ) );
-        ns   .resize( nSpecies, std::vector< double >( nFilters, 0             ) );
-        /* ns needed because we need to know how often each group was advanced */
-        vFiltered.resize( nFilters );
-        CUDA_ERROR( cudaMalloc( &dpFiltered, nFilters * sizeof( *dpFiltered ) ) );
-        CUDA_ERROR( cudaMemsetAsync( (void*) dpFiltered, 0, nFilters * sizeof( *dpFiltered ), mStream ) );
-    }
-     /**
-     * should never lead to a speedup and non power of twos, e.g. 196 even,
-     * won't be able to perfectly fill out the shared multi processor.
-     * Also, automatically determine whether cudaMemset is faster or not (after
-     * we found the best threads per block configuration
-     * note: test example best configuration was 128 threads per block and use
-     *       the cudaMemset version instead of the third kernel
-     */
-    std::vector< int > vnThreadsToTry;
-    for ( auto nThreads = mCudaProps.warpSize; nThreads <= mCudaProps.maxThreadsPerBlock; nThreads *= 2 )
-        vnThreadsToTry.push_back( nThreads );
-    assert( vnThreadsToTry.size() > 0 );
-    struct SpeciesBenchmarkData
-    {
-        /* 2 vectors of double for measurements with and without cudaMemset */
-        std::vector< std::vector< float > > timings;
-        std::vector< std::vector< int   > > nRepeatTimings;
-        int iBestThreadCount;
-        bool useCudaMemset;
-        bool decidedAboutThreadCount;
-        bool decidedAboutCudaMemset;
-    };
-    std::vector< SpeciesBenchmarkData > benchmarkInfo( nSpecies, SpeciesBenchmarkData{
-        std::vector< std::vector< float > >( 2 /* true or false */,
-            std::vector< float >( vnThreadsToTry.size(),
-                std::numeric_limits< float >::infinity() ) ),
-        std::vector< std::vector< int   > >( 2 /* true or false */,
-            std::vector< int   >( vnThreadsToTry.size(),
-            2 /* repeat 2 time, i.e. execute three times */ ) ),
-        2, true, true, true
-    } );
-    cudaEvent_t tOneGpuLoop0, tOneGpuLoop1;
-    cudaEventCreate( &tOneGpuLoop0 );
-    cudaEventCreate( &tOneGpuLoop1 );
-
-    std::vector< uint64_t > nSpeciesChosen( nSpecies ,0 );
+    AutomaticThreadChooser chooseThreads(nSpecies);
+    chooseThreads.initialize(mCudaProps);
 
     /* run simulation */
     for ( uint32_t iStep = 0; iStep < nMonteCarloSteps; ++iStep, ++mAge )
     {
-        if ( mUsePeriodicMonomerSorting && ( mAge % mnStepsBetweenSortings == 0 ) )
-        {
-            mLog( "Info" ) << "Resorting at age / step " << mAge << "\n";
-            doSpatialSorting();
-        }
         if ( useOverflowChecks )
         {
             /**
@@ -2806,29 +2351,23 @@ void UpdaterGPUScBFM< T_UCoordinateCuda >::runSimulationOnGPU
          *  - each particle could be touched, not just one group */
         for ( uint32_t iSubStep = 0; iSubStep < nSpecies; ++iSubStep ){
             auto const iStepTotal = iStep * nSpecies + iSubStep;
-            auto  iOffsetLatticeTmp = ( iStepTotal % mnLatticeTmpBuffers )
-            * ( mBoxX * mBoxY * mBoxZ * sizeof( mLatticeTmp->gpu[0] ));
-            if (met.getPacking().getBitPackingOn()) 
-            iOffsetLatticeTmp /= CHAR_BIT;
-            auto texLatticeTmp = mvtLatticeTmp[ iStepTotal % mnLatticeTmpBuffers ];
-
+            auto iOffsetLatticeTmp = 0u;
+            auto texLatticeTmp = mLatticeTmp->texture;
+            
             if (met.getPacking().getNBufferedTmpLatticeOn()) {
-                    iOffsetLatticeTmp = 0u;
-                    texLatticeTmp = mLatticeTmp->texture;
+                iOffsetLatticeTmp = ( iStepTotal % mnLatticeTmpBuffers )
+                * ( mBoxX * mBoxY * mBoxZ * sizeof( mLatticeTmp->gpu[0] ));
+                if (met.getPacking().getBitPackingOn()) 
+                    iOffsetLatticeTmp /= CHAR_BIT;
+                texLatticeTmp = mvtLatticeTmp[ iStepTotal % mnLatticeTmpBuffers ];
             }
             /* randomly choose which monomer group to advance */
             auto const iSpecies = randomNumbers.r250_rand32() % nSpecies;
             auto const seed     = randomNumbers.r250_rand32();
-            auto const nThreads = vnThreadsToTry.at( benchmarkInfo[ iSpecies ].iBestThreadCount );
+            auto const nThreads = chooseThreads.getBestThread(iSpecies);
             auto const nBlocks  = ceilDiv( mnElementsInGroup[ iSpecies ], nThreads );
-            auto const needToBenchmark = ! (
-                benchmarkInfo[ iSpecies ].decidedAboutThreadCount &&
-                benchmarkInfo[ iSpecies ].decidedAboutCudaMemset );
-            auto const useCudaMemset = benchmarkInfo[ iSpecies ].useCudaMemset;
-            if ( needToBenchmark )
-                cudaEventRecord( tOneGpuLoop0, mStream );
-
-            nSpeciesChosen[ iSpecies ] += 1;
+            auto const useCudaMemset = chooseThreads.useCudaMemset(iSpecies);
+            chooseThreads.addRecord(iSpecies, mStream);
 
             /*
             if ( iStep < 3 )
@@ -2836,37 +2375,12 @@ void UpdaterGPUScBFM< T_UCoordinateCuda >::runSimulationOnGPU
             */
             if (!diagMovesOn) {
                 launch_CheckSpecies<6>(nBlocks, nThreads, iSpecies, iOffsetLatticeTmp, seed);
-                /** The counting kernel can come after the Check-kernel, because the
-                * Check-kernel only modifies the polymer flags which it does not
-                * read itself. It actually wouldn't work else, because the count
-                * kernel needs to query the drawn direction 
-                * @todo find the bug !!!
-                */
-                //somehow it does not work with the boxCheck method. 
-            // 	    launch_CountFilteredCheck(nBlocks,nThreads,iSpecies, texLatticeTmp, dpFiltered, iOffsetLatticeTmp);
-
-                if ( mLog.isActive( "Stats" ) )
-                    launch_countFilteredPerform(nBlocks,nThreads, iSpecies, texLatticeTmp, dpFiltered);
-
                 if ( useCudaMemset )
                     launch_PerformSpeciesAndApply(nBlocks, nThreads, iSpecies, texLatticeTmp);
                 else
                     launch_PerformSpecies(nBlocks,nThreads,iSpecies,texLatticeTmp );
             }else{
                 launch_CheckSpecies<18>(nBlocks, nThreads, iSpecies, iOffsetLatticeTmp, seed);
-
-                /** The counting kernel can come after the Check-kernel, because the
-                * Check-kernel only modifies the polymer flags which it does not
-                * read itself. It actually wouldn't work else, because the count
-                * kernel needs to query the drawn direction 
-                * @todo find the bug !!!
-                */
-                //somehow it does not work with the boxCheck method. 
-            // 	    launch_CountFilteredCheck(nBlocks,nThreads,iSpecies, texLatticeTmp, dpFiltered, iOffsetLatticeTmp);
-
-                if ( mLog.isActive( "Stats" ) )
-                    launch_countFilteredPerform(nBlocks,nThreads, iSpecies, texLatticeTmp, dpFiltered);
-
                 if ( useCudaMemset )
                     launch_PerformSpeciesAndApply(nBlocks, nThreads, iSpecies, texLatticeTmp );
                 else
@@ -2886,100 +2400,14 @@ void UpdaterGPUScBFM< T_UCoordinateCuda >::runSimulationOnGPU
                     mLatticeTmp->memsetAsync(0);
             }
             else
-            launch_ZeroArraySpecies(nBlocks,nThreads,iSpecies);
-
-            if ( needToBenchmark )
-            {
-            auto & info = benchmarkInfo[ iSpecies ];
-            cudaEventRecord( tOneGpuLoop1, mStream );
-            cudaEventSynchronize( tOneGpuLoop1 );
-            float milliseconds = 0;
-            cudaEventElapsedTime( & milliseconds, tOneGpuLoop0, tOneGpuLoop1 );
-            auto const iThreadCount = info.iBestThreadCount;
-            auto & oldTiming = info.timings.at( useCudaMemset ).at( iThreadCount );
-            oldTiming = std::min( oldTiming, milliseconds );
-
-            mLog( "Info" )
-            << "Using " << nThreads << " threads (" << nBlocks << " blocks)"
-            << " and using " << ( useCudaMemset ? "cudaMemset" : "kernelZeroArray" )
-            << " for species " << iSpecies << " took " << milliseconds << "ms\n";
-
-            auto & nStillToRepeat = info.nRepeatTimings.at( useCudaMemset ).at( iThreadCount );
-            if ( nStillToRepeat > 0 )
-                --nStillToRepeat;
-            else if ( ! info.decidedAboutThreadCount )
-            {
-                /* if not the first timing, then decide whether we got slower,
-                * i.e. whether we found the minimum in the last step and
-                * have to roll back */
-                if ( iThreadCount > 0 )
-                {
-                if ( info.timings.at( useCudaMemset ).at( iThreadCount-1 ) < milliseconds )
-                {
-                    --info.iBestThreadCount;
-                    info.decidedAboutThreadCount = true;
-                }
-                else
-                    ++info.iBestThreadCount;
-                }
-                else
-                ++info.iBestThreadCount;
-                /* if we can't increment anymore, then we are finished */
-                assert( (size_t) info.iBestThreadCount <= vnThreadsToTry.size() );
-                if ( (size_t) info.iBestThreadCount == vnThreadsToTry.size() )
-                {
-                --info.iBestThreadCount;
-                info.decidedAboutThreadCount = true;
-                }
-                if ( info.decidedAboutThreadCount )
-                {
-                /* then in the next term try out changing cudaMemset
-                    * version to custom kernel version (or vice-versa) */
-                if ( ! info.decidedAboutCudaMemset )
-                    info.useCudaMemset = ! info.useCudaMemset;
-                mLog( "Info" )
-                << "Using " << vnThreadsToTry.at( info.iBestThreadCount )
-                << " threads per block is the fastest for species "
-                << iSpecies << ".\n";
-                }
-            }
-            else if ( ! info.decidedAboutCudaMemset )
-            {
-                info.decidedAboutCudaMemset = true;
-                if ( info.timings.at( ! useCudaMemset ).at( iThreadCount ) < milliseconds )
-                info.useCudaMemset = ! useCudaMemset;
-                if ( info.decidedAboutCudaMemset )
-                {
-                mLog( "Info" )
-                << "Using " << ( info.useCudaMemset ? "cudaMemset" : "kernelZeroArray" )
-                << " is the fastest for species " << iSpecies << ".\n";
-                }
-            }
-            }
-
-                if ( mLog.isActive( "Stats" ) )
-                {
-                    CUDA_ERROR( cudaMemcpyAsync( (void*) &vFiltered.at(0), (void*) dpFiltered,
-                        nFilters * sizeof( *dpFiltered ), cudaMemcpyDeviceToHost, mStream ) );
-                    CUDA_ERROR( cudaStreamSynchronize( mStream ) );
-                    CUDA_ERROR( cudaMemsetAsync( (void*) dpFiltered, 0, nFilters * sizeof( *dpFiltered ), mStream ) );
-
-                    for ( auto iFilter = 0u; iFilter < nFilters; ++iFilter )
-                    {
-                        double const x = vFiltered.at( iFilter );
-                        sums .at( iSpecies ).at( iFilter ) += x;
-                        sums2.at( iSpecies ).at( iFilter ) += x*x;
-                        mins .at( iSpecies ).at( iFilter ) = std::min( mins.at( iSpecies ).at( iFilter ), x );
-                        maxs .at( iSpecies ).at( iFilter ) = std::max( maxs.at( iSpecies ).at( iFilter ), x );
-                        ns   .at( iSpecies ).at( iFilter ) += 1;
-                    }
-                }
+                launch_ZeroArraySpecies(nBlocks,nThreads,iSpecies);
+            chooseThreads.analyze(iSpecies,mStream);
         } // iSubstep
         //calculate the density in the sheared volumes:
         if (densityCheckerOn){
             for ( uint32_t i = 0; i < nSpecies; ++i ){
                 //
-                auto const nThreads = vnThreadsToTry.at( benchmarkInfo[ i ].iBestThreadCount );
+                auto const nThreads = chooseThreads.getBestThread(i);
                 auto const nBlocks  = ceilDiv( mnElementsInGroup[ i ], nThreads );
                 densityChecker.launch_countMonomers(
                 mPolymerSystemSorted,
@@ -2994,102 +2422,15 @@ void UpdaterGPUScBFM< T_UCoordinateCuda >::runSimulationOnGPU
     } // iStep
     if (densityCheckerOn)
         densityChecker.printResults();
-    if ( mLog.isActive( "Stats" ) && dpFiltered != NULL )
-    {
-        if ( mnElementsInGroup.size() <= 8 )
-        for ( auto iSpecies = 0u; iSpecies < nSpecies; ++iSpecies )
-            mLog( "Stats" ) << "Group " << char( 'A' + iSpecies ) << " was chosen " << nSpeciesChosen[ iSpecies ] << " times\n";
 
-        mLog( "Stats" ) << "Filter analysis. Format:\n" << "Filter Reason: min | mean +- stddev | max\n";
-        std::map< int, std::string > filterNames;
-        filterNames[0] = "Box Boundaries";
-        filterNames[1] = "Invalid Bonds";
-        filterNames[2] = "Volume Exclusion";
-        filterNames[3] = "! Invalid Bonds && Volume Exclusion";
-        filterNames[4] = "! Invalid Bonds && ! Volume Exclusion && Parallel Volume Exclusion";
-
-        if ( mnElementsInGroup.size() <= 8 )
-        for ( auto iGroup = 0u; iGroup < mnElementsInGroup.size(); ++iGroup )
-        {
-            mLog( "Stats" ) << "\n=== Group " << char( 'A' + iGroup ) << " (" << mnElementsInGroup[ iGroup ] << ") ===\n";
-            for ( auto iFilter = 0u; iFilter < nFilters; ++iFilter )
-            {
-                double const nRepeats = ns   .at( iGroup ).at( iFilter );
-                double const mean     = sums .at( iGroup ).at( iFilter ) / nRepeats;
-                double const sum2     = sums2.at( iGroup ).at( iFilter ) / nRepeats;
-                double const min      = mins .at( iGroup ).at( iFilter );
-                double const max      = maxs .at( iGroup ).at( iFilter );
-                double const stddev   = std::sqrt( nRepeats/(nRepeats-1.) * ( sum2 - mean * mean ) );
-                mLog( "Stats" )
-                    << filterNames[iFilter] << ": "
-                    << min  << "(" << 100. * min  / mnElementsInGroup[ iGroup ] << "%) | "
-                    << mean << "(" << 100. * mean / mnElementsInGroup[ iGroup ] << "%) +- "
-                    << stddev << " | "
-                    << max  << "(" << 100. * max  / mnElementsInGroup[ iGroup ] << "%)\n";
-            }
-            if ( sums.at( iGroup ).at(0) != 0 )
-                mLog( "Stats" ) << "The value for remeaining particles after first kernel will be wrong if we have non-periodic boundary conditions (todo)!\n";
-            auto const nAvgFilteredKernel1 = (double)( sums.at( iGroup ).at(1) + sums.at( iGroup ).at(3) ) / ns.at( iGroup ).at(3);
-            mLog( "Stats" ) << "Remaining after 1st kernel: " << mnElementsInGroup[ iGroup ] - nAvgFilteredKernel1 << "(" << 100. * ( mnElementsInGroup[ iGroup ] - nAvgFilteredKernel1 ) / mnElementsInGroup[ iGroup ] << "%)\n";
-            auto const nAvgFilteredKernel2 = (double) sums.at( iGroup ).at(4) / ns.at( iGroup ).at(4);
-            auto const percentageMoved = ( mnElementsInGroup[ iGroup ] - nAvgFilteredKernel1 - nAvgFilteredKernel2 ) / mnElementsInGroup[ iGroup ];
-            mLog( "Stats" ) << "For parallel collisions it's interesting to give the percentage of sorted particles in relation to whose who can actually still move, not in relation to ALL particles\n"
-                << "    Third kernel gets " << mnElementsInGroup[ iGroup ] << " monomers, but first kernel (bonds, box, volume exclusion) already filtered " << nAvgFilteredKernel1 << "(" << 100. * nAvgFilteredKernel1 / mnElementsInGroup[ iGroup ] << "%) which the 2nd kernel has to refilter again (if no stream compaction is used).\n"
-                << "    Then from the remaining " << mnElementsInGroup[ iGroup ] - nAvgFilteredKernel1 << "(" << 100. * ( mnElementsInGroup[ iGroup ] - nAvgFilteredKernel1 ) / mnElementsInGroup[ iGroup ] << "%) the 2nd kernel filters out another " << nAvgFilteredKernel2 << " particles which in relation to the particles which actually still could move before is: " << 100. * nAvgFilteredKernel2 / ( mnElementsInGroup[ iGroup ] - nAvgFilteredKernel1 ) << "% and in relation to the total particles: " << 100. * nAvgFilteredKernel2 / mnElementsInGroup[ iGroup ] << "%\n"
-                << "    Therefore in total (all three kernels) and on average (multiple salves of three kernels) " << ( mnElementsInGroup[ iGroup ] - nAvgFilteredKernel1 - nAvgFilteredKernel2 ) << "(" << 100. * percentageMoved << "%) particles can be moved per step. I.e. it takes on average " << 1. / percentageMoved << " Monte-Carlo steps per monomer until a monomer actually changes position.\n";
-        }
-
-        /* Give total statistics not separated by species. Currently this only works if species all have the same number of monomers because the statistics are done over the actual filtered cound instead of the percentages */
-        if ( mnElementsInGroup.size() > 1 )
-        {
-            mLog( "Stats" ) << "\n\n==== Total Filtering Statistics over all Species ====\n";
-            std::vector< double > totSums ( nFilters, 0 );
-            std::vector< double > totSums2( nFilters, 0 );
-            std::vector< double > totMins ( nFilters, 0 );
-            std::vector< double > totMaxs ( nFilters, 0 );
-            std::vector< double > totNs   ( nFilters, 0 );
-            for ( auto iFilter = 0u; iFilter < nFilters; ++iFilter )
-            {
-                for ( auto iGroup = 0u; iGroup < mnElementsInGroup.size(); ++iGroup )
-                {
-                    totSums [ iFilter ] += sums [ iGroup ][ iFilter ];
-                    totSums2[ iFilter ] += sums2[ iGroup ][ iFilter ];
-                    totNs   [ iFilter ] += ns   [ iGroup ][ iFilter ];
-                    totMins [ iFilter ] += mins [ iGroup ][ iFilter ];
-                    totMaxs [ iFilter ] += maxs [ iGroup ][ iFilter ];
-                }
-                double const nRepeats = nMonteCarloSteps; // totNs   [ iFilter ];
-                double const mean     = totSums [ iFilter ] / nRepeats;
-                double const sum2     = totSums2[ iFilter ] / nRepeats;
-                double const min      = totMins [ iFilter ];
-                double const max      = totMaxs [ iFilter ];
-                double const stddev   = std::sqrt( nRepeats/(nRepeats-1.) * ( sum2 - mean * mean ) );
-                // sum2 - mean*mean can get negative ... meh
-                /*
-                std::cout << "sums2 = " << sums2[0][iFilter] << "," << sums2[1][iFilter] << "\n";
-                std::cout << "mean  = " << mean << ", nRepeats = " << nRepeats << "\n";
-                std::cout << "sum2 - mean * mean  = " << sum2 - mean * mean << "\n";
-                std::cout << "sum2 - mean * mean  = " << sum2 - mean * mean << "\n";
-                */
-                mLog( "Stats" )
-                    << filterNames[iFilter] << ": "
-                    << min  << "(" << 100. * min  / mnAllMonomers << "%) | "
-                    << mean << "(" << 100. * mean / mnAllMonomers << "%) +- "
-                    << stddev << " | "
-                    << max  << "(" << 100. * max  / mnAllMonomers << "%)\n";
-            }
-        }
-
-        CUDA_ERROR( cudaFree( dpFiltered ) );
-    }
-    doCopyBack();
-    checkSystem(); // no-op if "Check"-level deactivated
     std::clock_t const t1 = std::clock();
     double const dt = float(t1-t0) / CLOCKS_PER_SEC;
     mLog( "Info" )
     << "run time (GPU): " << nMonteCarloSteps << "\n"
     << "mcs = " << nMonteCarloSteps  << "  speed [performed monomer try and move/s] = MCS*N/t: "
     << nMonteCarloSteps * ( mnAllMonomers / dt )  << "     runtime[s]:" << dt << "\n";
+    doCopyBack();
+    checkSystem(); // no-op if "Check"-level deactivated
 }
 
 template< typename T_UCoordinateCuda >
@@ -3106,6 +2447,7 @@ void UpdaterGPUScBFM< T_UCoordinateCuda >::doCopyBackMonomerPositions()
     /* all MCS are done- copy information back from GPU to host */
     if ( mLog.isActive( "Check" ) )
     {
+        mLog( "Check" ) << "Check the tmpLattice occupation  \n";
         mLatticeTmp->pop( false ); // sync
         size_t nOccupied = 0;
         for ( size_t i = 0u; i < mLatticeTmp->nElements; ++i )
@@ -3118,15 +2460,6 @@ void UpdaterGPUScBFM< T_UCoordinateCuda >::doCopyBackMonomerPositions()
         }
     }
     mLog( "Info" ) << "Start copying back  \n";
-    if ( ! met.isONGPUForOverhead()){
-      if ( mUsePeriodicMonomerSorting )
-      {
-	  miNewToi->popAsync();
-	  miToiNew->popAsync(); /* needed for findAndRemoveOverflows, but only if met.isONGPUForOverhead() not set */
-	  CUDA_ERROR( cudaStreamSynchronize( mStream ) );
-	  checkMonomerReorderMapping();
-      }
-    }
     if ( useOverflowChecks )
     {
         findAndRemoveOverflows( false );
@@ -3208,12 +2541,6 @@ void UpdaterGPUScBFM< T_UCoordinateCuda >::doCopyBackConnectivity()
 	                                              mNeighborsSorted->host[ 
 	                                                mNeighborsSortedInfo.getMatrixOffsetElements( iSpecies ) + j * pitch + ( i - mviSubGroupOffsets[ iSpecies ] ) 
 									    ] ];
-// 	    if (iSpecies < 2 && mLog("Info").isActive() )
-// 	    {
-// 	      mLog("Info")  << "New= " << i << " iOld= " <<iOld << " nLink= " << (uint32_t)mNeighborsSortedSizes->host[i] 
-// 			    << " GPUNeighbor= " << mNeighborsSorted->host[ mNeighborsSortedInfo.getMatrixOffsetElements( iSpecies ) + j * pitch + ( i - mviSubGroupOffsets[ iSpecies ] ) ]
-// 			    << " CPUNeighbor= " << mNeighbors->host[ iOld ].neighborIds[j] << "\n" ;
-// 	    }
 	}
     }
 }
